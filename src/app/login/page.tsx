@@ -4,7 +4,7 @@ import { signIn } from "./actions";
 import { Input, Label } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { SubmitButton } from "@/components/shared/SubmitButton";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 
 export default async function LoginPage({
   searchParams,
@@ -13,10 +13,7 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getCurrentUserAndProfile();
   if (user) redirect(params.redirectTo || "/dashboard");
 
   return (

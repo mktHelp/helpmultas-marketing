@@ -1,5 +1,6 @@
 import { ListTodo, CheckCircle2, AlertTriangle, CalendarClock, Video, Percent } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 import { listTasks } from "@/lib/services/tasks";
 import { listAreas, listTaskStatuses } from "@/lib/services/reference";
 import { listProfiles } from "@/lib/services/profiles";
@@ -21,10 +22,7 @@ function greeting() {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
+  const { profile } = await getCurrentUserAndProfile();
 
   const [tasks, areas, profiles, statuses] = await Promise.all([
     listTasks(supabase, {}),

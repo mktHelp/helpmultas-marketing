@@ -139,3 +139,35 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--gray-300);
   border-radius: 999px;
 }
+
+/* Subtle hover motion for icons inside any clickable control (buttons, links,
+   nav items, icon-only actions). Scoped to interactive elements so static
+   illustrative icons elsewhere aren't affected. */
+button svg,
+a svg,
+[role="button"] svg {
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+button:hover svg,
+a:hover svg,
+[role="button"]:hover svg {
+  transform: scale(1.14);
+}
+
+button:active svg,
+a:active svg {
+  transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button svg,
+  a svg,
+  [role="button"] svg,
+  button:hover svg,
+  a:hover svg,
+  [role="button"]:hover svg {
+    transition: none;
+    transform: none;
+  }
+}
