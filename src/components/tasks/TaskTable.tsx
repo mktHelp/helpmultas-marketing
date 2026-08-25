@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/client";
 import { deleteTask, updateTask } from "@/lib/services/tasks";
+import { useTaskStatuses } from "@/lib/task-status-context";
 import { cn, formatDate, isOverdue } from "@/lib/utils";
 import type { TaskWithRelations } from "@/types/database";
 import type { Profile } from "@/types/database";
@@ -31,6 +32,7 @@ export function TaskTable({
   const [selected, setSelected] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const supabase = createClient();
+  const { activeStatuses } = useTaskStatuses();
 
   function toggle(id: string) {
     setSelected((s) => (s.includes(id) ? s.filter((i) => i !== id) : [...s, id]));
@@ -48,7 +50,7 @@ export function TaskTable({
   }
 
   async function bulkStatus(status: string) {
-    await Promise.all(selected.map((id) => updateTask(supabase, id, { status: status as TaskWithRelations["status"] })));
+    await Promise.all(selected.map((id) => updateTask(supabase, id, { status })));
     toast.success(`${selected.length} tarefa(s) atualizadas`);
     setSelected([]);
     onRefresh();
@@ -77,11 +79,7 @@ export function TaskTable({
           </Select>
           <Select className="h-8 w-44 text-xs" onChange={(e) => bulkStatus(e.target.value)} defaultValue="">
             <option value="" disabled>Alterar status</option>
-            <option value="backlog">Backlog</option>
-            <option value="em_producao">Em Produção</option>
-            <option value="em_revisao">Em Revisão</option>
-            <option value="aprovado">Aprovado</option>
-            <option value="concluido">Concluído</option>
+            {activeStatuses.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </Select>
           {canDelete && (
             <Button size="sm" variant="danger" onClick={() => setConfirmDelete(true)} className="gap-1">

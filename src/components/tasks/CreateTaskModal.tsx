@@ -12,7 +12,8 @@ import { listAreas, listCategories, listTags, listTemplates } from "@/lib/servic
 import { listProjects, listCampaigns } from "@/lib/services/projects";
 import { listProfiles } from "@/lib/services/profiles";
 import { createTask } from "@/lib/services/tasks";
-import type { Area, Campaign, Category, Profile, Project, Tag, TaskStatus, TaskTemplate } from "@/types/database";
+import { useTaskStatuses } from "@/lib/task-status-context";
+import type { Area, Campaign, Category, Profile, Project, Tag, TaskTemplate } from "@/types/database";
 
 export function CreateTaskModal({
   open,
@@ -30,6 +31,7 @@ export function CreateTaskModal({
   defaultCampaignId?: string;
 }) {
   const { profile } = useAuth();
+  const { activeStatuses, defaultStatusKey } = useTaskStatuses();
   const supabase = createClient();
 
   const [areas, setAreas] = useState<Area[]>([]);
@@ -50,7 +52,7 @@ export function CreateTaskModal({
     category_id: "",
     assigned_to: "",
     priority: "media",
-    status: defaultStatus || "backlog",
+    status: defaultStatus || defaultStatusKey,
     due_date: "",
     template_id: "",
     tagIds: [] as string[],
@@ -112,7 +114,7 @@ export function CreateTaskModal({
         assigned_to: form.assigned_to || null,
         created_by: profile.id,
         priority: form.priority,
-        status: form.status as TaskStatus,
+        status: form.status,
         due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
         template_id: form.template_id || null,
         tagIds: form.tagIds,
@@ -123,7 +125,7 @@ export function CreateTaskModal({
       onClose();
       setForm({
         title: "", description: "", project_id: "", campaign_id: "", area_id: "",
-        category_id: "", assigned_to: "", priority: "media", status: "backlog",
+        category_id: "", assigned_to: "", priority: "media", status: defaultStatusKey,
         due_date: "", template_id: "", tagIds: [],
       });
     } catch (err) {
@@ -217,13 +219,7 @@ export function CreateTaskModal({
             <div>
               <Label>Status</Label>
               <Select value={form.status} onChange={(e) => update("status", e.target.value)}>
-                <option value="backlog">Backlog</option>
-                <option value="planejamento">Planejamento</option>
-                <option value="em_producao">Em Produção</option>
-                <option value="em_revisao">Em Revisão</option>
-                <option value="aprovado">Aprovado</option>
-                <option value="publicado">Publicado</option>
-                <option value="concluido">Concluído</option>
+                {activeStatuses.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
               </Select>
             </div>
             <div>

@@ -4,16 +4,9 @@
 
 export type UserRole = "master" | "gestor" | "membro";
 export type TaskPriority = "baixa" | "media" | "alta" | "urgente";
-export type TaskStatus =
-  | "backlog"
-  | "planejamento"
-  | "em_producao"
-  | "em_revisao"
-  | "aprovado"
-  | "publicado"
-  | "concluido"
-  | "pausado"
-  | "cancelado";
+// Task stages ("etapas") are user-managed data (see task_statuses table /
+// Settings > Etapas), not a fixed set - any string key defined there is valid.
+export type TaskStatus = string;
 export type ProjectStatus = "planejamento" | "em_andamento" | "pausado" | "concluido" | "cancelado";
 export type CampaignStatus = "planejamento" | "ativa" | "pausada" | "encerrada";
 export type ContentType =
@@ -66,6 +59,19 @@ export interface Category {
   id: string;
   name: string;
   area_id: string | null;
+  created_at: string;
+}
+
+export interface TaskStatusRow {
+  id: string;
+  key: string;
+  label: string;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  is_default: boolean;
+  is_done: boolean;
+  is_cancelled: boolean;
   created_at: string;
 }
 

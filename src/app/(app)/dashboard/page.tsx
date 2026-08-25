@@ -1,7 +1,7 @@
 import { ListTodo, CheckCircle2, AlertTriangle, CalendarClock, Video, Percent } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { listTasks } from "@/lib/services/tasks";
-import { listAreas } from "@/lib/services/reference";
+import { listAreas, listTaskStatuses } from "@/lib/services/reference";
 import { listProfiles } from "@/lib/services/profiles";
 import { computeKpis, byArea, byStatus, productivityByDay, teamRanking, bottlenecks } from "@/lib/stats";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -26,21 +26,23 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
 
-  const [tasks, areas, profiles] = await Promise.all([
+  const [tasks, areas, profiles, statuses] = await Promise.all([
     listTasks(supabase, {}),
     listAreas(supabase),
     listProfiles(supabase),
+    listTaskStatuses(supabase),
   ]);
 
-  const kpis = computeKpis(tasks);
+  const kpis = computeKpis(tasks, statuses);
   const areaData = byArea(tasks, areas);
-  const statusData = byStatus(tasks);
+  const statusData = byStatus(tasks, statuses);
   const productivity = productivityByDay(tasks, 14);
-  const ranking = teamRanking(tasks, profiles);
-  const problems = bottlenecks(tasks);
+  const ranking = teamRanking(tasks, profiles, statuses);
+  const problems = bottlenecks(tasks, statuses);
 
+  const doneOrCancelled = new Set(statuses.filter((s) => s.is_done || s.is_cancelled).map((s) => s.key));
   const priorityTasks = tasks
-    .filter((t) => t.status !== "concluido" && t.status !== "cancelado" && !t.is_archived)
+    .filter((t) => !doneOrCancelled.has(t.status) && !t.is_archived)
     .sort((a, b) => {
       const order = { urgente: 0, alta: 1, media: 2, baixa: 3 };
       return order[a.priority] - order[b.priority];

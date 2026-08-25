@@ -23,13 +23,14 @@ import {
   listComments, listTaskActivity, updateTask,
 } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
-import { STATUS_LABELS, STATUS_ORDER } from "@/components/shared/StatusBadge";
+import { useTaskStatuses } from "@/lib/task-status-context";
 import { formatDate } from "@/lib/utils";
 import type { ActivityLog, Profile, TaskAttachment, TaskComment, TaskWithRelations } from "@/types/database";
 
 export function TaskDetailClient({ taskId }: { taskId: string }) {
   const router = useRouter();
   const { profile, isManager } = useAuth();
+  const { statuses, defaultStatusKey } = useTaskStatuses();
   const supabase = createClient();
 
   const [task, setTask] = useState<TaskWithRelations | null>(null);
@@ -73,7 +74,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
 
   async function handleDuplicate() {
     if (!profile || !task) return;
-    const copy = await duplicateTask(supabase, task, profile.id);
+    const copy = await duplicateTask(supabase, task, profile.id, defaultStatusKey);
     toast.success("Tarefa duplicada");
     router.push(`/tasks/${copy.id}`);
   }
@@ -126,10 +127,8 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
 
         <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
           <Field label="Status">
-            <Select value={task.status} disabled={!canEdit} onChange={(e) => patch({ status: e.target.value as TaskWithRelations["status"] })}>
-              {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-              <option value="pausado">Pausado</option>
-              <option value="cancelado">Cancelado</option>
+            <Select value={task.status} disabled={!canEdit} onChange={(e) => patch({ status: e.target.value })}>
+              {statuses.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
             </Select>
           </Field>
           <Field label="Prioridade">

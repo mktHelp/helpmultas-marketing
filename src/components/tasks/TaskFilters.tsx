@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 import { listAreas } from "@/lib/services/reference";
 import { listProfiles } from "@/lib/services/profiles";
+import { useTaskStatuses } from "@/lib/task-status-context";
 import type { Area, Profile } from "@/types/database";
 import type { TaskFilters as Filters } from "@/lib/services/tasks";
 
@@ -19,6 +20,7 @@ export function TaskFiltersBar({
 }) {
   const [areas, setAreas] = useState<Area[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const { statuses } = useTaskStatuses();
   const supabase = createClient();
 
   useEffect(() => {
@@ -27,7 +29,8 @@ export function TaskFiltersBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasFilters = filters.areaId || filters.assignedTo || filters.priority?.length || filters.onlyOverdue;
+  const hasFilters =
+    filters.areaId || filters.assignedTo || filters.priority?.length || filters.status?.length || filters.onlyOverdue;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -69,6 +72,15 @@ export function TaskFiltersBar({
         <option value="media">Média</option>
         <option value="alta">Alta</option>
         <option value="urgente">Urgente</option>
+      </Select>
+
+      <Select
+        className="w-auto"
+        value={filters.status?.[0] || ""}
+        onChange={(e) => onChange({ ...filters, status: e.target.value ? [e.target.value] : undefined })}
+      >
+        <option value="">Toda etapa</option>
+        {statuses.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
       </Select>
 
       <button

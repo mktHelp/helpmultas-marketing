@@ -1,14 +1,21 @@
 import { differenceInDays, format, isAfter, isBefore, isToday, parseISO, subDays } from "date-fns";
-import type { Area, Profile, TaskWithRelations } from "@/types/database";
+import type { Area, Profile, TaskStatusRow, TaskWithRelations } from "@/types/database";
+
+function statusFlags(statuses: TaskStatusRow[]) {
+  const doneKeys = new Set(statuses.filter((s) => s.is_done).map((s) => s.key));
+  const cancelledKeys = new Set(statuses.filter((s) => s.is_cancelled).map((s) => s.key));
+  return { doneKeys, cancelledKeys };
+}
 
 export function filterByPeriod(tasks: TaskWithRelations[], days: number) {
   const cutoff = subDays(new Date(), days);
   return tasks.filter((t) => isAfter(parseISO(t.created_at), cutoff));
 }
 
-export function computeKpis(tasks: TaskWithRelations[]) {
-  const open = tasks.filter((t) => t.status !== "concluido" && t.status !== "cancelado").length;
-  const completed = tasks.filter((t) => t.status === "concluido").length;
+export function computeKpis(tasks: TaskWithRelations[], statuses: TaskStatusRow[]) {
+  const { doneKeys, cancelledKeys } = statusFlags(statuses);
+  const open = tasks.filter((t) => !doneKeys.has(t.status) && !cancelledKeys.has(t.status)).length;
+  const completed = tasks.filter((t) => doneKeys.has(t.status)).length;
   const overdue = tasks.filter(
     (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), new Date())
   ).length;
@@ -31,25 +38,13 @@ export function byArea(tasks: TaskWithRelations[], areas: Area[]) {
     .sort((a, b) => b.count - a.count);
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  backlog: "Backlog",
-  planejamento: "Planejamento",
-  em_producao: "Em Produção",
-  em_revisao: "Em Revisão",
-  aprovado: "Aprovado",
-  publicado: "Publicado",
-  concluido: "Concluído",
-  pausado: "Pausado",
-  cancelado: "Cancelado",
-};
-
-export function byStatus(tasks: TaskWithRelations[]) {
-  const order = Object.keys(STATUS_LABELS);
-  return order
-    .map((status) => ({
-      status,
-      label: STATUS_LABELS[status],
-      count: tasks.filter((t) => t.status === status).length,
+export function byStatus(tasks: TaskWithRelations[], statuses: TaskStatusRow[]) {
+  return statuses
+    .map((s) => ({
+      status: s.key,
+      label: s.label,
+      color: s.color,
+      count: tasks.filter((t) => t.status === s.key).length,
     }))
     .filter((s) => s.count > 0);
 }
@@ -67,11 +62,12 @@ export function productivityByDay(tasks: TaskWithRelations[], days: number) {
   return result;
 }
 
-export function teamRanking(tasks: TaskWithRelations[], profiles: Profile[]) {
+export function teamRanking(tasks: TaskWithRelations[], profiles: Profile[], statuses: TaskStatusRow[]) {
+  const { doneKeys } = statusFlags(statuses);
   return profiles
     .map((p) => {
       const own = tasks.filter((t) => t.assigned_to === p.id);
-      const completed = own.filter((t) => t.status === "concluido");
+      const completed = own.filter((t) => doneKeys.has(t.status));
       const overdue = own.filter(
         (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), new Date())
       );
@@ -95,17 +91,15 @@ export function teamRanking(tasks: TaskWithRelations[], profiles: Profile[]) {
     .sort((a, b) => b.completed - a.completed);
 }
 
-export function bottlenecks(tasks: TaskWithRelations[]) {
+export function bottlenecks(tasks: TaskWithRelations[], statuses: TaskStatusRow[]) {
+  const { doneKeys, cancelledKeys } = statusFlags(statuses);
   const now = new Date();
   const overdue = tasks.filter(
-    (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), now) && t.status !== "cancelado"
+    (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), now) && !cancelledKeys.has(t.status)
   );
-  const unassigned = tasks.filter((t) => !t.assigned_to && t.status !== "concluido" && t.status !== "cancelado");
+  const unassigned = tasks.filter((t) => !t.assigned_to && !doneKeys.has(t.status) && !cancelledKeys.has(t.status));
   const stuck = tasks.filter(
-    (t) =>
-      t.status !== "concluido" &&
-      t.status !== "cancelado" &&
-      differenceInDays(now, parseISO(t.updated_at)) >= 5
+    (t) => !doneKeys.has(t.status) && !cancelledKeys.has(t.status) && differenceInDays(now, parseISO(t.updated_at)) >= 5
   );
   const awaitingApproval = tasks.filter((t) => t.status === "em_revisao" || t.status === "aprovado");
   const dueSoon = tasks.filter(

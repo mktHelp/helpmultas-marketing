@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { listProfiles } from "@/lib/services/profiles";
 import { listTasks } from "@/lib/services/tasks";
 import { teamRanking } from "@/lib/stats";
+import { useTaskStatuses } from "@/lib/task-status-context";
 import type { Profile, TaskWithRelations } from "@/types/database";
 
 const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro" };
@@ -18,6 +19,7 @@ export default function TeamPage() {
   const supabase = createClient();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
+  const { statuses } = useTaskStatuses();
 
   useEffect(() => {
     listProfiles(supabase).then(setProfiles);
@@ -25,7 +27,7 @@ export default function TeamPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const ranking = teamRanking(tasks, profiles);
+  const ranking = teamRanking(tasks, profiles, statuses);
   const rankingMap = new Map(ranking.map((r) => [r.profile.id, r]));
 
   return (

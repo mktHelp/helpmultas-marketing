@@ -127,7 +127,12 @@ export async function deleteTask(supabase: SupabaseClient, id: string) {
   if (error) throw error;
 }
 
-export async function duplicateTask(supabase: SupabaseClient, task: TaskWithRelations, userId: string) {
+export async function duplicateTask(
+  supabase: SupabaseClient,
+  task: TaskWithRelations,
+  userId: string,
+  defaultStatusKey: string
+) {
   const newTask = await createTask(supabase, {
     title: `${task.title} (cópia)`,
     description: task.description || undefined,
@@ -138,7 +143,7 @@ export async function duplicateTask(supabase: SupabaseClient, task: TaskWithRela
     content_type: task.content_type,
     assigned_to: task.assigned_to,
     created_by: userId,
-    status: "backlog",
+    status: defaultStatusKey,
     priority: task.priority,
     due_date: task.due_date,
     tagIds: task.tags?.map((t) => t.id),

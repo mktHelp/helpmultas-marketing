@@ -1,42 +1,25 @@
+"use client";
+
 import { Badge } from "@/components/ui/Badge";
-import type { TaskStatus, TaskPriority, ProjectStatus, CampaignStatus } from "@/types/database";
+import { useTaskStatuses } from "@/lib/task-status-context";
+import type { TaskPriority, ProjectStatus, CampaignStatus } from "@/types/database";
 
-export const STATUS_LABELS: Record<TaskStatus, string> = {
-  backlog: "Backlog",
-  planejamento: "Planejamento",
-  em_producao: "Em Produção",
-  em_revisao: "Em Revisão",
-  aprovado: "Aprovado",
-  publicado: "Publicado",
-  concluido: "Concluído",
-  pausado: "Pausado",
-  cancelado: "Cancelado",
-};
+export function StatusBadge({ status }: { status: string }) {
+  const { byKey } = useTaskStatuses();
+  const s = byKey[status];
 
-export const STATUS_ORDER: TaskStatus[] = [
-  "backlog",
-  "planejamento",
-  "em_producao",
-  "em_revisao",
-  "aprovado",
-  "publicado",
-  "concluido",
-];
+  if (!s) {
+    return <Badge tone="neutral">{status}</Badge>;
+  }
 
-const STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "accent" | "success" | "danger"> = {
-  backlog: "neutral",
-  planejamento: "info",
-  em_producao: "accent",
-  em_revisao: "accent",
-  aprovado: "info",
-  publicado: "success",
-  concluido: "success",
-  pausado: "neutral",
-  cancelado: "danger",
-};
-
-export function StatusBadge({ status }: { status: TaskStatus }) {
-  return <Badge tone={STATUS_TONE[status]}>{STATUS_LABELS[status]}</Badge>;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
+      style={{ backgroundColor: `${s.color}22`, color: s.color }}
+    >
+      {s.label}
+    </span>
+  );
 }
 
 export const PRIORITY_LABELS: Record<TaskPriority, string> = {

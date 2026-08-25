@@ -15,6 +15,7 @@ import { listProfiles } from "@/lib/services/profiles";
 import { byArea, byStatus, filterByPeriod, productivityByDay, teamRanking } from "@/lib/stats";
 import { downloadCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/utils";
+import { useTaskStatuses } from "@/lib/task-status-context";
 import type { Area, Profile, TaskWithRelations } from "@/types/database";
 
 export default function ReportsPage() {
@@ -23,6 +24,7 @@ export default function ReportsPage() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [days, setDays] = useState(30);
+  const { statuses } = useTaskStatuses();
 
   useEffect(() => {
     listTasks(supabase, { includeArchived: true }).then(setTasks);
@@ -32,7 +34,7 @@ export default function ReportsPage() {
   }, []);
 
   const periodTasks = filterByPeriod(tasks, days);
-  const ranking = teamRanking(periodTasks, profiles);
+  const ranking = teamRanking(periodTasks, profiles, statuses);
 
   function exportCsv() {
     downloadCsv(
@@ -75,7 +77,7 @@ export default function ReportsPage() {
           <AreaDonutChart data={byArea(periodTasks, areas)} />
         </ChartCard>
         <ChartCard title="Tarefas por status">
-          <StatusBarChart data={byStatus(periodTasks)} />
+          <StatusBarChart data={byStatus(periodTasks, statuses)} />
         </ChartCard>
         <ChartCard title="Volume de produção" className="lg:col-span-2">
           <ProductivityLineChart data={productivityByDay(periodTasks, days > 60 ? 60 : days)} />

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { UsersSettings } from "@/components/settings/UsersSettings";
 import { AreasSettings } from "@/components/settings/AreasSettings";
 import { TagsSettings } from "@/components/settings/TagsSettings";
+import { StatusesSettings } from "@/components/settings/StatusesSettings";
 import { useAuth } from "@/lib/auth-context";
 
 export default function SettingsPage() {
@@ -26,12 +27,13 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Configurações" description="Gerencie usuários, áreas, categorias e tags do sistema." />
+      <PageHeader title="Configurações" description="Gerencie usuários, etapas, áreas, categorias e tags do sistema." />
 
       <div className="mb-5">
         <Tabs
           tabs={[
             { key: "users", label: "Usuários" },
+            { key: "statuses", label: "Etapas" },
             { key: "areas", label: "Áreas & Categorias" },
             { key: "tags", label: "Tags" },
           ]}
@@ -42,6 +44,7 @@ export default function SettingsPage() {
 
       <Card className="p-6">
         {tab === "users" && <UsersSettings />}
+        {tab === "statuses" && <StatusesSettings />}
         {tab === "areas" && <AreasSettings />}
         {tab === "tags" && <TagsSettings />}
       </Card>

@@ -12,12 +12,14 @@ import { createClient } from "@/lib/supabase/client";
 import { getProfile } from "@/lib/services/profiles";
 import { listTasks } from "@/lib/services/tasks";
 import { teamRanking } from "@/lib/stats";
+import { useTaskStatuses } from "@/lib/task-status-context";
 import type { Profile, TaskWithRelations } from "@/types/database";
 
 const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro" };
 
 export function TeamMemberDetailClient({ userId }: { userId: string }) {
   const supabase = createClient();
+  const { statuses, byKey } = useTaskStatuses();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
 
@@ -29,8 +31,8 @@ export function TeamMemberDetailClient({ userId }: { userId: string }) {
 
   if (!profile) return <div className="py-16 text-center text-sm text-gray-400">Carregando...</div>;
 
-  const [stats] = teamRanking(tasks, [profile]);
-  const pending = tasks.filter((t) => t.status !== "concluido" && t.status !== "cancelado");
+  const [stats] = teamRanking(tasks, [profile], statuses);
+  const pending = tasks.filter((t) => !byKey[t.status]?.is_done && !byKey[t.status]?.is_cancelled);
 
   return (
     <div className="mx-auto max-w-3xl">
