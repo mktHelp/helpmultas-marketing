@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -11,6 +11,8 @@ import { Tag } from "@/components/ui/Tag";
 import { cn, formatDate, isOverdue } from "@/lib/utils";
 import type { TaskWithRelations } from "@/types/database";
 
+const DRAG_CLICK_THRESHOLD = 5; // px
+
 export function KanbanCard({ task }: { task: TaskWithRelations }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
@@ -19,15 +21,13 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
   const checklistTotal = task.checklists?.length || 0;
   const assignees = task.assignees || [];
 
-  // isDragging flips back to false as soon as the drop happens, but the
-  // browser still fires a native "click" on the element right after
-  // pointerup - by then isDragging is already false, so it doesn't block
-  // the Link navigation. A ref (unlike state) survives that gap and lets
-  // the click handler know a drag just finished.
-  const wasDragging = useRef(false);
-  useEffect(() => {
-    if (isDragging) wasDragging.current = true;
-  }, [isDragging]);
+  // dnd-kit's isDragging flips back to false by the time the browser's
+  // synthetic "click" fires after a drop, so it can't be trusted in the
+  // click handler. Instead, measure how far the pointer actually moved
+  // between press and release - real DOM coordinates, unaffected by any
+  // React/dnd-kit state timing - and block navigation only if that
+  // distance means it was a drag, not a tap/click.
+  const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
 
   return (
     <div
@@ -35,6 +35,9 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
       style={style}
       {...listeners}
       {...attributes}
+      onPointerDownCapture={(e) => {
+        pointerDownPos.current = { x: e.clientX, y: e.clientY };
+      }}
       className={cn(
         "cursor-grab rounded-xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-sm)] active:cursor-grabbing",
         isDragging && "opacity-40"
@@ -43,9 +46,12 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
       <Link
         href={`/tasks/${task.id}`}
         onClick={(e) => {
-          if (wasDragging.current) {
-            e.preventDefault();
-            wasDragging.current = false;
+          const start = pointerDownPos.current;
+          if (start) {
+            const dist = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+            if (dist > DRAG_CLICK_THRESHOLD) {
+              e.preventDefault();
+            }
           }
         }}
         className="block"
