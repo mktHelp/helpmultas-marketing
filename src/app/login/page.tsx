@@ -1,8 +1,10 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { signIn } from "./actions";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function LoginPage({
   searchParams,
@@ -10,6 +12,12 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; redirectTo?: string }>;
 }) {
   const params = await searchParams;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect(params.redirectTo || "/dashboard");
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
