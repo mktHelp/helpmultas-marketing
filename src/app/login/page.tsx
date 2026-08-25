@@ -1,9 +1,9 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { signIn } from "./actions";
-import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { SubmitButton } from "@/components/shared/SubmitButton";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function LoginPage({
@@ -73,9 +73,9 @@ export default async function LoginPage({
                 Esqueci a senha
               </a>
             </div>
-            <Button type="submit" size="lg" className="w-full">
+            <SubmitButton size="lg" className="w-full gap-2" pendingLabel="Entrando...">
               Entrar
-            </Button>
+            </SubmitButton>
           </form>
 
           <p className="mt-8 text-center text-xs text-gray-500">

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx scripts/seed-demo.ts"
+    "seed": "tsx scripts/seed-demo.ts",
+    "clear-demo": "tsx scripts/clear-demo-data.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
