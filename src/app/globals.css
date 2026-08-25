@@ -1,26 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base brand colors */
+  --blue-900: #243746;
+  --blue-800: #2c4356;
+  --blue-700: #375367;
+  --blue-600: #4a6a80;
+  --blue-100: #e6ecf0;
+  --blue-050: #f2f6f8;
+
+  --yellow-500: #fcbf00;
+  --yellow-600: #e0a900;
+  --yellow-100: #fff3cc;
+  --yellow-050: #fffaeb;
+
+  --white: #ffffff;
+  --black: #17242c;
+
+  --gray-900: #1b2a34;
+  --gray-050: #f7f9fa;
+  --gray-700: #4b5f6c;
+  --gray-500: #7c8e98;
+  --gray-300: #b7c3ca;
+  --gray-200: #d8e0e4;
+  --gray-100: #eef2f4;
+
+  --color-bg-page: var(--white);
+  --color-bg-inverse: var(--blue-900);
+  --color-bg-subtle: var(--blue-050);
+  --color-bg-accent: var(--yellow-500);
+
+  --color-surface-card: var(--white);
+  --color-surface-card-inverse: var(--blue-800);
+
+  --color-text-primary: var(--blue-900);
+  --color-text-secondary: var(--gray-700);
+  --color-text-on-inverse: var(--white);
+  --color-text-on-accent: var(--blue-900);
+  --color-text-muted: var(--gray-500);
+
+  --color-border-default: var(--gray-200);
+  --color-border-strong: var(--blue-900);
+
+  --color-accent: var(--yellow-500);
+  --color-accent-hover: var(--yellow-600);
+  --color-primary: var(--blue-900);
+  --color-primary-hover: var(--blue-800);
+
+  --color-success: #2f8f5b;
+  --color-success-bg: #e6f5ec;
+  --color-danger: #c23b3b;
+  --color-danger-bg: #fbe9e9;
+  --color-focus-ring: var(--yellow-500);
+
+  --font-display: 'Poppins', 'Nunito Sans', system-ui, sans-serif;
+  --font-body: 'Nunito Sans', system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(23, 36, 44, 0.08);
+  --shadow-md: 0 6px 20px rgba(23, 36, 44, 0.10);
+  --shadow-lg: 0 16px 40px rgba(23, 36, 44, 0.16);
+  --shadow-focus: 0 0 0 3px rgba(252, 191, 0, 0.45);
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+
+  --background: var(--white);
+  --foreground: var(--gray-900);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-blue-900: var(--blue-900);
+  --color-blue-800: var(--blue-800);
+  --color-blue-700: var(--blue-700);
+  --color-blue-600: var(--blue-600);
+  --color-blue-100: var(--blue-100);
+  --color-blue-050: var(--blue-050);
+
+  --color-yellow-500: var(--yellow-500);
+  --color-yellow-600: var(--yellow-600);
+  --color-yellow-100: var(--yellow-100);
+  --color-yellow-050: var(--yellow-050);
+
+  --color-gray-900: var(--gray-900);
+  --color-gray-700: var(--gray-700);
+  --color-gray-500: var(--gray-500);
+  --color-gray-300: var(--gray-300);
+  --color-gray-200: var(--gray-200);
+  --color-gray-100: var(--gray-100);
+  --color-gray-050: var(--gray-050);
+
+  --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
+  --color-danger: var(--color-danger);
+  --color-danger-bg: var(--color-danger-bg);
+
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-300) transparent;
+}
+
+.kanban-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.kanban-scroll::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: 999px;
 }
