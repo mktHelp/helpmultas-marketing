@@ -26,7 +26,13 @@ export function TaskListItem({ task }: { task: TaskWithRelations }) {
       </div>
       <PriorityBadge priority={task.priority} />
       <StatusBadge status={task.status} />
-      {task.assignee && <UserAvatar name={task.assignee.full_name} avatarUrl={task.assignee.avatar_url} size="sm" />}
+      {task.assignees && task.assignees.length > 0 && (
+        <div className="flex -space-x-1.5">
+          {task.assignees.slice(0, 3).map((a) => (
+            <UserAvatar key={a.id} name={a.full_name} avatarUrl={a.avatar_url} size="sm" className="ring-2 ring-white" />
+          ))}
+        </div>
+      )}
     </Link>
   );
 }

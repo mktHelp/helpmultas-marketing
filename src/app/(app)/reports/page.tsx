@@ -42,7 +42,7 @@ export default function ReportsPage() {
       tasks.map((t) => ({
         titulo: t.title,
         area: t.area?.name || "",
-        responsavel: t.assignee?.full_name || "",
+        responsaveis: t.assignees?.map((a) => a.full_name).join(", ") || "",
         status: t.status,
         prioridade: t.priority,
         prazo: t.due_date ? formatDate(t.due_date) : "",

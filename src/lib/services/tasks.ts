@@ -1,21 +1,41 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Task, TaskWithRelations, TaskChecklistItem, TaskComment, TaskAttachment, TaskStatus, Tag } from "@/types/database";
+import type { Task, TaskWithRelations, TaskChecklistItem, TaskComment, TaskAttachment, TaskStatus, Tag, Profile } from "@/types/database";
 
-const TASK_SELECT = `
+// Explicit `: string` (not a literal type) so the Supabase client's compile-time
+// select-string parser doesn't try to statically parse this multi-relation
+// embed - which it can't with `Database = any` schemas anyway, and hits a
+// parser error on the nested task_assignees(profiles(...)) embed if it tries.
+// Full select used by the Kanban/table/detail views (needs tags + checklists).
+const TASK_SELECT: string = `
   *,
-  assignee:profiles!tasks_assigned_to_fkey(id, full_name, avatar_url),
   creator:profiles!tasks_created_by_fkey(id, full_name, avatar_url),
   project:projects(id, name),
   campaign:campaigns(id, name),
   area:areas(id, name, color),
   category:categories(id, name),
+  task_assignees(profiles(id, full_name, avatar_url)),
   task_tags(tags(id, name, color)),
   task_checklists(id, task_id, title, completed, sort_order, created_at)
+`;
+
+// Lighter select for dashboard/report aggregation, which only reads status,
+// priority, dates and area/assignees - task_tags/task_checklists require
+// Postgres to compute embedded array subqueries per row and aren't rendered
+// there, so skipping them cuts real query cost.
+const TASK_SELECT_LIGHT: string = `
+  *,
+  creator:profiles!tasks_created_by_fkey(id, full_name, avatar_url),
+  project:projects(id, name),
+  campaign:campaigns(id, name),
+  area:areas(id, name, color),
+  category:categories(id, name),
+  task_assignees(profiles(id, full_name, avatar_url))
 `;
 
 interface TaskRow extends Task {
   task_tags?: { tags: Tag }[];
   task_checklists?: TaskChecklistItem[];
+  task_assignees?: { profiles: Pick<Profile, "id" | "full_name" | "avatar_url"> }[];
 }
 
 function normalize(row: TaskRow): TaskWithRelations {
@@ -23,6 +43,7 @@ function normalize(row: TaskRow): TaskWithRelations {
     ...row,
     tags: (row.task_tags || []).map((t) => t.tags).filter(Boolean),
     checklists: [...(row.task_checklists || [])].sort((a, b) => a.sort_order - b.sort_order),
+    assignees: (row.task_assignees || []).map((a) => a.profiles).filter(Boolean),
   };
 }
 
@@ -37,15 +58,32 @@ export interface TaskFilters {
   dueBefore?: string;
   dueAfter?: string;
   includeArchived?: boolean;
+  archivedOnly?: boolean;
+  onlyDeleted?: boolean;
   onlyOverdue?: boolean;
+  light?: boolean;
 }
 
 export async function listTasks(supabase: SupabaseClient, filters: TaskFilters = {}) {
-  let query = supabase.from("tasks").select(TASK_SELECT).order("due_date", { ascending: true, nullsFirst: false });
+  let query = supabase
+    .from("tasks")
+    .select(filters.light ? TASK_SELECT_LIGHT : TASK_SELECT)
+    .order("due_date", { ascending: true, nullsFirst: false });
 
-  if (!filters.includeArchived) query = query.eq("is_archived", false);
+  if (filters.onlyDeleted) {
+    query = query.not("deleted_at", "is", null);
+  } else {
+    query = query.is("deleted_at", null);
+    if (filters.archivedOnly) query = query.eq("is_archived", true);
+    else if (!filters.includeArchived) query = query.eq("is_archived", false);
+  }
+
   if (filters.status?.length) query = query.in("status", filters.status);
-  if (filters.assignedTo) query = query.eq("assigned_to", filters.assignedTo);
+  if (filters.assignedTo) {
+    const { data: assigned } = await supabase.from("task_assignees").select("task_id").eq("user_id", filters.assignedTo);
+    const ids = (assigned || []).map((a) => a.task_id);
+    query = query.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+  }
   if (filters.areaId) query = query.eq("area_id", filters.areaId);
   if (filters.projectId) query = query.eq("project_id", filters.projectId);
   if (filters.campaignId) query = query.eq("campaign_id", filters.campaignId);
@@ -59,13 +97,13 @@ export async function listTasks(supabase: SupabaseClient, filters: TaskFilters =
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map(normalize);
+  return ((data as unknown as TaskRow[]) || []).map(normalize);
 }
 
 export async function getTask(supabase: SupabaseClient, id: string) {
   const { data, error } = await supabase.from("tasks").select(TASK_SELECT).eq("id", id).single();
   if (error) throw error;
-  return normalize(data);
+  return normalize(data as unknown as TaskRow);
 }
 
 export interface CreateTaskInput {
@@ -76,7 +114,6 @@ export interface CreateTaskInput {
   area_id?: string | null;
   category_id?: string | null;
   content_type?: string | null;
-  assigned_to?: string | null;
   created_by: string;
   status?: TaskStatus;
   priority?: string;
@@ -87,17 +124,21 @@ export interface CreateTaskInput {
   recurrence_freq?: string | null;
   template_id?: string | null;
   tagIds?: string[];
+  assigneeIds?: string[];
   checklistItems?: string[];
 }
 
 export async function createTask(supabase: SupabaseClient, input: CreateTaskInput) {
-  const { tagIds, checklistItems, ...taskFields } = input;
+  const { tagIds, assigneeIds, checklistItems, ...taskFields } = input;
   const { data, error } = await supabase.from("tasks").insert(taskFields).select().single();
   if (error) throw error;
   const task = data as Task;
 
   if (tagIds?.length) {
     await supabase.from("task_tags").insert(tagIds.map((tag_id) => ({ task_id: task.id, tag_id })));
+  }
+  if (assigneeIds?.length) {
+    await supabase.from("task_assignees").insert(assigneeIds.map((user_id) => ({ task_id: task.id, user_id })));
   }
   if (checklistItems?.length) {
     await supabase.from("task_checklists").insert(
@@ -122,7 +163,20 @@ export async function archiveTask(supabase: SupabaseClient, id: string, archived
   return updateTask(supabase, id, { is_archived: archived, archived_at: archived ? new Date().toISOString() : null });
 }
 
+// Soft delete: moves the task to the trash (Configurações... err, /trash page)
+// instead of removing it, so it can be restored. Permanent removal is a
+// separate, explicit action.
 export async function deleteTask(supabase: SupabaseClient, id: string) {
+  const { error } = await supabase.from("tasks").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function restoreTask(supabase: SupabaseClient, id: string) {
+  const { error } = await supabase.from("tasks").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function permanentlyDeleteTask(supabase: SupabaseClient, id: string) {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;
 }
@@ -141,12 +195,12 @@ export async function duplicateTask(
     area_id: task.area_id,
     category_id: task.category_id,
     content_type: task.content_type,
-    assigned_to: task.assigned_to,
     created_by: userId,
     status: defaultStatusKey,
     priority: task.priority,
     due_date: task.due_date,
     tagIds: task.tags?.map((t) => t.id),
+    assigneeIds: task.assignees?.map((a) => a.id),
     checklistItems: task.checklists?.map((c) => c.title),
   });
   return newTask;
@@ -156,6 +210,13 @@ export async function setTaskTags(supabase: SupabaseClient, taskId: string, tagI
   await supabase.from("task_tags").delete().eq("task_id", taskId);
   if (tagIds.length) {
     await supabase.from("task_tags").insert(tagIds.map((tag_id) => ({ task_id: taskId, tag_id })));
+  }
+}
+
+export async function setTaskAssignees(supabase: SupabaseClient, taskId: string, userIds: string[]) {
+  await supabase.from("task_assignees").delete().eq("task_id", taskId);
+  if (userIds.length) {
+    await supabase.from("task_assignees").insert(userIds.map((user_id) => ({ task_id: taskId, user_id })));
   }
 }
 

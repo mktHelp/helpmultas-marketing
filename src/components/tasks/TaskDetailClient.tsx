@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+import { AssigneesPicker } from "./AssigneesPicker";
 import { ChecklistPanel } from "./ChecklistPanel";
 import { CommentsPanel } from "./CommentsPanel";
 import { AttachmentsPanel } from "./AttachmentsPanel";
@@ -20,7 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import {
   archiveTask, deleteTask, duplicateTask, getTask, listAttachments,
-  listComments, listTaskActivity, updateTask,
+  listComments, listTaskActivity, setTaskAssignees, updateTask,
 } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
 import { useTaskStatuses } from "@/lib/task-status-context";
@@ -64,12 +65,19 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
 
   if (!task) return <div className="py-16 text-center text-sm text-gray-400">Carregando tarefa...</div>;
 
-  const canEdit = isManager || task.assigned_to === profile?.id || task.created_by === profile?.id;
+  const canEdit =
+    isManager || task.assignees?.some((a) => a.id === profile?.id) || task.created_by === profile?.id;
 
   async function patch(fields: Partial<TaskWithRelations>) {
     if (!task) return;
     const updated = await updateTask(supabase, task.id, fields);
     setTask({ ...task, ...updated });
+  }
+
+  async function handleAssigneesChange(ids: string[]) {
+    if (!task) return;
+    await setTaskAssignees(supabase, task.id, ids);
+    setTask({ ...task, assignees: profiles.filter((p) => ids.includes(p.id)) });
   }
 
   async function handleDuplicate() {
@@ -89,7 +97,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
   async function handleDelete() {
     if (!task) return;
     await deleteTask(supabase, task.id);
-    toast.success("Tarefa excluída");
+    toast.success("Tarefa movida para a lixeira");
     router.push("/tasks");
   }
 
@@ -139,11 +147,13 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
               <option value="urgente">Urgente</option>
             </Select>
           </Field>
-          <Field label="Responsável">
-            <Select value={task.assigned_to || ""} disabled={!isManager} onChange={(e) => patch({ assigned_to: e.target.value || null })}>
-              <option value="">Sem responsável</option>
-              {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-            </Select>
+          <Field label="Responsáveis">
+            <AssigneesPicker
+              profiles={profiles}
+              selectedIds={task.assignees?.map((a) => a.id) || []}
+              onChange={handleAssigneesChange}
+              disabled={!isManager}
+            />
           </Field>
           <Field label="Prazo">
             <input
@@ -221,7 +231,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
         onClose={() => setConfirmDelete(false)}
         onConfirm={handleDelete}
         title="Excluir tarefa"
-        description="Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita."
+        description="A tarefa vai para a Lixeira e pode ser restaurada depois no menu Lixeira."
         confirmLabel="Excluir"
         danger
       />

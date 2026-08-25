@@ -66,7 +66,7 @@ export function teamRanking(tasks: TaskWithRelations[], profiles: Profile[], sta
   const { doneKeys } = statusFlags(statuses);
   return profiles
     .map((p) => {
-      const own = tasks.filter((t) => t.assigned_to === p.id);
+      const own = tasks.filter((t) => t.assignees?.some((a) => a.id === p.id));
       const completed = own.filter((t) => doneKeys.has(t.status));
       const overdue = own.filter(
         (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), new Date())
@@ -97,7 +97,9 @@ export function bottlenecks(tasks: TaskWithRelations[], statuses: TaskStatusRow[
   const overdue = tasks.filter(
     (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), now) && !cancelledKeys.has(t.status)
   );
-  const unassigned = tasks.filter((t) => !t.assigned_to && !doneKeys.has(t.status) && !cancelledKeys.has(t.status));
+  const unassigned = tasks.filter(
+    (t) => !(t.assignees && t.assignees.length) && !doneKeys.has(t.status) && !cancelledKeys.has(t.status)
+  );
   const stuck = tasks.filter(
     (t) => !doneKeys.has(t.status) && !cancelledKeys.has(t.status) && differenceInDays(now, parseISO(t.updated_at)) >= 5
   );

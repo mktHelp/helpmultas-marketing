@@ -132,7 +132,6 @@ export interface Task {
   area_id: string | null;
   category_id: string | null;
   content_type: ContentType | null;
-  assigned_to: string | null;
   created_by: string | null;
   status: TaskStatus;
   priority: TaskPriority;
@@ -152,12 +151,13 @@ export interface Task {
   template_id: string | null;
   is_archived: boolean;
   archived_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface TaskWithRelations extends Task {
-  assignee?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
+  assignees?: Pick<Profile, "id" | "full_name" | "avatar_url">[];
   creator?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
   project?: Pick<Project, "id" | "name"> | null;
   campaign?: Pick<Campaign, "id" | "name"> | null;

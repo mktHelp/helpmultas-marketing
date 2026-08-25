@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -16,6 +17,17 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
   const overdue = isOverdue(task.due_date, task.completed_at);
   const checklistDone = task.checklists?.filter((c) => c.completed).length || 0;
   const checklistTotal = task.checklists?.length || 0;
+  const assignees = task.assignees || [];
+
+  // isDragging flips back to false as soon as the drop happens, but the
+  // browser still fires a native "click" on the element right after
+  // pointerup - by then isDragging is already false, so it doesn't block
+  // the Link navigation. A ref (unlike state) survives that gap and lets
+  // the click handler know a drag just finished.
+  const wasDragging = useRef(false);
+  useEffect(() => {
+    if (isDragging) wasDragging.current = true;
+  }, [isDragging]);
 
   return (
     <div
@@ -28,7 +40,16 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
         isDragging && "opacity-40"
       )}
     >
-      <Link href={`/tasks/${task.id}`} onClick={(e) => isDragging && e.preventDefault()} className="block">
+      <Link
+        href={`/tasks/${task.id}`}
+        onClick={(e) => {
+          if (wasDragging.current) {
+            e.preventDefault();
+            wasDragging.current = false;
+          }
+        }}
+        className="block"
+      >
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold text-blue-900">{task.title}</p>
         </div>
@@ -45,7 +66,18 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
 
         <div className="mt-3 flex items-center justify-between">
           <PriorityBadge priority={task.priority} />
-          {task.assignee && <UserAvatar name={task.assignee.full_name} avatarUrl={task.assignee.avatar_url} size="xs" />}
+          {assignees.length > 0 && (
+            <div className="flex -space-x-1.5">
+              {assignees.slice(0, 3).map((a) => (
+                <UserAvatar key={a.id} name={a.full_name} avatarUrl={a.avatar_url} size="xs" className="ring-2 ring-white" />
+              ))}
+              {assignees.length > 3 && (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-700 ring-2 ring-white">
+                  +{assignees.length - 3}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-2 flex items-center gap-3 text-[11px] text-gray-400">

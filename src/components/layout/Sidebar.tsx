@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
-  FolderKanban, Megaphone, FileText, Users, BarChart3, Settings,
+  FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
   LogOut, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ const NAV = [
   { href: "/content", label: "Conteúdos", icon: FileText },
   { href: "/team", label: "Equipe", icon: Users },
   { href: "/reports", label: "Relatórios", icon: BarChart3 },
+  { href: "/trash", label: "Lixeira", icon: Trash2 },
   { href: "/settings", label: "Configurações", icon: Settings },
 ];
 

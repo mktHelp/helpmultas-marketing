@@ -6,6 +6,7 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { AssigneesPicker } from "./AssigneesPicker";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { listAreas, listCategories, listTags, listTemplates } from "@/lib/services/reference";
@@ -50,7 +51,7 @@ export function CreateTaskModal({
     campaign_id: defaultCampaignId || "",
     area_id: "",
     category_id: "",
-    assigned_to: "",
+    assigneeIds: [] as string[],
     priority: "media",
     status: defaultStatus || defaultStatusKey,
     due_date: "",
@@ -111,7 +112,7 @@ export function CreateTaskModal({
         campaign_id: form.campaign_id || null,
         area_id: form.area_id || null,
         category_id: form.category_id || null,
-        assigned_to: form.assigned_to || null,
+        assigneeIds: form.assigneeIds,
         created_by: profile.id,
         priority: form.priority,
         status: form.status,
@@ -125,7 +126,7 @@ export function CreateTaskModal({
       onClose();
       setForm({
         title: "", description: "", project_id: "", campaign_id: "", area_id: "",
-        category_id: "", assigned_to: "", priority: "media", status: defaultStatusKey,
+        category_id: "", assigneeIds: [], priority: "media", status: defaultStatusKey,
         due_date: "", template_id: "", tagIds: [],
       });
     } catch (err) {
@@ -198,11 +199,8 @@ export function CreateTaskModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Responsável</Label>
-              <Select value={form.assigned_to} onChange={(e) => update("assigned_to", e.target.value)}>
-                <option value="">Sem responsável</option>
-                {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-              </Select>
+              <Label>Responsáveis</Label>
+              <AssigneesPicker profiles={profiles} selectedIds={form.assigneeIds} onChange={(ids) => update("assigneeIds", ids)} />
             </div>
             <div>
               <Label>Prioridade</Label>

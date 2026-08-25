@@ -12,7 +12,7 @@ import { UserAvatar } from "@/components/shared/UserAvatar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/client";
-import { deleteTask, updateTask } from "@/lib/services/tasks";
+import { deleteTask, setTaskAssignees, updateTask } from "@/lib/services/tasks";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { cn, formatDate, isOverdue } from "@/lib/utils";
 import type { TaskWithRelations } from "@/types/database";
@@ -43,7 +43,13 @@ export function TaskTable({
   }
 
   async function bulkAssign(userId: string) {
-    await Promise.all(selected.map((id) => updateTask(supabase, id, { assigned_to: userId || null })));
+    const targets = tasks.filter((t) => selected.includes(t.id));
+    await Promise.all(
+      targets.map((t) => {
+        const ids = Array.from(new Set([...(t.assignees?.map((a) => a.id) || []), userId]));
+        return setTaskAssignees(supabase, t.id, ids);
+      })
+    );
     toast.success(`${selected.length} tarefa(s) atualizadas`);
     setSelected([]);
     onRefresh();
@@ -58,7 +64,7 @@ export function TaskTable({
 
   async function bulkDelete() {
     await Promise.all(selected.map((id) => deleteTask(supabase, id)));
-    toast.success(`${selected.length} tarefa(s) excluídas`);
+    toast.success(`${selected.length} tarefa(s) movidas para a lixeira`);
     setSelected([]);
     setConfirmDelete(false);
     onRefresh();
@@ -74,7 +80,7 @@ export function TaskTable({
         <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 bg-yellow-050 px-4 py-2.5">
           <span className="text-sm font-semibold text-blue-900">{selected.length} selecionada(s)</span>
           <Select className="h-8 w-44 text-xs" onChange={(e) => bulkAssign(e.target.value)} defaultValue="">
-            <option value="" disabled>Alterar responsável</option>
+            <option value="" disabled>Adicionar responsável</option>
             {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
           </Select>
           <Select className="h-8 w-44 text-xs" onChange={(e) => bulkStatus(e.target.value)} defaultValue="">
@@ -119,10 +125,16 @@ export function TaskTable({
                     {task.project && <p className="text-xs text-gray-400">{task.project.name}</p>}
                   </td>
                   <td className="py-3 pr-3">
-                    {task.assignee ? (
-                      <div className="flex items-center gap-2">
-                        <UserAvatar name={task.assignee.full_name} avatarUrl={task.assignee.avatar_url} size="xs" />
-                        <span className="text-gray-700">{task.assignee.full_name}</span>
+                    {task.assignees && task.assignees.length > 0 ? (
+                      <div className="flex items-center -space-x-1.5">
+                        {task.assignees.slice(0, 3).map((a) => (
+                          <UserAvatar key={a.id} name={a.full_name} avatarUrl={a.avatar_url} size="xs" className="ring-2 ring-white" />
+                        ))}
+                        {task.assignees.length > 3 && (
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-700 ring-2 ring-white">
+                            +{task.assignees.length - 3}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <span className="text-gray-400">Sem responsável</span>
@@ -149,7 +161,7 @@ export function TaskTable({
         onClose={() => setConfirmDelete(false)}
         onConfirm={bulkDelete}
         title="Excluir tarefas"
-        description={`Tem certeza que deseja excluir ${selected.length} tarefa(s)? Esta ação não pode ser desfeita.`}
+        description={`${selected.length} tarefa(s) irão para a Lixeira e podem ser restauradas depois.`}
         confirmLabel="Excluir"
         danger
       />
