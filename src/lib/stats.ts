@@ -71,11 +71,17 @@ export function teamRanking(tasks: TaskWithRelations[], profiles: Profile[], sta
       const overdue = own.filter(
         (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), new Date())
       );
+      // Some "done" tasks may not have completed_at set (e.g. created directly
+      // in a done stage, before a stage was marked done, etc.) - exclude those
+      // from the average instead of crashing on parseISO(null).
+      const withCompletionDate = completed.filter((t) => t.completed_at);
       const avgDays =
-        completed.length > 0
+        withCompletionDate.length > 0
           ? Math.round(
-              completed.reduce((sum, t) => sum + differenceInDays(parseISO(t.completed_at!), parseISO(t.created_at)), 0) /
-                completed.length
+              withCompletionDate.reduce(
+                (sum, t) => sum + differenceInDays(parseISO(t.completed_at!), parseISO(t.created_at)),
+                0
+              ) / withCompletionDate.length
             )
           : 0;
       return {
