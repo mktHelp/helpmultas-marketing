@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { DndContext, type DragEndEvent, type DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { useEffect, useRef, useState } from "react";
+import {
+  DndContext, DragOverlay, type DragEndEvent, type DragStartEvent,
+  PointerSensor, useSensor, useSensors,
+} from "@dnd-kit/core";
 import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
+import { KanbanCardOverlay } from "./KanbanCard";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { createClient } from "@/lib/supabase/client";
 import { moveTaskStatus } from "@/lib/services/tasks";
@@ -13,6 +17,8 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
   const supabase = createClient();
   const { activeStatuses, byKey } = useTaskStatuses();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeTask = tasks.find((t) => t.id === activeId) || null;
 
   // A real drag (distance > activation constraint) still ends with the
   // browser dispatching a normal "click" right after pointerup, on
@@ -35,11 +41,13 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
     return () => document.removeEventListener("click", onClickCapture, true);
   }, []);
 
-  function handleDragStart(_event: DragStartEvent) {
+  function handleDragStart(event: DragStartEvent) {
     suppressNextClick.current = true;
+    setActiveId(String(event.active.id));
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     const { active, over } = event;
     if (!over) return;
     const newStatus = String(over.id);
@@ -56,7 +64,12 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
       <div className="kanban-scroll flex h-[calc(100vh-260px)] min-h-[420px] gap-4 overflow-x-auto pb-4">
         {activeStatuses.map((status) => (
           <KanbanColumn
@@ -67,6 +80,7 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
           />
         ))}
       </div>
+      <DragOverlay>{activeTask && <KanbanCardOverlay task={activeTask} />}</DragOverlay>
     </DndContext>
   );
 }
