@@ -1,4 +1,5 @@
-import { differenceInDays, format, isAfter, isBefore, isToday, parseISO, subDays } from "date-fns";
+import { differenceInDays, isAfter, isBefore, parseISO, subDays } from "date-fns";
+import { toDateKey } from "@/lib/utils";
 import type { Area, Profile, TaskStatusRow, TaskWithRelations } from "@/types/database";
 
 function statusFlags(statuses: TaskStatusRow[]) {
@@ -19,7 +20,8 @@ export function computeKpis(tasks: TaskWithRelations[], statuses: TaskStatusRow[
   const overdue = tasks.filter(
     (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), new Date())
   ).length;
-  const dueToday = tasks.filter((t) => t.due_date && isToday(parseISO(t.due_date)) && !t.completed_at).length;
+  const todayKey = toDateKey(new Date());
+  const dueToday = tasks.filter((t) => t.due_date && toDateKey(t.due_date) === todayKey && !t.completed_at).length;
   const inProduction = tasks.filter((t) => t.status === "em_producao").length;
   const total = tasks.length || 1;
   const completionRate = Math.round((completed / total) * 100);
@@ -53,11 +55,10 @@ export function productivityByDay(tasks: TaskWithRelations[], days: number) {
   const result: { date: string; label: string; count: number }[] = [];
   for (let i = days - 1; i >= 0; i--) {
     const day = subDays(new Date(), i);
-    const dateStr = format(day, "yyyy-MM-dd");
-    const count = tasks.filter(
-      (t) => t.completed_at && format(parseISO(t.completed_at), "yyyy-MM-dd") === dateStr
-    ).length;
-    result.push({ date: dateStr, label: format(day, "dd/MM"), count });
+    const dateStr = toDateKey(day);
+    const count = tasks.filter((t) => t.completed_at && toDateKey(t.completed_at) === dateStr).length;
+    const [, mm, dd] = dateStr.split("-");
+    result.push({ date: dateStr, label: `${dd}/${mm}`, count });
   }
   return result;
 }
