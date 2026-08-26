@@ -41,7 +41,7 @@ export function ActivityTimeline({ logs }: { logs: ActivityLog[] }) {
         <div key={log.id} className="flex gap-3 text-sm">
           <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-yellow-500" />
           <p className="text-gray-700">
-            <span className="font-semibold text-blue-900">{log.user?.full_name || "Alguém"}</span>{" "}
+            <span className="font-semibold text-blue-900">{log.user?.full_name || "Sistema"}</span>{" "}
             {describe(log, statusLabel)}
             <span className="ml-2 text-xs text-gray-400">{formatDateTime(log.created_at)}</span>
           </p>
