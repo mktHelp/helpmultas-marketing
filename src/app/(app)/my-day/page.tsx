@@ -18,7 +18,7 @@ export default function MyDayPage() {
 
   useEffect(() => {
     if (!profile) return;
-    listTasks(supabase, { assignedTo: profile.id }).then(setTasks);
+    listTasks(supabase, { assignedTo: [profile.id] }).then(setTasks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
 

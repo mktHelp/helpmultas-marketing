@@ -49,8 +49,8 @@ function normalize(row: TaskRow): TaskWithRelations {
 
 export interface TaskFilters {
   status?: TaskStatus[];
-  assignedTo?: string;
-  areaId?: string;
+  assignedTo?: string[];
+  areaId?: string[];
   projectId?: string;
   campaignId?: string;
   priority?: string[];
@@ -79,12 +79,12 @@ export async function listTasks(supabase: SupabaseClient, filters: TaskFilters =
   }
 
   if (filters.status?.length) query = query.in("status", filters.status);
-  if (filters.assignedTo) {
-    const { data: assigned } = await supabase.from("task_assignees").select("task_id").eq("user_id", filters.assignedTo);
-    const ids = (assigned || []).map((a) => a.task_id);
+  if (filters.assignedTo?.length) {
+    const { data: assigned } = await supabase.from("task_assignees").select("task_id").in("user_id", filters.assignedTo);
+    const ids = Array.from(new Set((assigned || []).map((a) => a.task_id)));
     query = query.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
   }
-  if (filters.areaId) query = query.eq("area_id", filters.areaId);
+  if (filters.areaId?.length) query = query.in("area_id", filters.areaId);
   if (filters.projectId) query = query.eq("project_id", filters.projectId);
   if (filters.campaignId) query = query.eq("campaign_id", filters.campaignId);
   if (filters.priority?.length) query = query.in("priority", filters.priority);

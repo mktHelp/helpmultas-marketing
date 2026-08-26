@@ -25,7 +25,7 @@ export function TeamMemberDetailClient({ userId }: { userId: string }) {
 
   useEffect(() => {
     getProfile(supabase, userId).then(setProfile);
-    listTasks(supabase, { assignedTo: userId }).then(setTasks);
+    listTasks(supabase, { assignedTo: [userId] }).then(setTasks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 

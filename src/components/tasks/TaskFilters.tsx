@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
-import { Select } from "@/components/ui/Select";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 import { listAreas } from "@/lib/services/reference";
@@ -10,6 +10,13 @@ import { listProfiles } from "@/lib/services/profiles";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import type { Area, Profile } from "@/types/database";
 import type { TaskFilters as Filters } from "@/lib/services/tasks";
+
+const PRIORITY_OPTIONS = [
+  { value: "baixa", label: "Baixa" },
+  { value: "media", label: "Média" },
+  { value: "alta", label: "Alta" },
+  { value: "urgente", label: "Urgente" },
+];
 
 export function TaskFiltersBar({
   filters,
@@ -30,7 +37,11 @@ export function TaskFiltersBar({
   }, []);
 
   const hasFilters =
-    filters.areaId || filters.assignedTo || filters.priority?.length || filters.status?.length || filters.onlyOverdue;
+    filters.areaId?.length ||
+    filters.assignedTo?.length ||
+    filters.priority?.length ||
+    filters.status?.length ||
+    filters.onlyOverdue;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -44,44 +55,33 @@ export function TaskFiltersBar({
         />
       </div>
 
-      <Select
-        className="w-auto"
-        value={filters.areaId || ""}
-        onChange={(e) => onChange({ ...filters, areaId: e.target.value || undefined })}
-      >
-        <option value="">Todas as áreas</option>
-        {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-      </Select>
+      <MultiSelect
+        placeholder="Todas as áreas"
+        options={areas.map((a) => ({ value: a.id, label: a.name, color: a.color }))}
+        selected={filters.areaId || []}
+        onChange={(values) => onChange({ ...filters, areaId: values.length ? values : undefined })}
+      />
 
-      <Select
-        className="w-auto"
-        value={filters.assignedTo || ""}
-        onChange={(e) => onChange({ ...filters, assignedTo: e.target.value || undefined })}
-      >
-        <option value="">Todos os responsáveis</option>
-        {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-      </Select>
+      <MultiSelect
+        placeholder="Todos os responsáveis"
+        options={profiles.map((p) => ({ value: p.id, label: p.full_name }))}
+        selected={filters.assignedTo || []}
+        onChange={(values) => onChange({ ...filters, assignedTo: values.length ? values : undefined })}
+      />
 
-      <Select
-        className="w-auto"
-        value={filters.priority?.[0] || ""}
-        onChange={(e) => onChange({ ...filters, priority: e.target.value ? [e.target.value] : undefined })}
-      >
-        <option value="">Toda prioridade</option>
-        <option value="baixa">Baixa</option>
-        <option value="media">Média</option>
-        <option value="alta">Alta</option>
-        <option value="urgente">Urgente</option>
-      </Select>
+      <MultiSelect
+        placeholder="Toda prioridade"
+        options={PRIORITY_OPTIONS}
+        selected={filters.priority || []}
+        onChange={(values) => onChange({ ...filters, priority: values.length ? values : undefined })}
+      />
 
-      <Select
-        className="w-auto"
-        value={filters.status?.[0] || ""}
-        onChange={(e) => onChange({ ...filters, status: e.target.value ? [e.target.value] : undefined })}
-      >
-        <option value="">Toda etapa</option>
-        {statuses.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-      </Select>
+      <MultiSelect
+        placeholder="Toda etapa"
+        options={statuses.map((s) => ({ value: s.key, label: s.label, color: s.color }))}
+        selected={filters.status || []}
+        onChange={(values) => onChange({ ...filters, status: values.length ? values : undefined })}
+      />
 
       <button
         onClick={() => onChange({ ...filters, onlyOverdue: !filters.onlyOverdue })}

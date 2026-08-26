@@ -26,7 +26,7 @@ export default function MyTasksPage() {
     if (!profile) return;
     setLoading(true);
     const [t, p] = await Promise.all([
-      listTasks(supabase, tab === "assigned" ? { assignedTo: profile.id } : {}),
+      listTasks(supabase, tab === "assigned" ? { assignedTo: [profile.id] } : {}),
       listProfiles(supabase),
     ]);
     setTasks(tab === "created" ? t.filter((x) => x.created_by === profile.id) : t);
