@@ -214,9 +214,21 @@ export async function setTaskTags(supabase: SupabaseClient, taskId: string, tagI
 }
 
 export async function setTaskAssignees(supabase: SupabaseClient, taskId: string, userIds: string[]) {
-  await supabase.from("task_assignees").delete().eq("task_id", taskId);
-  if (userIds.length) {
-    await supabase.from("task_assignees").insert(userIds.map((user_id) => ({ task_id: taskId, user_id })));
+  // Diff against the current set instead of delete-all + insert-all, which
+  // fired an "unassigned" + "assigned" activity log entry for every single
+  // assignee (even ones that didn't actually change) on every edit.
+  const { data: current } = await supabase.from("task_assignees").select("user_id").eq("task_id", taskId);
+  const currentIds = new Set((current || []).map((r) => r.user_id));
+  const nextIds = new Set(userIds);
+
+  const toRemove = [...currentIds].filter((id) => !nextIds.has(id));
+  const toAdd = [...nextIds].filter((id) => !currentIds.has(id));
+
+  if (toRemove.length) {
+    await supabase.from("task_assignees").delete().eq("task_id", taskId).in("user_id", toRemove);
+  }
+  if (toAdd.length) {
+    await supabase.from("task_assignees").insert(toAdd.map((user_id) => ({ task_id: taskId, user_id })));
   }
 }
 

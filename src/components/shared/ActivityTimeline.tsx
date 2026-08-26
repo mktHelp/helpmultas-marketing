@@ -1,16 +1,38 @@
-import { formatDateTime } from "@/lib/utils";
+"use client";
+
+import { useTaskStatuses } from "@/lib/task-status-context";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import type { ActivityLog } from "@/types/database";
 
-const ACTION_LABELS: Record<string, (m: Record<string, unknown>) => string> = {
-  created: () => "criou a tarefa",
-  status_changed: (m) => `alterou o status de "${m.from}" para "${m.to}"`,
-  reassigned: () => "alterou o responsável",
-  due_date_changed: () => "alterou o prazo",
-  commented: () => "adicionou um comentário",
-  checklist_completed: (m) => `concluiu o item "${m.item}"`,
-};
+function describe(log: ActivityLog, statusLabel: (key: unknown) => string): string {
+  const m = log.metadata as Record<string, unknown>;
+
+  switch (log.action) {
+    case "created":
+      return "criou a tarefa";
+    case "status_changed":
+      return `alterou o status de "${statusLabel(m.from)}" para "${statusLabel(m.to)}"`;
+    case "assigned":
+      return `atribuiu ${m.user_name || "alguém"} como responsável`;
+    case "unassigned":
+      return `removeu ${m.user_name || "alguém"} dos responsáveis`;
+    case "due_date_changed":
+      return m.to
+        ? `alterou o prazo para ${formatDate(m.to as string)}`
+        : "removeu o prazo";
+    case "commented":
+      return "adicionou um comentário";
+    case "checklist_completed":
+      return `concluiu o item "${m.item}"`;
+    default:
+      return log.action;
+  }
+}
 
 export function ActivityTimeline({ logs }: { logs: ActivityLog[] }) {
+  const { byKey } = useTaskStatuses();
+  const statusLabel = (key: unknown) => (typeof key === "string" && byKey[key]?.label) || String(key ?? "-");
+
   if (logs.length === 0) return <p className="text-sm text-gray-400">Sem histórico ainda.</p>;
 
   return (
@@ -20,7 +42,7 @@ export function ActivityTimeline({ logs }: { logs: ActivityLog[] }) {
           <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-yellow-500" />
           <p className="text-gray-700">
             <span className="font-semibold text-blue-900">{log.user?.full_name || "Alguém"}</span>{" "}
-            {(ACTION_LABELS[log.action] || (() => log.action))(log.metadata)}
+            {describe(log, statusLabel)}
             <span className="ml-2 text-xs text-gray-400">{formatDateTime(log.created_at)}</span>
           </p>
         </div>
