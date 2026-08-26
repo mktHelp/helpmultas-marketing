@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { isBefore, isToday, isAfter, parseISO } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ChartCard } from "@/components/dashboard/ChartCard";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/client";
 import { listTasks } from "@/lib/services/tasks";
 import { useAuth } from "@/lib/auth-context";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import type { TaskWithRelations } from "@/types/database";
 
 export default function MyDayPage() {
@@ -16,11 +17,18 @@ export default function MyDayPage() {
   const supabase = createClient();
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!profile) return;
     listTasks(supabase, { assignedTo: [profile.id] }).then(setTasks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
+
+  useRealtimeChanges(["tasks", "task_assignees"], load);
 
   const now = new Date();
   const overdue = tasks.filter((t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), now));

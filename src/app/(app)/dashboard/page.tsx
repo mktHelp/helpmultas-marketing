@@ -12,6 +12,7 @@ import { TeamRanking } from "@/components/dashboard/TeamRanking";
 import { TaskListItem } from "@/components/tasks/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
+import { RealtimeRefresher } from "@/components/shared/RealtimeRefresher";
 
 function greeting() {
   const h = new Date().getHours();
@@ -49,6 +50,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresher tables={["tasks", "task_assignees"]} />
       <div>
         <h1 className="font-display text-2xl font-bold text-blue-900">
           {greeting()}, {profile?.full_name?.split(" ")[0] || "time"} 👋

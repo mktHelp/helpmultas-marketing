@@ -14,6 +14,7 @@ import { getCampaign, type CampaignWithOwner } from "@/lib/services/projects";
 import { listTasks } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
 import { useAuth } from "@/lib/auth-context";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { CAMPAIGN_STATUS_LABELS } from "@/components/shared/StatusBadge";
 import { formatDate } from "@/lib/utils";
 import type { Profile, TaskWithRelations } from "@/types/database";
@@ -41,6 +42,10 @@ export function CampaignDetailClient({ campaignId }: { campaignId: string }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
+
+  useRealtimeChanges(["tasks", "task_assignees", "campaigns"], load, {
+    filters: { tasks: `campaign_id=eq.${campaignId}`, campaigns: `id=eq.${campaignId}` },
+  });
 
   if (!campaign) return <div className="py-16 text-center text-sm text-gray-400">Carregando...</div>;
 

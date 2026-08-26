@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 import { createClient } from "@/lib/supabase/client";
 import { listTasks, type TaskFilters } from "@/lib/services/tasks";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import type { TaskWithRelations } from "@/types/database";
 
 export default function BoardPage() {
@@ -18,17 +19,23 @@ export default function BoardPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
-    setLoading(true);
-    const t = await listTasks(supabase, filters);
-    setTasks(t);
-    setLoading(false);
-  }
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      const t = await listTasks(supabase, filters);
+      setTasks(t);
+      setLoading(false);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filters]
+  );
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
+
+  useRealtimeChanges(["tasks", "task_assignees"], () => load(true));
 
   return (
     <div>
@@ -47,9 +54,9 @@ export default function BoardPage() {
       {loading ? (
         <div className="py-16 text-center text-sm text-gray-400">Carregando quadro...</div>
       ) : (
-        <KanbanBoard tasks={tasks} onRefresh={load} />
+        <KanbanBoard tasks={tasks} onRefresh={() => load(true)} />
       )}
-      <CreateTaskModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={load} />
+      <CreateTaskModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => load(true)} />
     </div>
   );
 }

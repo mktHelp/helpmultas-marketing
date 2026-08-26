@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/client";
 import { listTasks } from "@/lib/services/tasks";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import type { ContentType, TaskWithRelations } from "@/types/database";
 import { FileText } from "lucide-react";
 
@@ -24,15 +25,18 @@ export default function ContentPage() {
   const [contentType, setContentType] = useState<string>("");
   const [createOpen, setCreateOpen] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     const all = await listTasks(supabase, {});
     setTasks(all.filter((t) => t.content_type));
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useRealtimeChanges(["tasks", "task_assignees"], load);
 
   const filtered = contentType ? tasks.filter((t) => t.content_type === contentType) : tasks;
   const counts = Object.keys(CONTENT_LABELS).map((key) => ({

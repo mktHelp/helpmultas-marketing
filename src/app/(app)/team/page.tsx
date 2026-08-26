@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -11,6 +11,7 @@ import { listProfiles } from "@/lib/services/profiles";
 import { listTasks } from "@/lib/services/tasks";
 import { teamRanking } from "@/lib/stats";
 import { useTaskStatuses } from "@/lib/task-status-context";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import type { Profile, TaskWithRelations } from "@/types/database";
 
 const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro" };
@@ -21,11 +22,18 @@ export default function TeamPage() {
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
   const { statuses } = useTaskStatuses();
 
-  useEffect(() => {
+  const load = useCallback(() => {
     listProfiles(supabase).then(setProfiles);
     listTasks(supabase, {}).then(setTasks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useRealtimeChanges(["tasks", "task_assignees", "profiles"], load);
 
   const ranking = teamRanking(tasks, profiles, statuses);
   const rankingMap = new Map(ranking.map((r) => [r.profile.id, r]));

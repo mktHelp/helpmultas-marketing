@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Megaphone } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -13,6 +13,7 @@ import { CampaignFormModal } from "@/components/projects/CampaignFormModal";
 import { createClient } from "@/lib/supabase/client";
 import { listCampaigns, type CampaignWithOwner } from "@/lib/services/projects";
 import { CAMPAIGN_STATUS_LABELS } from "@/components/shared/StatusBadge";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { formatDate } from "@/lib/utils";
 
 export default function CampaignsPage() {
@@ -20,14 +21,17 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<CampaignWithOwner[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setCampaigns(await listCampaigns(supabase));
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useRealtimeChanges(["campaigns"], load);
 
   return (
     <div>

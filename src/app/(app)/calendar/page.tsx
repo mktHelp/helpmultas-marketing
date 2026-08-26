@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format,
@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { listTasks } from "@/lib/services/tasks";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { cn } from "@/lib/utils";
 import type { TaskWithRelations } from "@/types/database";
 
@@ -19,10 +20,17 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(new Date());
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     listTasks(supabase, {}).then(setTasks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useRealtimeChanges(["tasks", "task_assignees"], load);
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });

@@ -25,6 +25,7 @@ import {
 } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
 import { useTaskStatuses } from "@/lib/task-status-context";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { formatDate } from "@/lib/utils";
 import type { ActivityLog, Profile, TaskAttachment, TaskComment, TaskWithRelations } from "@/types/database";
 
@@ -62,6 +63,20 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
+
+  useRealtimeChanges(
+    ["tasks", "task_comments", "task_checklists", "task_assignees", "task_attachments"],
+    load,
+    {
+      filters: {
+        tasks: `id=eq.${taskId}`,
+        task_comments: `task_id=eq.${taskId}`,
+        task_checklists: `task_id=eq.${taskId}`,
+        task_assignees: `task_id=eq.${taskId}`,
+        task_attachments: `task_id=eq.${taskId}`,
+      },
+    }
+  );
 
   if (!task) return <div className="py-16 text-center text-sm text-gray-400">Carregando tarefa...</div>;
 

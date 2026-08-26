@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +16,7 @@ import { byArea, byStatus, filterByPeriod, productivityByDay, teamRanking } from
 import { downloadCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/utils";
 import { useTaskStatuses } from "@/lib/task-status-context";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import type { Area, Profile, TaskWithRelations } from "@/types/database";
 
 export default function ReportsPage() {
@@ -26,12 +27,19 @@ export default function ReportsPage() {
   const [days, setDays] = useState(30);
   const { statuses } = useTaskStatuses();
 
-  useEffect(() => {
+  const load = useCallback(() => {
     listTasks(supabase, { includeArchived: true }).then(setTasks);
     listAreas(supabase).then(setAreas);
     listProfiles(supabase).then(setProfiles);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useRealtimeChanges(["tasks", "task_assignees"], load);
 
   const periodTasks = filterByPeriod(tasks, days);
   const ranking = teamRanking(periodTasks, profiles, statuses);

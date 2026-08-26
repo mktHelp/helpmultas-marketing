@@ -14,6 +14,7 @@ import { getProject, type ProjectWithOwner } from "@/lib/services/projects";
 import { listTasks } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
 import { useAuth } from "@/lib/auth-context";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { PROJECT_STATUS_LABELS } from "@/components/shared/StatusBadge";
 import { formatDate } from "@/lib/utils";
 import type { Profile, TaskWithRelations } from "@/types/database";
@@ -41,6 +42,10 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  useRealtimeChanges(["tasks", "task_assignees", "projects"], load, {
+    filters: { tasks: `project_id=eq.${projectId}`, projects: `id=eq.${projectId}` },
+  });
 
   if (!project) return <div className="py-16 text-center text-sm text-gray-400">Carregando...</div>;
 

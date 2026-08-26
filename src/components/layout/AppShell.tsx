@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { LiveCursors } from "@/components/shared/LiveCursors";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100/50">
+      <LiveCursors />
       <div className="hidden lg:block">
         <Sidebar />
       </div>

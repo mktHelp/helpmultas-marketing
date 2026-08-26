@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -13,6 +13,7 @@ import { getProfile } from "@/lib/services/profiles";
 import { listTasks } from "@/lib/services/tasks";
 import { teamRanking } from "@/lib/stats";
 import { useTaskStatuses } from "@/lib/task-status-context";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import type { Profile, TaskWithRelations } from "@/types/database";
 
 const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro" };
@@ -23,11 +24,18 @@ export function TeamMemberDetailClient({ userId }: { userId: string }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     getProfile(supabase, userId).then(setProfile);
     listTasks(supabase, { assignedTo: [userId] }).then(setTasks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useRealtimeChanges(["tasks", "task_assignees"], load);
 
   if (!profile) return <div className="py-16 text-center text-sm text-gray-400">Carregando...</div>;
 

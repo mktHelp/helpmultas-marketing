@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -13,6 +13,7 @@ import { ProjectFormModal } from "@/components/projects/ProjectFormModal";
 import { createClient } from "@/lib/supabase/client";
 import { listProjects, type ProjectWithOwner } from "@/lib/services/projects";
 import { PROJECT_STATUS_LABELS } from "@/components/shared/StatusBadge";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { formatDate } from "@/lib/utils";
 import { FolderKanban } from "lucide-react";
 
@@ -21,14 +22,17 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectWithOwner[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setProjects(await listProjects(supabase));
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useRealtimeChanges(["projects"], load);
 
   return (
     <div>
