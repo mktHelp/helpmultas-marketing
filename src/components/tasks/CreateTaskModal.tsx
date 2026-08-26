@@ -14,6 +14,7 @@ import { listProjects, listCampaigns } from "@/lib/services/projects";
 import { listProfiles } from "@/lib/services/profiles";
 import { createTask } from "@/lib/services/tasks";
 import { useTaskStatuses } from "@/lib/task-status-context";
+import { dateInputToISO } from "@/lib/utils";
 import type { Area, Campaign, Category, Profile, Project, Tag, TaskTemplate } from "@/types/database";
 
 export function CreateTaskModal({
@@ -116,7 +117,7 @@ export function CreateTaskModal({
         created_by: profile.id,
         priority: form.priority,
         status: form.status,
-        due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+        due_date: form.due_date ? dateInputToISO(form.due_date) : null,
         template_id: form.template_id || null,
         tagIds: form.tagIds,
         checklistItems: tpl?.checklist_items?.map((c) => c.title),

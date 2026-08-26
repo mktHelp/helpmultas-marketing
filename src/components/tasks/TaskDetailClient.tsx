@@ -26,7 +26,7 @@ import {
 import { listProfiles } from "@/lib/services/profiles";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
-import { formatDate } from "@/lib/utils";
+import { dateInputToISO, formatDate, isoToDateInputValue } from "@/lib/utils";
 import type { ActivityLog, Profile, TaskAttachment, TaskComment, TaskWithRelations } from "@/types/database";
 
 export function TaskDetailClient({ taskId }: { taskId: string }) {
@@ -174,8 +174,8 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
             <input
               type="date"
               disabled={!canEdit}
-              defaultValue={task.due_date ? task.due_date.slice(0, 10) : ""}
-              onChange={(e) => patch({ due_date: e.target.value ? new Date(e.target.value).toISOString() : null })}
+              defaultValue={isoToDateInputValue(task.due_date)}
+              onChange={(e) => patch({ due_date: e.target.value ? dateInputToISO(e.target.value) : null })}
               className="h-10 w-full rounded-[14px] border border-gray-200 bg-white px-3.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
             />
           </Field>
