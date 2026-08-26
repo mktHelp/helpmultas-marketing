@@ -17,7 +17,7 @@ export function KanbanColumn({
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
   return (
-    <div className="flex w-72 shrink-0 flex-col">
+    <div className="flex h-full w-72 shrink-0 flex-col">
       <div className="mb-2 flex items-center justify-between px-1">
         <p className="font-display text-sm font-bold text-blue-900">{label}</p>
         <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-700">{tasks.length}</span>
@@ -25,7 +25,7 @@ export function KanbanColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-[200px] flex-1 flex-col gap-2 rounded-2xl border-2 border-dashed border-transparent bg-gray-100/50 p-2 transition-colors",
+          "kanban-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-2xl border-2 border-dashed border-transparent bg-gray-100/50 p-2 transition-colors",
           isOver && "border-yellow-500 bg-yellow-050"
         )}
       >

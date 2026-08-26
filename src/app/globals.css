@@ -134,6 +134,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .kanban-scroll::-webkit-scrollbar {
   height: 8px;
+  width: 6px;
 }
 .kanban-scroll::-webkit-scrollbar-thumb {
   background: var(--gray-300);

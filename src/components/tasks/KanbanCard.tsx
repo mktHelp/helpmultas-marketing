@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -11,8 +10,6 @@ import { Tag } from "@/components/ui/Tag";
 import { cn, formatDate, isOverdue } from "@/lib/utils";
 import type { TaskWithRelations } from "@/types/database";
 
-const DRAG_CLICK_THRESHOLD = 5; // px
-
 export function KanbanCard({ task }: { task: TaskWithRelations }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
@@ -21,41 +18,18 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
   const checklistTotal = task.checklists?.length || 0;
   const assignees = task.assignees || [];
 
-  // dnd-kit's isDragging flips back to false by the time the browser's
-  // synthetic "click" fires after a drop, so it can't be trusted in the
-  // click handler. Instead, measure how far the pointer actually moved
-  // between press and release - real DOM coordinates, unaffected by any
-  // React/dnd-kit state timing - and block navigation only if that
-  // distance means it was a drag, not a tap/click.
-  const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
-
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
-      onPointerDownCapture={(e) => {
-        pointerDownPos.current = { x: e.clientX, y: e.clientY };
-      }}
       className={cn(
         "cursor-grab rounded-xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-sm)] active:cursor-grabbing",
         isDragging && "opacity-40"
       )}
     >
-      <Link
-        href={`/tasks/${task.id}`}
-        onClick={(e) => {
-          const start = pointerDownPos.current;
-          if (start) {
-            const dist = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-            if (dist > DRAG_CLICK_THRESHOLD) {
-              e.preventDefault();
-            }
-          }
-        }}
-        className="block"
-      >
+      <Link href={`/tasks/${task.id}`} className="block">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold text-blue-900">{task.title}</p>
         </div>
@@ -70,18 +44,20 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
           <p className="mt-1.5 text-xs text-gray-400">{task.project?.name || task.campaign?.name}</p>
         )}
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <PriorityBadge priority={task.priority} />
           {assignees.length > 0 && (
-            <div className="flex -space-x-1.5">
-              {assignees.slice(0, 3).map((a) => (
-                <UserAvatar key={a.id} name={a.full_name} avatarUrl={a.avatar_url} size="xs" className="ring-2 ring-white" />
-              ))}
-              {assignees.length > 3 && (
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-700 ring-2 ring-white">
-                  +{assignees.length - 3}
-                </span>
-              )}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex -space-x-1.5">
+                {assignees.slice(0, 3).map((a) => (
+                  <UserAvatar key={a.id} name={a.full_name} avatarUrl={a.avatar_url} size="xs" className="ring-2 ring-white" />
+                ))}
+              </div>
+              <span className="truncate text-xs font-medium text-gray-600">
+                {assignees.length === 1
+                  ? assignees[0].full_name.split(" ")[0]
+                  : `${assignees[0].full_name.split(" ")[0]} +${assignees.length - 1}`}
+              </span>
             </div>
           )}
         </div>

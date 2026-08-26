@@ -1,6 +1,7 @@
 "use client";
 
-import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { useEffect, useRef } from "react";
+import { DndContext, type DragEndEvent, type DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { toast } from "sonner";
 import { KanbanColumn } from "./KanbanColumn";
 import { useTaskStatuses } from "@/lib/task-status-context";
@@ -12,6 +13,31 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
   const supabase = createClient();
   const { activeStatuses, byKey } = useTaskStatuses();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  // A real drag (distance > activation constraint) still ends with the
+  // browser dispatching a normal "click" right after pointerup, on
+  // whichever element the pointer happens to be over at that instant - not
+  // necessarily the card that started the drag. Blocking it per-card isn't
+  // reliable, so instead: once dnd-kit tells us a drag session actually
+  // started, swallow the very next click anywhere on the board in the
+  // capture phase, before it can reach any Link's onClick.
+  const suppressNextClick = useRef(false);
+
+  useEffect(() => {
+    function onClickCapture(e: MouseEvent) {
+      if (suppressNextClick.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        suppressNextClick.current = false;
+      }
+    }
+    document.addEventListener("click", onClickCapture, true);
+    return () => document.removeEventListener("click", onClickCapture, true);
+  }, []);
+
+  function handleDragStart(_event: DragStartEvent) {
+    suppressNextClick.current = true;
+  }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -30,8 +56,8 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="kanban-scroll flex gap-4 overflow-x-auto pb-4">
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="kanban-scroll flex h-[calc(100vh-260px)] min-h-[420px] gap-4 overflow-x-auto pb-4">
         {activeStatuses.map((status) => (
           <KanbanColumn
             key={status.key}
