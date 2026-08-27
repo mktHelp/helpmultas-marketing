@@ -49,100 +49,104 @@ export function TaskFiltersBar({
     filters.movedTo;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative min-w-[220px] flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-        <Input
-          placeholder="Buscar tarefas..."
-          className="pl-9"
-          value={filters.search || ""}
-          onChange={(e) => onChange({ ...filters, search: e.target.value })}
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[220px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          <Input
+            placeholder="Buscar tarefas..."
+            className="pl-9"
+            value={filters.search || ""}
+            onChange={(e) => onChange({ ...filters, search: e.target.value })}
+          />
+        </div>
+
+        <MultiSelect
+          placeholder="Todas as áreas"
+          options={areas.map((a) => ({ value: a.id, label: a.name, color: a.color }))}
+          selected={filters.areaId || []}
+          onChange={(values) => onChange({ ...filters, areaId: values.length ? values : undefined })}
+        />
+
+        <MultiSelect
+          placeholder="Todos os responsáveis"
+          options={profiles.map((p) => ({ value: p.id, label: p.full_name }))}
+          selected={filters.assignedTo || []}
+          onChange={(values) => onChange({ ...filters, assignedTo: values.length ? values : undefined })}
+        />
+
+        <MultiSelect
+          placeholder="Toda prioridade"
+          options={PRIORITY_OPTIONS}
+          selected={filters.priority || []}
+          onChange={(values) => onChange({ ...filters, priority: values.length ? values : undefined })}
+        />
+
+        <MultiSelect
+          placeholder="Toda etapa"
+          options={statuses.map((s) => ({ value: s.key, label: s.label, color: s.color }))}
+          selected={filters.status || []}
+          onChange={(values) => onChange({ ...filters, status: values.length ? values : undefined })}
         />
       </div>
 
-      <MultiSelect
-        placeholder="Todas as áreas"
-        options={areas.map((a) => ({ value: a.id, label: a.name, color: a.color }))}
-        selected={filters.areaId || []}
-        onChange={(values) => onChange({ ...filters, areaId: values.length ? values : undefined })}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+          <span>Criada de</span>
+          <Input
+            type="date"
+            className="w-[140px]"
+            value={isoToDateInputValue(filters.createdFrom)}
+            onChange={(e) =>
+              onChange({ ...filters, createdFrom: e.target.value ? dateInputToStartOfDayISO(e.target.value) : undefined })
+            }
+          />
+          <span>até</span>
+          <Input
+            type="date"
+            className="w-[140px]"
+            value={isoToDateInputValue(filters.createdTo)}
+            onChange={(e) => onChange({ ...filters, createdTo: e.target.value ? dateInputToISO(e.target.value) : undefined })}
+          />
+        </div>
 
-      <MultiSelect
-        placeholder="Todos os responsáveis"
-        options={profiles.map((p) => ({ value: p.id, label: p.full_name }))}
-        selected={filters.assignedTo || []}
-        onChange={(values) => onChange({ ...filters, assignedTo: values.length ? values : undefined })}
-      />
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+          <span>Movida de</span>
+          <Input
+            type="date"
+            className="w-[140px]"
+            value={isoToDateInputValue(filters.movedFrom)}
+            onChange={(e) =>
+              onChange({ ...filters, movedFrom: e.target.value ? dateInputToStartOfDayISO(e.target.value) : undefined })
+            }
+          />
+          <span>até</span>
+          <Input
+            type="date"
+            className="w-[140px]"
+            value={isoToDateInputValue(filters.movedTo)}
+            onChange={(e) => onChange({ ...filters, movedTo: e.target.value ? dateInputToISO(e.target.value) : undefined })}
+          />
+        </div>
 
-      <MultiSelect
-        placeholder="Toda prioridade"
-        options={PRIORITY_OPTIONS}
-        selected={filters.priority || []}
-        onChange={(values) => onChange({ ...filters, priority: values.length ? values : undefined })}
-      />
-
-      <MultiSelect
-        placeholder="Toda etapa"
-        options={statuses.map((s) => ({ value: s.key, label: s.label, color: s.color }))}
-        selected={filters.status || []}
-        onChange={(values) => onChange({ ...filters, status: values.length ? values : undefined })}
-      />
-
-      <div className="flex items-center gap-1 text-xs text-gray-500">
-        <span>Criada de</span>
-        <Input
-          type="date"
-          className="w-[140px]"
-          value={isoToDateInputValue(filters.createdFrom)}
-          onChange={(e) =>
-            onChange({ ...filters, createdFrom: e.target.value ? dateInputToStartOfDayISO(e.target.value) : undefined })
-          }
-        />
-        <span>até</span>
-        <Input
-          type="date"
-          className="w-[140px]"
-          value={isoToDateInputValue(filters.createdTo)}
-          onChange={(e) => onChange({ ...filters, createdTo: e.target.value ? dateInputToISO(e.target.value) : undefined })}
-        />
-      </div>
-
-      <div className="flex items-center gap-1 text-xs text-gray-500">
-        <span>Movida de</span>
-        <Input
-          type="date"
-          className="w-[140px]"
-          value={isoToDateInputValue(filters.movedFrom)}
-          onChange={(e) =>
-            onChange({ ...filters, movedFrom: e.target.value ? dateInputToStartOfDayISO(e.target.value) : undefined })
-          }
-        />
-        <span>até</span>
-        <Input
-          type="date"
-          className="w-[140px]"
-          value={isoToDateInputValue(filters.movedTo)}
-          onChange={(e) => onChange({ ...filters, movedTo: e.target.value ? dateInputToISO(e.target.value) : undefined })}
-        />
-      </div>
-
-      <button
-        onClick={() => onChange({ ...filters, onlyOverdue: !filters.onlyOverdue })}
-        className={`rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
-          filters.onlyOverdue ? "bg-[color:var(--color-danger)] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-        }`}
-      >
-        Atrasadas
-      </button>
-
-      {hasFilters && (
         <button
-          onClick={() => onChange({ search: filters.search })}
-          className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-blue-900"
+          onClick={() => onChange({ ...filters, onlyOverdue: !filters.onlyOverdue })}
+          className={`rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
+            filters.onlyOverdue ? "bg-[color:var(--color-danger)] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          }`}
         >
-          <X className="h-4 w-4" /> Limpar
+          Atrasadas
         </button>
-      )}
+
+        {hasFilters && (
+          <button
+            onClick={() => onChange({ search: filters.search })}
+            className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-blue-900"
+          >
+            <X className="h-4 w-4" /> Limpar
+          </button>
+        )}
+      </div>
     </div>
   );
 }
