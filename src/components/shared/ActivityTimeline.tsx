@@ -24,6 +24,14 @@ function describe(log: ActivityLog, statusLabel: (key: unknown) => string): stri
       return "adicionou um comentário";
     case "checklist_completed":
       return `concluiu o item "${m.item}"`;
+    case "archived":
+      return "arquivou a tarefa";
+    case "unarchived":
+      return "desarquivou a tarefa";
+    case "deleted":
+      return "excluiu a tarefa";
+    case "restored":
+      return "restaurou a tarefa";
     default:
       return log.action;
   }

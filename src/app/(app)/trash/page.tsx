@@ -108,7 +108,9 @@ export default function TrashPage() {
                 <p className="truncate text-sm font-semibold text-blue-900">{task.title}</p>
                 <p className="mt-0.5 text-xs text-gray-400">
                   {task.area?.name || "Sem área"} ·{" "}
-                  {tab === "deleted" ? `excluída em ${formatDate(task.deleted_at)}` : `arquivada em ${formatDate(task.archived_at)}`}
+                  {tab === "deleted"
+                    ? `excluída em ${formatDate(task.deleted_at)} por ${task.deleter?.full_name || "Sistema"}`
+                    : `arquivada em ${formatDate(task.archived_at)} por ${task.archiver?.full_name || "Sistema"}`}
                 </p>
               </div>
               <PriorityBadge priority={task.priority} />

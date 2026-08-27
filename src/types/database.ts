@@ -151,7 +151,9 @@ export interface Task {
   template_id: string | null;
   is_archived: boolean;
   archived_at: string | null;
+  archived_by: string | null;
   deleted_at: string | null;
+  deleted_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -159,6 +161,8 @@ export interface Task {
 export interface TaskWithRelations extends Task {
   assignees?: Pick<Profile, "id" | "full_name" | "avatar_url">[];
   creator?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
+  archiver?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
+  deleter?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
   project?: Pick<Project, "id" | "name"> | null;
   campaign?: Pick<Campaign, "id" | "name"> | null;
   area?: Pick<Area, "id" | "name" | "color"> | null;

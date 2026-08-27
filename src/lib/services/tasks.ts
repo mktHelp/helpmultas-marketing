@@ -9,6 +9,8 @@ import type { Task, TaskWithRelations, TaskChecklistItem, TaskComment, TaskAttac
 const TASK_SELECT: string = `
   *,
   creator:profiles!tasks_created_by_fkey(id, full_name, avatar_url),
+  archiver:profiles!tasks_archived_by_fkey(id, full_name, avatar_url),
+  deleter:profiles!tasks_deleted_by_fkey(id, full_name, avatar_url),
   project:projects(id, name),
   campaign:campaigns(id, name),
   area:areas(id, name, color),
