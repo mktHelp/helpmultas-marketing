@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { listAreas } from "@/lib/services/reference";
 import { listProfiles } from "@/lib/services/profiles";
 import { useTaskStatuses } from "@/lib/task-status-context";
+import { dateInputToISO, dateInputToStartOfDayISO, isoToDateInputValue } from "@/lib/utils";
 import type { Area, Profile } from "@/types/database";
 import type { TaskFilters as Filters } from "@/lib/services/tasks";
 
@@ -41,7 +42,11 @@ export function TaskFiltersBar({
     filters.assignedTo?.length ||
     filters.priority?.length ||
     filters.status?.length ||
-    filters.onlyOverdue;
+    filters.onlyOverdue ||
+    filters.createdFrom ||
+    filters.createdTo ||
+    filters.movedFrom ||
+    filters.movedTo;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -82,6 +87,44 @@ export function TaskFiltersBar({
         selected={filters.status || []}
         onChange={(values) => onChange({ ...filters, status: values.length ? values : undefined })}
       />
+
+      <div className="flex items-center gap-1 text-xs text-gray-500">
+        <span>Criada de</span>
+        <Input
+          type="date"
+          className="w-[140px]"
+          value={isoToDateInputValue(filters.createdFrom)}
+          onChange={(e) =>
+            onChange({ ...filters, createdFrom: e.target.value ? dateInputToStartOfDayISO(e.target.value) : undefined })
+          }
+        />
+        <span>até</span>
+        <Input
+          type="date"
+          className="w-[140px]"
+          value={isoToDateInputValue(filters.createdTo)}
+          onChange={(e) => onChange({ ...filters, createdTo: e.target.value ? dateInputToISO(e.target.value) : undefined })}
+        />
+      </div>
+
+      <div className="flex items-center gap-1 text-xs text-gray-500">
+        <span>Movida de</span>
+        <Input
+          type="date"
+          className="w-[140px]"
+          value={isoToDateInputValue(filters.movedFrom)}
+          onChange={(e) =>
+            onChange({ ...filters, movedFrom: e.target.value ? dateInputToStartOfDayISO(e.target.value) : undefined })
+          }
+        />
+        <span>até</span>
+        <Input
+          type="date"
+          className="w-[140px]"
+          value={isoToDateInputValue(filters.movedTo)}
+          onChange={(e) => onChange({ ...filters, movedTo: e.target.value ? dateInputToISO(e.target.value) : undefined })}
+        />
+      </div>
 
       <button
         onClick={() => onChange({ ...filters, onlyOverdue: !filters.onlyOverdue })}

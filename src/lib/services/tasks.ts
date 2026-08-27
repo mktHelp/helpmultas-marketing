@@ -57,6 +57,10 @@ export interface TaskFilters {
   search?: string;
   dueBefore?: string;
   dueAfter?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  movedFrom?: string;
+  movedTo?: string;
   includeArchived?: boolean;
   archivedOnly?: boolean;
   onlyDeleted?: boolean;
@@ -91,6 +95,16 @@ export async function listTasks(supabase: SupabaseClient, filters: TaskFilters =
   if (filters.search) query = query.ilike("title", `%${filters.search}%`);
   if (filters.dueBefore) query = query.lte("due_date", filters.dueBefore);
   if (filters.dueAfter) query = query.gte("due_date", filters.dueAfter);
+  if (filters.createdFrom) query = query.gte("created_at", filters.createdFrom);
+  if (filters.createdTo) query = query.lte("created_at", filters.createdTo);
+  if (filters.movedFrom || filters.movedTo) {
+    let moveQuery = supabase.from("activity_logs").select("entity_id").eq("entity_type", "task").eq("action", "status_changed");
+    if (filters.movedFrom) moveQuery = moveQuery.gte("created_at", filters.movedFrom);
+    if (filters.movedTo) moveQuery = moveQuery.lte("created_at", filters.movedTo);
+    const { data: moved } = await moveQuery;
+    const ids = Array.from(new Set((moved || []).map((m) => m.entity_id)));
+    query = query.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+  }
   if (filters.onlyOverdue) {
     query = query.lt("due_date", new Date().toISOString()).is("completed_at", null);
   }

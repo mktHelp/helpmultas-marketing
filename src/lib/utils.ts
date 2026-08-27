@@ -106,6 +106,13 @@ export function dateInputToISO(dateStr: string) {
   return zonedTimeToUtc(year, month, day, 23, 59, 59).toISOString();
 }
 
+// Same as dateInputToISO but pinned to the start of the day - for the
+// lower bound of a date-range filter.
+export function dateInputToStartOfDayISO(dateStr: string) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return zonedTimeToUtc(year, month, day, 0, 0, 0).toISOString();
+}
+
 export function isoToDateInputValue(iso: string | null | undefined) {
   if (!iso) return "";
   return toDateKey(iso);
