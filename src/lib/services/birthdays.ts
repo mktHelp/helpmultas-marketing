@@ -10,7 +10,7 @@ export async function listBirthdays(supabase: SupabaseClient) {
 export async function createBirthday(
   supabase: SupabaseClient,
   userId: string,
-  input: { name: string; birth_date: string; notes?: string | null }
+  input: { name: string; birth_month: number; birth_day: number; notes?: string | null }
 ) {
   const { data, error } = await supabase
     .from("birthdays")

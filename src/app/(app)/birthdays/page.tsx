@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { Input, Label } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -26,17 +27,27 @@ import {
 import { cn, initials } from "@/lib/utils";
 import type { Birthday, BirthdayPhoto } from "@/types/database";
 
-function birthdayThisYear(birthDate: string, referenceYear: number) {
-  const [, m, d] = birthDate.split("-").map(Number);
-  return new Date(referenceYear, m - 1, d);
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function birthdayThisYear(b: Pick<Birthday, "birth_month" | "birth_day">, referenceYear: number) {
+  return new Date(referenceYear, b.birth_month - 1, b.birth_day);
 }
 
-function nextOccurrence(birthDate: string) {
+function nextOccurrence(b: Pick<Birthday, "birth_month" | "birth_day">) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  let occ = birthdayThisYear(birthDate, now.getFullYear());
-  if (occ < now) occ = birthdayThisYear(birthDate, now.getFullYear() + 1);
+  let occ = birthdayThisYear(b, now.getFullYear());
+  if (occ < now) occ = birthdayThisYear(b, now.getFullYear() + 1);
   return occ;
+}
+
+function formatBirthDate(b: Pick<Birthday, "birth_month" | "birth_day">) {
+  return `${String(b.birth_day).padStart(2, "0")} de ${MONTH_NAMES[b.birth_month - 1]}`;
 }
 
 export default function BirthdaysPage() {
@@ -71,7 +82,7 @@ export default function BirthdaysPage() {
 
   const sorted = useMemo(() => {
     return [...birthdays].sort(
-      (a, b) => nextOccurrence(a.birth_date).getTime() - nextOccurrence(b.birth_date).getTime()
+      (a, b) => nextOccurrence(a).getTime() - nextOccurrence(b).getTime()
     );
   }, [birthdays]);
 
@@ -82,7 +93,7 @@ export default function BirthdaysPage() {
   }, [month]);
 
   const birthdaysForDay = (day: Date) =>
-    birthdays.filter((b) => isSameDay(birthdayThisYear(b.birth_date, day.getFullYear()), day));
+    birthdays.filter((b) => isSameDay(birthdayThisYear(b, day.getFullYear()), day));
 
   function openCreate() {
     setEditing(null);
@@ -225,7 +236,7 @@ function BirthdayCard({
   photoCount: number;
   onClick: () => void;
 }) {
-  const occ = nextOccurrence(birthday.birth_date);
+  const occ = nextOccurrence(birthday);
   const isTodayBirthday = isToday(occ);
 
   return (
@@ -248,7 +259,7 @@ function BirthdayCard({
       <div className="mt-4 flex items-center gap-2">
         <Badge tone={isTodayBirthday ? "accent" : "neutral"}>
           <Cake className="mr-1 inline h-3 w-3" />
-          {format(occ, "dd 'de' MMMM", { locale: ptBR })}
+          {formatBirthDate(birthday)}
         </Badge>
         {isTodayBirthday && <Badge tone="success">Hoje!</Badge>}
       </div>
@@ -270,20 +281,22 @@ function BirthdayFormDialog({
 }) {
   const supabase = createClient();
   const [name, setName] = useState(birthday?.name || "");
-  const [birthDate, setBirthDate] = useState(birthday?.birth_date || "");
+  const [month, setMonth] = useState(birthday?.birth_month || 1);
+  const [day, setDay] = useState(birthday?.birth_day || 1);
   const [notes, setNotes] = useState(birthday?.notes || "");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
-    if (!name.trim() || !birthDate) {
-      toast.error("Preencha nome e data");
+    if (!name.trim()) {
+      toast.error("Preencha o nome");
       return;
     }
     setSaving(true);
     try {
+      const input = { name, birth_month: month, birth_day: day, notes: notes || null };
       const saved = birthday
-        ? await updateBirthday(supabase, birthday.id, { name, birth_date: birthDate, notes: notes || null })
-        : await createBirthday(supabase, userId, { name, birth_date: birthDate, notes: notes || null });
+        ? await updateBirthday(supabase, birthday.id, input)
+        : await createBirthday(supabase, userId, input);
       toast.success(birthday ? "Aniversário atualizado" : "Aniversário criado");
       onSaved(saved);
     } catch {
@@ -293,6 +306,8 @@ function BirthdayFormDialog({
     }
   }
 
+  const daysInMonth = DAYS_IN_MONTH[month - 1];
+
   return (
     <Dialog open onClose={onClose} size="sm">
       <DialogHeader title={birthday ? "Editar aniversário" : "Novo aniversário"} onClose={onClose} />
@@ -301,9 +316,33 @@ function BirthdayFormDialog({
           <Label>Nome</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do colaborador" autoFocus />
         </div>
-        <div>
-          <Label>Data de aniversário</Label>
-          <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Dia</Label>
+            <Select
+              value={day}
+              onChange={(e) => setDay(Number(e.target.value))}
+            >
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Mês</Label>
+            <Select
+              value={month}
+              onChange={(e) => {
+                const m = Number(e.target.value);
+                setMonth(m);
+                if (day > DAYS_IN_MONTH[m - 1]) setDay(DAYS_IN_MONTH[m - 1]);
+              }}
+            >
+              {MONTH_NAMES.map((label, i) => (
+                <option key={label} value={i + 1}>{label}</option>
+              ))}
+            </Select>
+          </div>
         </div>
         <div>
           <Label>Observações (opcional)</Label>
@@ -334,7 +373,6 @@ function BirthdayDialog({
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const occ = nextOccurrence(birthday.birth_date);
 
   useEffect(() => {
     (async () => {
@@ -388,7 +426,7 @@ function BirthdayDialog({
       <Dialog open onClose={onClose} size="lg">
         <DialogHeader
           title={birthday.name}
-          subtitle={`Aniversário em ${format(occ, "dd 'de' MMMM", { locale: ptBR })}`}
+          subtitle={`Aniversário em ${formatBirthDate(birthday)}`}
           onClose={onClose}
         />
         <DialogBody className="space-y-4">

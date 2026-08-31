@@ -49,7 +49,8 @@ export interface Profile {
 export interface Birthday {
   id: string;
   name: string;
-  birth_date: string;
+  birth_month: number;
+  birth_day: number;
   notes: string | null;
   created_by: string | null;
   created_at: string;
