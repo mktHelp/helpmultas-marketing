@@ -1,38 +1,10 @@
--- 0014_track_archive_delete_actor.sql
--- Archiving/deleting a task never recorded *who* did it - only archived_at
--- and deleted_at timestamps existed. Add actor columns, populate them from
--- auth.uid() in the same before-write trigger that already stamps
--- completed_at, and log activity_logs entries so the change shows up in the
--- task's history timeline too.
-
-alter table tasks add column archived_by uuid references profiles(id) on delete set null;
-alter table tasks add column deleted_by uuid references profiles(id) on delete set null;
-
-create or replace function public.set_task_completed_at()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  -- Runs BEFORE the write so it can only mutate NEW; it must not touch other
-  -- tables here because NEW's row does not exist/commit in `tasks` yet.
-  if tg_op = 'UPDATE' and new.status is distinct from old.status
-     and new.status = 'concluido' and old.status <> 'concluido' then
-    new.completed_at := now();
-  end if;
-
-  if tg_op = 'UPDATE' and new.is_archived is distinct from old.is_archived then
-    new.archived_by := case when new.is_archived then auth.uid() else null end;
-  end if;
-
-  if tg_op = 'UPDATE' and new.deleted_at is distinct from old.deleted_at then
-    new.deleted_by := case when new.deleted_at is not null then auth.uid() else null end;
-  end if;
-
-  return new;
-end;
-$$;
+-- 0020_fix_log_task_activity_assigned_to.sql
+-- Migration 0014 accidentally reverted log_task_activity() to a pre-0008
+-- version that references tasks.assigned_to, a column 0008 removed in favor
+-- of the task_assignees join table. Every task insert/update has been
+-- failing with `record "new" has no field "assigned_to"` since 0014 ran.
+-- This restores 0008's assignee-aware logic and keeps 0014's archived_by/
+-- deleted_by activity logging.
 
 create or replace function public.log_task_activity()
 returns trigger
@@ -41,11 +13,6 @@ security definer
 set search_path = public
 as $$
 begin
-  -- Runs AFTER the write, so NEW.id is guaranteed to exist in `tasks` and can
-  -- safely be referenced by activity_logs/notifications foreign keys.
-  --
-  -- Assignment is handled by log_assignment_activity() on task_assignees
-  -- (see 0008), not here — tasks.assigned_to no longer exists.
   if tg_op = 'INSERT' then
     insert into activity_logs (user_id, action, entity_type, entity_id, metadata)
     values (new.created_by, 'created', 'task', new.id, jsonb_build_object('title', new.title));
@@ -89,3 +56,5 @@ begin
   return new;
 end;
 $$;
+
+NOTIFY pgrst, 'reload schema';
