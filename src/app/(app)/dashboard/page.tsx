@@ -13,6 +13,7 @@ import { TaskListItem } from "@/components/tasks/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import { RealtimeRefresher } from "@/components/shared/RealtimeRefresher";
+import { TodayAnniversaries } from "@/components/shared/TodayAnniversaries";
 
 function greeting() {
   const h = new Date().getHours();
@@ -57,6 +58,8 @@ export default async function DashboardPage() {
         </h1>
         <p className="mt-1 text-sm text-gray-500">Veja o que está acontecendo no Marketing hoje.</p>
       </div>
+
+      <TodayAnniversaries />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         <StatCard icon={ListTodo} label="Tarefas abertas" value={kpis.open} tone="neutral" />

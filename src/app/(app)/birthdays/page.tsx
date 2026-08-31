@@ -15,21 +15,27 @@ import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { listProfiles } from "@/lib/services/profiles";
 import {
   createBirthday, deleteBirthday, deleteBirthdayPhoto, getBirthdayPhotoUrl,
-  listBirthdayPhotos, listBirthdays, updateBirthday, uploadBirthdayPhoto,
+  listBirthdayOwners, listBirthdayPhotos, listBirthdays, setBirthdayOwners, updateBirthday, uploadBirthdayPhoto,
 } from "@/lib/services/birthdays";
 import {
   createWorkAnniversary, deleteWorkAnniversary, deleteWorkAnniversaryPhoto, getWorkAnniversaryPhotoUrl,
-  listWorkAnniversaries, listWorkAnniversaryPhotos, updateWorkAnniversary, uploadWorkAnniversaryPhoto,
+  listWorkAnniversaries, listWorkAnniversaryOwners, listWorkAnniversaryPhotos, setWorkAnniversaryOwners,
+  updateWorkAnniversary, uploadWorkAnniversaryPhoto,
 } from "@/lib/services/workAnniversaries";
 import { cn, initials } from "@/lib/utils";
-import type { Birthday, BirthdayPhoto, WorkAnniversary, WorkAnniversaryPhoto } from "@/types/database";
+import type {
+  Birthday, BirthdayOwner, BirthdayPhoto, Profile, WorkAnniversary, WorkAnniversaryOwner, WorkAnniversaryPhoto,
+} from "@/types/database";
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -64,7 +70,14 @@ function parseDateParts(isoDate: string): MonthDay & { year: number } {
 // ------------------------- Page -------------------------
 
 export default function BirthdaysPage() {
+  const supabase = createClient();
   const [kind, setKind] = useState<"life" | "work">("life");
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+
+  useEffect(() => {
+    listProfiles(supabase).then(setProfiles);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div>
@@ -79,7 +92,20 @@ export default function BirthdaysPage() {
           />
         }
       />
-      {kind === "life" ? <LifeBirthdays /> : <WorkAnniversaries />}
+      {kind === "life" ? <LifeBirthdays profiles={profiles} /> : <WorkAnniversaries profiles={profiles} />}
+    </div>
+  );
+}
+
+function OwnerAvatars({ profileIds, profiles, size = "sm" }: { profileIds: string[]; profiles: Profile[]; size?: "xs" | "sm" }) {
+  if (profileIds.length === 0) return null;
+  const owners = profileIds.map((id) => profiles.find((p) => p.id === id)).filter((p): p is Profile => !!p);
+  if (owners.length === 0) return null;
+  return (
+    <div className="flex items-center -space-x-2">
+      {owners.map((p) => (
+        <UserAvatar key={p.id} name={p.full_name} avatarUrl={p.avatar_url} size={size} className="ring-2 ring-white" />
+      ))}
     </div>
   );
 }
@@ -87,12 +113,14 @@ export default function BirthdaysPage() {
 // ------------------------- Shared calendar/cards shell -------------------------
 
 function AnniversaryBoard<T extends { id: string; name: string; notes: string | null }>({
-  items, getMonthDay, getBadgeExtra, photoCounts, onSelect, onCreate, emptyLabel,
+  items, getMonthDay, getBadgeExtra, photoCounts, ownerIds, profiles, onSelect, onCreate, emptyLabel,
 }: {
   items: T[];
   getMonthDay: (item: T) => MonthDay;
   getBadgeExtra?: (item: T) => string | null;
   photoCounts: Map<string, number>;
+  ownerIds: (item: T) => string[];
+  profiles: Profile[];
   onSelect: (item: T) => void;
   onCreate: () => void;
   emptyLabel: string;
@@ -161,11 +189,14 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
                   {getBadgeExtra?.(it) && <Badge tone="info">{getBadgeExtra(it)}</Badge>}
                   {isTodayItem && <Badge tone="success">Hoje!</Badge>}
                 </div>
-                <div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
-                  <Paperclip className="h-3.5 w-3.5" />
-                  {(photoCounts.get(it.id) || 0) === 0
-                    ? "Sem fotos anexadas"
-                    : `${photoCounts.get(it.id)} foto(s) anexada(s)`}
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    {(photoCounts.get(it.id) || 0) === 0
+                      ? "Sem fotos anexadas"
+                      : `${photoCounts.get(it.id)} foto(s) anexada(s)`}
+                  </div>
+                  <OwnerAvatars profileIds={ownerIds(it)} profiles={profiles} size="xs" />
                 </div>
               </Card>
             );
@@ -228,11 +259,12 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
 
 // ------------------------- Aniversário de Vida -------------------------
 
-function LifeBirthdays() {
+function LifeBirthdays({ profiles }: { profiles: Profile[] }) {
   const supabase = createClient();
   const { profile: me } = useAuth();
   const [birthdays, setBirthdays] = useState<Birthday[]>([]);
   const [photos, setPhotos] = useState<BirthdayPhoto[]>([]);
+  const [owners, setOwnersState] = useState<BirthdayOwner[]>([]);
   const [selected, setSelected] = useState<Birthday | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Birthday | null>(null);
@@ -240,6 +272,7 @@ function LifeBirthdays() {
   const load = useCallback(() => {
     listBirthdays(supabase).then(setBirthdays);
     listBirthdayPhotos(supabase).then(setPhotos);
+    listBirthdayOwners(supabase).then(setOwnersState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -254,6 +287,7 @@ function LifeBirthdays() {
   }, [photos]);
 
   const photosFor = (id: string) => photos.filter((p) => p.birthday_id === id);
+  const ownersFor = (id: string) => owners.filter((o) => o.birthday_id === id).map((o) => o.profile_id);
 
   return (
     <div>
@@ -261,6 +295,8 @@ function LifeBirthdays() {
         items={birthdays}
         getMonthDay={(b) => ({ month: b.birth_month, day: b.birth_day })}
         photoCounts={photoCounts}
+        ownerIds={(b) => ownersFor(b.id)}
+        profiles={profiles}
         onSelect={setSelected}
         onCreate={() => {
           setEditing(null);
@@ -273,6 +309,8 @@ function LifeBirthdays() {
         <LifeBirthdayDialog
           birthday={selected}
           photos={photosFor(selected.id)}
+          ownerIds={ownersFor(selected.id)}
+          profiles={profiles}
           onClose={() => setSelected(null)}
           onChanged={load}
           onEdit={() => {
@@ -290,6 +328,8 @@ function LifeBirthdays() {
       {formOpen && (
         <LifeBirthdayFormDialog
           birthday={editing}
+          ownerIds={editing ? ownersFor(editing.id) : []}
+          profiles={profiles}
           userId={me?.id || ""}
           onClose={() => setFormOpen(false)}
           onSaved={(b) => {
@@ -304,9 +344,11 @@ function LifeBirthdays() {
 }
 
 function LifeBirthdayFormDialog({
-  birthday, userId, onClose, onSaved,
+  birthday, ownerIds, profiles, userId, onClose, onSaved,
 }: {
   birthday: Birthday | null;
+  ownerIds: string[];
+  profiles: Profile[];
   userId: string;
   onClose: () => void;
   onSaved: (b: Birthday) => void;
@@ -316,6 +358,7 @@ function LifeBirthdayFormDialog({
   const [month, setMonth] = useState(birthday?.birth_month || 1);
   const [day, setDay] = useState(birthday?.birth_day || 1);
   const [notes, setNotes] = useState(birthday?.notes || "");
+  const [selectedOwners, setSelectedOwners] = useState<string[]>(ownerIds);
   const [saving, setSaving] = useState(false);
   const daysInMonth = DAYS_IN_MONTH[month - 1];
 
@@ -330,6 +373,7 @@ function LifeBirthdayFormDialog({
       const saved = birthday
         ? await updateBirthday(supabase, birthday.id, input)
         : await createBirthday(supabase, userId, input);
+      await setBirthdayOwners(supabase, saved.id, selectedOwners);
       toast.success(birthday ? "Aniversário atualizado" : "Aniversário criado");
       onSaved(saved);
     } catch {
@@ -376,6 +420,16 @@ function LifeBirthdayFormDialog({
           <Label>Observações (opcional)</Label>
           <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Cargo, equipe, etc." />
         </div>
+        <div>
+          <Label>Responsáveis por postar o story</Label>
+          <MultiSelect
+            placeholder="Selecionar responsáveis"
+            options={profiles.map((p) => ({ value: p.id, label: p.full_name }))}
+            selected={selectedOwners}
+            onChange={setSelectedOwners}
+            className="w-full"
+          />
+        </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -386,10 +440,12 @@ function LifeBirthdayFormDialog({
 }
 
 function LifeBirthdayDialog({
-  birthday, photos, onClose, onChanged, onEdit, onDeleted, userId,
+  birthday, photos, ownerIds, profiles, onClose, onChanged, onEdit, onDeleted, userId,
 }: {
   birthday: Birthday;
   photos: BirthdayPhoto[];
+  ownerIds: string[];
+  profiles: Profile[];
   onClose: () => void;
   onChanged: () => void;
   onEdit: () => void;
@@ -476,6 +532,8 @@ function LifeBirthdayDialog({
             </div>
           </div>
 
+          <OwnerList ownerIds={ownerIds} profiles={profiles} />
+
           <PhotoGrid
             photos={photos}
             urls={urls}
@@ -502,11 +560,12 @@ function LifeBirthdayDialog({
 
 // ------------------------- Aniversário de Casa -------------------------
 
-function WorkAnniversaries() {
+function WorkAnniversaries({ profiles }: { profiles: Profile[] }) {
   const supabase = createClient();
   const { profile: me } = useAuth();
   const [items, setItems] = useState<WorkAnniversary[]>([]);
   const [photos, setPhotos] = useState<WorkAnniversaryPhoto[]>([]);
+  const [owners, setOwnersState] = useState<WorkAnniversaryOwner[]>([]);
   const [selected, setSelected] = useState<WorkAnniversary | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<WorkAnniversary | null>(null);
@@ -514,6 +573,7 @@ function WorkAnniversaries() {
   const load = useCallback(() => {
     listWorkAnniversaries(supabase).then(setItems);
     listWorkAnniversaryPhotos(supabase).then(setPhotos);
+    listWorkAnniversaryOwners(supabase).then(setOwnersState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -528,6 +588,7 @@ function WorkAnniversaries() {
   }, [photos]);
 
   const photosFor = (id: string) => photos.filter((p) => p.work_anniversary_id === id);
+  const ownersFor = (id: string) => owners.filter((o) => o.work_anniversary_id === id).map((o) => o.profile_id);
 
   function yearsFor(w: WorkAnniversary) {
     const { year, month, day } = parseDateParts(w.hire_date);
@@ -548,6 +609,8 @@ function WorkAnniversaries() {
           return yrs > 0 ? `${yrs} ano(s) de empresa` : null;
         }}
         photoCounts={photoCounts}
+        ownerIds={(w) => ownersFor(w.id)}
+        profiles={profiles}
         onSelect={setSelected}
         onCreate={() => {
           setEditing(null);
@@ -561,6 +624,8 @@ function WorkAnniversaries() {
           item={selected}
           years={yearsFor(selected)}
           photos={photosFor(selected.id)}
+          ownerIds={ownersFor(selected.id)}
+          profiles={profiles}
           onClose={() => setSelected(null)}
           onChanged={load}
           onEdit={() => {
@@ -578,6 +643,8 @@ function WorkAnniversaries() {
       {formOpen && (
         <WorkAnniversaryFormDialog
           item={editing}
+          ownerIds={editing ? ownersFor(editing.id) : []}
+          profiles={profiles}
           userId={me?.id || ""}
           onClose={() => setFormOpen(false)}
           onSaved={(w) => {
@@ -592,9 +659,11 @@ function WorkAnniversaries() {
 }
 
 function WorkAnniversaryFormDialog({
-  item, userId, onClose, onSaved,
+  item, ownerIds, profiles, userId, onClose, onSaved,
 }: {
   item: WorkAnniversary | null;
+  ownerIds: string[];
+  profiles: Profile[];
   userId: string;
   onClose: () => void;
   onSaved: (w: WorkAnniversary) => void;
@@ -603,6 +672,7 @@ function WorkAnniversaryFormDialog({
   const [name, setName] = useState(item?.name || "");
   const [hireDate, setHireDate] = useState(item?.hire_date || "");
   const [notes, setNotes] = useState(item?.notes || "");
+  const [selectedOwners, setSelectedOwners] = useState<string[]>(ownerIds);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -616,6 +686,7 @@ function WorkAnniversaryFormDialog({
       const saved = item
         ? await updateWorkAnniversary(supabase, item.id, input)
         : await createWorkAnniversary(supabase, userId, input);
+      await setWorkAnniversaryOwners(supabase, saved.id, selectedOwners);
       toast.success(item ? "Aniversário de casa atualizado" : "Aniversário de casa criado");
       onSaved(saved);
     } catch {
@@ -641,6 +712,16 @@ function WorkAnniversaryFormDialog({
           <Label>Observações (opcional)</Label>
           <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Cargo, equipe, etc." />
         </div>
+        <div>
+          <Label>Responsáveis por postar o story</Label>
+          <MultiSelect
+            placeholder="Selecionar responsáveis"
+            options={profiles.map((p) => ({ value: p.id, label: p.full_name }))}
+            selected={selectedOwners}
+            onChange={setSelectedOwners}
+            className="w-full"
+          />
+        </div>
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -651,11 +732,13 @@ function WorkAnniversaryFormDialog({
 }
 
 function WorkAnniversaryDialog({
-  item, years, photos, onClose, onChanged, onEdit, onDeleted, userId,
+  item, years, photos, ownerIds, profiles, onClose, onChanged, onEdit, onDeleted, userId,
 }: {
   item: WorkAnniversary;
   years: number;
   photos: WorkAnniversaryPhoto[];
+  ownerIds: string[];
+  profiles: Profile[];
   onClose: () => void;
   onChanged: () => void;
   onEdit: () => void;
@@ -747,6 +830,8 @@ function WorkAnniversaryDialog({
             </div>
           </div>
 
+          <OwnerList ownerIds={ownerIds} profiles={profiles} />
+
           <PhotoGrid
             photos={photos}
             urls={urls}
@@ -768,6 +853,30 @@ function WorkAnniversaryDialog({
         danger
       />
     </>
+  );
+}
+
+// ------------------------- Shared owner list -------------------------
+
+function OwnerList({ ownerIds, profiles }: { ownerIds: string[]; profiles: Profile[] }) {
+  const owners = ownerIds.map((id) => profiles.find((p) => p.id === id)).filter((p): p is Profile => !!p);
+
+  return (
+    <div>
+      <p className="mb-2 font-display text-sm font-bold text-blue-900">Responsáveis por postar o story</p>
+      {owners.length === 0 ? (
+        <p className="rounded-lg bg-gray-050 p-3 text-center text-sm text-gray-500">Nenhum responsável vinculado.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {owners.map((p) => (
+            <div key={p.id} className="flex items-center gap-2 rounded-full bg-gray-050 py-1 pl-1 pr-3">
+              <UserAvatar name={p.full_name} avatarUrl={p.avatar_url} size="xs" />
+              <span className="text-xs font-semibold text-blue-900">{p.full_name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

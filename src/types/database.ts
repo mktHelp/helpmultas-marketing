@@ -70,6 +70,16 @@ export interface BirthdayPhoto {
   created_at: string;
 }
 
+export interface BirthdayOwner {
+  birthday_id: string;
+  profile_id: string;
+}
+
+export interface WorkAnniversaryOwner {
+  work_anniversary_id: string;
+  profile_id: string;
+}
+
 export interface WorkAnniversary {
   id: string;
   name: string;

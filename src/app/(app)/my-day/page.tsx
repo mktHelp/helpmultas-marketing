@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { isBefore, isToday, isAfter, parseISO } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { TodayAnniversaries } from "@/components/shared/TodayAnniversaries";
 import { TaskListItem } from "@/components/tasks/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createClient } from "@/lib/supabase/client";
@@ -39,6 +40,8 @@ export default function MyDayPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Meu Dia" description="Sua central pessoal de produtividade." />
+
+      <TodayAnniversaries onlyMine />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ChartCard title={`Atrasadas (${overdue.length})`}>

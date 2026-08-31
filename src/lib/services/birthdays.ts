@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Birthday, BirthdayPhoto } from "@/types/database";
+import type { Birthday, BirthdayOwner, BirthdayPhoto } from "@/types/database";
 
 export async function listBirthdays(supabase: SupabaseClient) {
   const { data, error } = await supabase.from("birthdays").select("*").order("name");
@@ -78,5 +78,21 @@ export async function getBirthdayPhotoUrl(supabase: SupabaseClient, path: string
 export async function deleteBirthdayPhoto(supabase: SupabaseClient, id: string, path: string) {
   await supabase.storage.from("birthday-photos").remove([path]);
   const { error } = await supabase.from("birthday_photos").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listBirthdayOwners(supabase: SupabaseClient) {
+  const { data, error } = await supabase.from("birthday_owners").select("*");
+  if (error) throw error;
+  return data as BirthdayOwner[];
+}
+
+export async function setBirthdayOwners(supabase: SupabaseClient, birthdayId: string, profileIds: string[]) {
+  const { error: delError } = await supabase.from("birthday_owners").delete().eq("birthday_id", birthdayId);
+  if (delError) throw delError;
+  if (profileIds.length === 0) return;
+  const { error } = await supabase
+    .from("birthday_owners")
+    .insert(profileIds.map((profile_id) => ({ birthday_id: birthdayId, profile_id })));
   if (error) throw error;
 }

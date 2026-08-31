@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { WorkAnniversary, WorkAnniversaryPhoto } from "@/types/database";
+import type { WorkAnniversary, WorkAnniversaryOwner, WorkAnniversaryPhoto } from "@/types/database";
 
 export async function listWorkAnniversaries(supabase: SupabaseClient) {
   const { data, error } = await supabase.from("work_anniversaries").select("*").order("name");
@@ -87,5 +87,28 @@ export async function getWorkAnniversaryPhotoUrl(supabase: SupabaseClient, path:
 export async function deleteWorkAnniversaryPhoto(supabase: SupabaseClient, id: string, path: string) {
   await supabase.storage.from("birthday-photos").remove([path]);
   const { error } = await supabase.from("work_anniversary_photos").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listWorkAnniversaryOwners(supabase: SupabaseClient) {
+  const { data, error } = await supabase.from("work_anniversary_owners").select("*");
+  if (error) throw error;
+  return data as WorkAnniversaryOwner[];
+}
+
+export async function setWorkAnniversaryOwners(
+  supabase: SupabaseClient,
+  workAnniversaryId: string,
+  profileIds: string[]
+) {
+  const { error: delError } = await supabase
+    .from("work_anniversary_owners")
+    .delete()
+    .eq("work_anniversary_id", workAnniversaryId);
+  if (delError) throw delError;
+  if (profileIds.length === 0) return;
+  const { error } = await supabase
+    .from("work_anniversary_owners")
+    .insert(profileIds.map((profile_id) => ({ work_anniversary_id: workAnniversaryId, profile_id })));
   if (error) throw error;
 }
