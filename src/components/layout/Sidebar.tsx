@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  LogOut, X,
+  LogOut, X, Cake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -24,6 +24,7 @@ const NAV = [
   { href: "/campaigns", label: "Campanhas", icon: Megaphone },
   { href: "/content", label: "Conteúdos", icon: FileText },
   { href: "/team", label: "Equipe", icon: Users },
+  { href: "/birthdays", label: "Aniversários", icon: Cake },
   { href: "/reports", label: "Relatórios", icon: BarChart3 },
   { href: "/trash", label: "Lixeira", icon: Trash2 },
   { href: "/settings", label: "Configurações", icon: Settings },
