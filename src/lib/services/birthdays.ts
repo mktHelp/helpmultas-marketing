@@ -66,8 +66,11 @@ export async function uploadBirthdayPhoto(
   return data as BirthdayPhoto;
 }
 
-export async function getBirthdayPhotoUrl(supabase: SupabaseClient, path: string) {
-  const { data, error } = await supabase.storage.from("birthday-photos").createSignedUrl(path, 3600);
+export async function getBirthdayPhotoUrl(supabase: SupabaseClient, path: string, downloadName?: string) {
+  const { data, error } = await supabase
+    .storage
+    .from("birthday-photos")
+    .createSignedUrl(path, 3600, downloadName ? { download: downloadName } : undefined);
   if (error) throw error;
   return data.signedUrl;
 }

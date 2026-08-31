@@ -7,7 +7,7 @@ import {
   isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Cake, PartyPopper, Paperclip, Trash2, Plus, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Cake, PartyPopper, Paperclip, Trash2, Plus, Pencil, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -405,7 +405,7 @@ function LifeBirthdayDialog({
   useEffect(() => {
     (async () => {
       const entries = await Promise.all(
-        photos.map(async (p) => [p.id, await getBirthdayPhotoUrl(supabase, p.file_path)] as const)
+        photos.map(async (p) => [p.id, await getBirthdayPhotoUrl(supabase, p.file_path, p.file_name)] as const)
       );
       setUrls(Object.fromEntries(entries));
     })();
@@ -672,7 +672,7 @@ function WorkAnniversaryDialog({
   useEffect(() => {
     (async () => {
       const entries = await Promise.all(
-        photos.map(async (p) => [p.id, await getWorkAnniversaryPhotoUrl(supabase, p.file_path)] as const)
+        photos.map(async (p) => [p.id, await getWorkAnniversaryPhotoUrl(supabase, p.file_path, p.file_name)] as const)
       );
       setUrls(Object.fromEntries(entries));
     })();
@@ -783,6 +783,8 @@ function PhotoGrid<T extends { id: string; file_name: string }>({
   onUpload: (files: FileList | null) => void;
   onDeletePhoto: (photo: T) => void;
 }) {
+  const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null);
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
@@ -809,20 +811,57 @@ function PhotoGrid<T extends { id: string; file_name: string }>({
             <div key={photo.id} className="group relative overflow-hidden rounded-lg border border-gray-200">
               {urls[photo.id] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={urls[photo.id]} alt={photo.file_name} className="aspect-square w-full object-cover" />
+                <img
+                  src={urls[photo.id]}
+                  alt={photo.file_name}
+                  onClick={() => setLightbox({ url: urls[photo.id], name: photo.file_name })}
+                  className="aspect-square w-full cursor-zoom-in object-cover"
+                />
               ) : (
                 <div className="aspect-square w-full animate-pulse bg-gray-100" />
               )}
-              <button
-                onClick={() => onDeletePhoto(photo)}
-                className="absolute right-1 top-1 rounded-full bg-blue-900/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                title="Remover foto"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                {urls[photo.id] && (
+                  <a
+                    href={urls[photo.id]}
+                    download={photo.file_name}
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded-full bg-blue-900/70 p-1 text-white hover:bg-blue-900"
+                    title="Baixar foto"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                <button
+                  onClick={() => onDeletePhoto(photo)}
+                  className="rounded-full bg-blue-900/70 p-1 text-white hover:bg-blue-900"
+                  title="Remover foto"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {lightbox && (
+        <Dialog open onClose={() => setLightbox(null)} size="xl">
+          <DialogHeader title={lightbox.name} onClose={() => setLightbox(null)} />
+          <DialogBody className="flex items-center justify-center bg-gray-050 p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={lightbox.url} alt={lightbox.name} className="max-h-[70vh] w-auto rounded-lg object-contain" />
+          </DialogBody>
+          <DialogFooter>
+            <a
+              href={lightbox.url}
+              download={lightbox.name}
+              className="inline-flex h-10 items-center gap-1.5 rounded-[14px] bg-blue-900 px-4 text-sm font-semibold text-white hover:bg-blue-800"
+            >
+              <Download className="h-4 w-4" /> Baixar
+            </a>
+          </DialogFooter>
+        </Dialog>
       )}
     </div>
   );
