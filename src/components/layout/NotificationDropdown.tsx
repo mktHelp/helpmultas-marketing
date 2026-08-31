@@ -77,7 +77,13 @@ export function NotificationDropdown() {
             {items.map((n) => (
               <Link
                 key={n.id}
-                href={n.task_id ? `/tasks/${n.task_id}` : "#"}
+                href={
+                  n.task_id
+                    ? `/tasks/${n.task_id}`
+                    : n.type === "birthday" || n.type === "work_anniversary"
+                      ? "/birthdays"
+                      : "#"
+                }
                 onClick={async () => {
                   await markAsRead(supabase, n.id);
                   setOpen(false);

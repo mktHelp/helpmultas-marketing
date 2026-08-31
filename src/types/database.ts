@@ -29,7 +29,9 @@ export type NotificationType =
   | "content_approved"
   | "content_rejected"
   | "comment_added"
-  | "status_changed";
+  | "status_changed"
+  | "birthday"
+  | "work_anniversary";
 
 export interface Profile {
   id: string;
@@ -60,6 +62,27 @@ export interface Birthday {
 export interface BirthdayPhoto {
   id: string;
   birthday_id: string;
+  uploaded_by: string | null;
+  file_name: string;
+  file_path: string;
+  file_type: string | null;
+  file_size: number | null;
+  created_at: string;
+}
+
+export interface WorkAnniversary {
+  id: string;
+  name: string;
+  hire_date: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkAnniversaryPhoto {
+  id: string;
+  work_anniversary_id: string;
   uploaded_by: string | null;
   file_name: string;
   file_path: string;
