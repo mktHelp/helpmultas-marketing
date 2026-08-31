@@ -23,7 +23,6 @@ export default function ProfilePage() {
     phone: profile?.phone || "",
     job_title: profile?.job_title || "",
     department: profile?.department || "",
-    birth_date: profile?.birth_date || "",
   });
   const [password, setPassword] = useState("");
 
@@ -33,7 +32,7 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await updateProfile(supabase, profile!.id, { ...form, birth_date: form.birth_date || null });
+      await updateProfile(supabase, profile!.id, form);
       await refresh();
       toast.success("Perfil atualizado");
     } catch {
@@ -90,19 +89,9 @@ export default function ProfilePage() {
               <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Telefone</Label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            </div>
-            <div>
-              <Label>Data de aniversário</Label>
-              <Input
-                type="date"
-                value={form.birth_date}
-                onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
-              />
-            </div>
+          <div>
+            <Label>Telefone</Label>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
           <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar alterações"}</Button>
         </form>

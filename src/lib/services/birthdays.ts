@@ -1,20 +1,40 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { BirthdayPhoto, Profile } from "@/types/database";
+import type { Birthday, BirthdayPhoto } from "@/types/database";
 
-export async function listBirthdayProfiles(supabase: SupabaseClient) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("is_active", true)
-    .not("birth_date", "is", null)
-    .order("full_name");
+export async function listBirthdays(supabase: SupabaseClient) {
+  const { data, error } = await supabase.from("birthdays").select("*").order("name");
   if (error) throw error;
-  return data as Profile[];
+  return data as Birthday[];
 }
 
-export async function listBirthdayPhotos(supabase: SupabaseClient, profileId?: string) {
+export async function createBirthday(
+  supabase: SupabaseClient,
+  userId: string,
+  input: { name: string; birth_date: string; notes?: string | null }
+) {
+  const { data, error } = await supabase
+    .from("birthdays")
+    .insert({ ...input, created_by: userId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Birthday;
+}
+
+export async function updateBirthday(supabase: SupabaseClient, id: string, patch: Partial<Birthday>) {
+  const { data, error } = await supabase.from("birthdays").update(patch).eq("id", id).select().single();
+  if (error) throw error;
+  return data as Birthday;
+}
+
+export async function deleteBirthday(supabase: SupabaseClient, id: string) {
+  const { error } = await supabase.from("birthdays").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listBirthdayPhotos(supabase: SupabaseClient, birthdayId?: string) {
   let query = supabase.from("birthday_photos").select("*").order("created_at", { ascending: false });
-  if (profileId) query = query.eq("profile_id", profileId);
+  if (birthdayId) query = query.eq("birthday_id", birthdayId);
   const { data, error } = await query;
   if (error) throw error;
   return data as BirthdayPhoto[];
@@ -22,18 +42,18 @@ export async function listBirthdayPhotos(supabase: SupabaseClient, profileId?: s
 
 export async function uploadBirthdayPhoto(
   supabase: SupabaseClient,
-  profileId: string,
+  birthdayId: string,
   userId: string,
   file: File
 ) {
-  const path = `${profileId}/${Date.now()}-${file.name}`;
+  const path = `${birthdayId}/${Date.now()}-${file.name}`;
   const { error: uploadError } = await supabase.storage.from("birthday-photos").upload(path, file);
   if (uploadError) throw uploadError;
 
   const { data, error } = await supabase
     .from("birthday_photos")
     .insert({
-      profile_id: profileId,
+      birthday_id: birthdayId,
       uploaded_by: userId,
       file_name: file.name,
       file_path: path,
