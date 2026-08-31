@@ -7,20 +7,21 @@ import {
   isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Cake, Paperclip, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Cake, Paperclip, Trash2, Check } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
+import { Input, Label } from "@/components/ui/Input";
 import { Dialog, DialogHeader, DialogBody } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { listProfiles, updateProfile } from "@/lib/services/profiles";
 import {
-  deleteBirthdayPhoto, getBirthdayPhotoUrl, listBirthdayPhotos,
-  listBirthdayProfiles, uploadBirthdayPhoto,
+  deleteBirthdayPhoto, getBirthdayPhotoUrl, listBirthdayPhotos, uploadBirthdayPhoto,
 } from "@/lib/services/birthdays";
 import { cn } from "@/lib/utils";
 import type { BirthdayPhoto, Profile } from "@/types/database";
@@ -40,7 +41,7 @@ function nextOccurrence(birthDate: string) {
 
 export default function BirthdaysPage() {
   const supabase = createClient();
-  const { profile: me } = useAuth();
+  const { profile: me, isAdmin } = useAuth();
   const [view, setView] = useState<"cards" | "calendar">("cards");
   const [month, setMonth] = useState(new Date());
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -48,7 +49,7 @@ export default function BirthdaysPage() {
   const [selected, setSelected] = useState<Profile | null>(null);
 
   const load = useCallback(() => {
-    listBirthdayProfiles(supabase).then(setProfiles);
+    listProfiles(supabase).then(setProfiles);
     listBirthdayPhotos(supabase).then(setPhotos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -56,6 +57,21 @@ export default function BirthdaysPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  function canEdit(p: Profile) {
+    return isAdmin || p.id === me?.id;
+  }
+
+  async function saveBirthDate(p: Profile, birthDate: string) {
+    try {
+      const updated = await updateProfile(supabase, p.id, { birth_date: birthDate || null });
+      toast.success("Data de aniversário salva");
+      setSelected((s) => (s && s.id === p.id ? updated : s));
+      load();
+    } catch {
+      toast.error("Erro ao salvar data");
+    }
+  }
 
   const photosByProfile = useMemo(() => {
     const map = new Map<string, BirthdayPhoto[]>();
@@ -71,6 +87,12 @@ export default function BirthdaysPage() {
       .filter((p) => p.birth_date)
       .sort((a, b) => nextOccurrence(a.birth_date!).getTime() - nextOccurrence(b.birth_date!).getTime());
   }, [profiles]);
+
+  const pending = useMemo(
+    () => profiles.filter((p) => !p.birth_date && canEdit(p)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profiles, isAdmin, me?.id]
+  );
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
@@ -89,11 +111,24 @@ export default function BirthdaysPage() {
         action={<Tabs tabs={[{ key: "cards", label: "Cards" }, { key: "calendar", label: "Calendário" }]} active={view} onChange={(v) => setView(v as "cards" | "calendar")} />}
       />
 
+      {pending.length > 0 && (
+        <Card className="mb-4 p-4">
+          <p className="mb-3 font-display text-sm font-bold text-blue-900">
+            Cadastrar data de aniversário
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {pending.map((p) => (
+              <PendingBirthdayRow key={p.id} profile={p} onSave={(date) => saveBirthDate(p, date)} />
+            ))}
+          </div>
+        </Card>
+      )}
+
       {sorted.length === 0 ? (
         <EmptyState
           icon={Cake}
           title="Nenhum aniversário cadastrado"
-          description="Peça para cada colaborador preencher a data de nascimento em Meu Perfil."
+          description="Cadastre a data de aniversário de cada colaborador acima."
         />
       ) : view === "cards" ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -168,8 +203,26 @@ export default function BirthdaysPage() {
           onClose={() => setSelected(null)}
           onChanged={load}
           userId={me?.id || ""}
+          canEdit={canEdit(selected)}
+          onSaveDate={(date) => saveBirthDate(selected, date)}
         />
       )}
+    </div>
+  );
+}
+
+function PendingBirthdayRow({ profile, onSave }: { profile: Profile; onSave: (date: string) => void }) {
+  const [date, setDate] = useState("");
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-gray-050 p-2.5">
+      <UserAvatar name={profile.full_name} avatarUrl={profile.avatar_url} size="sm" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-semibold text-blue-900">{profile.full_name}</p>
+        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 h-8 text-xs" />
+      </div>
+      <Button size="icon" variant="secondary" disabled={!date} onClick={() => onSave(date)}>
+        <Check className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
@@ -209,19 +262,22 @@ function BirthdayCard({ profile, photoCount, onClick }: { profile: Profile; phot
 }
 
 function BirthdayDialog({
-  profile, photos, onClose, onChanged, userId,
+  profile, photos, onClose, onChanged, userId, canEdit, onSaveDate,
 }: {
   profile: Profile;
   photos: BirthdayPhoto[];
   onClose: () => void;
   onChanged: () => void;
   userId: string;
+  canEdit: boolean;
+  onSaveDate: (date: string) => void;
 }) {
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
-  const occ = nextOccurrence(profile.birth_date!);
+  const [date, setDate] = useState(profile.birth_date || "");
+  const occ = profile.birth_date ? nextOccurrence(profile.birth_date) : null;
 
   useEffect(() => {
     (async () => {
@@ -264,7 +320,7 @@ function BirthdayDialog({
     <Dialog open onClose={onClose} size="lg">
       <DialogHeader
         title={profile.full_name}
-        subtitle={`Aniversário em ${format(occ, "dd 'de' MMMM", { locale: ptBR })}`}
+        subtitle={occ ? `Aniversário em ${format(occ, "dd 'de' MMMM", { locale: ptBR })}` : "Sem data cadastrada"}
         onClose={onClose}
       />
       <DialogBody className="space-y-4">
@@ -275,6 +331,22 @@ function BirthdayDialog({
             <p className="text-xs text-gray-500">{profile.job_title || profile.department || ""}</p>
           </div>
         </div>
+
+        {canEdit && (
+          <div>
+            <Label>Data de aniversário</Label>
+            <div className="flex gap-2">
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Button
+                variant="secondary"
+                disabled={date === (profile.birth_date || "")}
+                onClick={() => onSaveDate(date)}
+              >
+                Salvar
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div>
           <div className="mb-2 flex items-center justify-between">
