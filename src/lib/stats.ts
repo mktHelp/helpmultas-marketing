@@ -18,7 +18,12 @@ export function computeKpis(tasks: TaskWithRelations[], statuses: TaskStatusRow[
   const open = tasks.filter((t) => !doneKeys.has(t.status) && !cancelledKeys.has(t.status)).length;
   const completed = tasks.filter((t) => doneKeys.has(t.status)).length;
   const overdue = tasks.filter(
-    (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), new Date())
+    (t) =>
+      t.due_date &&
+      !t.completed_at &&
+      !doneKeys.has(t.status) &&
+      !cancelledKeys.has(t.status) &&
+      isBefore(parseISO(t.due_date), new Date())
   ).length;
   const todayKey = toDateKey(new Date());
   const dueToday = tasks.filter((t) => t.due_date && toDateKey(t.due_date) === todayKey && !t.completed_at).length;
@@ -70,7 +75,7 @@ export function teamRanking(tasks: TaskWithRelations[], profiles: Profile[], sta
       const own = tasks.filter((t) => t.assignees?.some((a) => a.id === p.id));
       const completed = own.filter((t) => doneKeys.has(t.status));
       const overdue = own.filter(
-        (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), new Date())
+        (t) => t.due_date && !t.completed_at && !doneKeys.has(t.status) && isBefore(parseISO(t.due_date), new Date())
       );
       // Some "done" tasks may not have completed_at set (e.g. created directly
       // in a done stage, before a stage was marked done, etc.) - exclude those
@@ -102,7 +107,12 @@ export function bottlenecks(tasks: TaskWithRelations[], statuses: TaskStatusRow[
   const { doneKeys, cancelledKeys } = statusFlags(statuses);
   const now = new Date();
   const overdue = tasks.filter(
-    (t) => t.due_date && !t.completed_at && isBefore(parseISO(t.due_date), now) && !cancelledKeys.has(t.status)
+    (t) =>
+      t.due_date &&
+      !t.completed_at &&
+      isBefore(parseISO(t.due_date), now) &&
+      !doneKeys.has(t.status) &&
+      !cancelledKeys.has(t.status)
   );
   const unassigned = tasks.filter(
     (t) => !(t.assignees && t.assignees.length) && !doneKeys.has(t.status) && !cancelledKeys.has(t.status)
