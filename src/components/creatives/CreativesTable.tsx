@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
@@ -39,6 +39,8 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
     link: "",
     dateFrom: "",
     dateTo: "",
+    uploadedFrom: "",
+    uploadedTo: "",
     topAd: "",
   });
 
@@ -110,6 +112,8 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
       if (filters.deliveredBy && row.delivered_by !== filters.deliveredBy) return false;
       if (filters.dateFrom && (!row.delivered_at || row.delivered_at < filters.dateFrom)) return false;
       if (filters.dateTo && (!row.delivered_at || row.delivered_at > filters.dateTo)) return false;
+      if (filters.uploadedFrom && (!row.uploaded_at || row.uploaded_at < filters.uploadedFrom)) return false;
+      if (filters.uploadedTo && (!row.uploaded_at || row.uploaded_at > filters.uploadedTo)) return false;
       if (filters.topAd && row.top_ad !== (filters.topAd === "sim")) return false;
       return true;
     });
@@ -186,6 +190,22 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
               placeholder="Filtrar..."
             />
           </FilterField>
+          <FilterField label="Subido de">
+            <input
+              type="date"
+              value={filters.uploadedFrom}
+              onChange={(e) => setFilters((f) => ({ ...f, uploadedFrom: e.target.value }))}
+              className="h-9 rounded-[14px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            />
+          </FilterField>
+          <FilterField label="até">
+            <input
+              type="date"
+              value={filters.uploadedTo}
+              onChange={(e) => setFilters((f) => ({ ...f, uploadedTo: e.target.value }))}
+              className="h-9 rounded-[14px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            />
+          </FilterField>
           <FilterField label="Top Ads">
             <div className="w-28">
               <Select
@@ -204,7 +224,17 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
               size="sm"
               variant="ghost"
               onClick={() =>
-                setFilters({ name: "", unit: "", deliveredBy: "", link: "", dateFrom: "", dateTo: "", topAd: "" })
+                setFilters({
+                  name: "",
+                  unit: "",
+                  deliveredBy: "",
+                  link: "",
+                  dateFrom: "",
+                  dateTo: "",
+                  uploadedFrom: "",
+                  uploadedTo: "",
+                  topAd: "",
+                })
               }
               className="gap-1"
             >
@@ -245,6 +275,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                 </th>
               ))}
               <th className="px-3 py-2.5">Link de criativos</th>
+              <th className="px-3 py-2.5">Subido na data de</th>
               <th className="px-3 py-2.5">Top Ads</th>
               <th className="w-10 px-3 py-2.5" />
             </tr>
@@ -288,13 +319,38 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                     className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                   />
                 </td>
-                <EditableCell
-                  value={row.link}
-                  onChange={(v) => handleTextChange(row.id, "link", v)}
-                  onFocus={() => (editingCell.current = `${row.id}:link`)}
-                  onBlur={() => (editingCell.current = null)}
-                  placeholder="https://..."
-                />
+                <td className="px-2 py-1.5">
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={row.link}
+                      placeholder="https://..."
+                      onChange={(e) => handleTextChange(row.id, "link", e.target.value)}
+                      onFocus={() => (editingCell.current = `${row.id}:link`)}
+                      onBlur={() => (editingCell.current = null)}
+                      className="h-9 w-full rounded-[10px] border border-transparent bg-transparent px-2.5 text-sm text-blue-900 placeholder:text-gray-400 hover:border-gray-200 focus:border-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    />
+                    {row.link && (
+                      <a
+                        href={row.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Abrir link"
+                        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-blue-050 hover:text-blue-900"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
+                </td>
+                <td className="px-2 py-1.5">
+                  <input
+                    type="date"
+                    value={row.uploaded_at ?? ""}
+                    onChange={(e) => handleFieldSave(row.id, { uploaded_at: e.target.value || null })}
+                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  />
+                </td>
                 <td className="px-2 py-1.5">
                   <Select
                     className="h-9"
@@ -318,7 +374,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
             ))}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-sm text-gray-400">
+                <td colSpan={8} className="px-3 py-10 text-center text-sm text-gray-400">
                   {rows.length === 0 ? "Nenhum criativo cadastrado ainda." : "Nenhum resultado para os filtros aplicados."}
                 </td>
               </tr>
