@@ -168,6 +168,7 @@ export interface Creative {
   delivered_by: string | null;
   delivered_at: string | null;
   link: string;
+  top_ad: boolean;
   sort_order: number;
   created_by: string | null;
   created_at: string;

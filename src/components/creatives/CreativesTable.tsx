@@ -219,6 +219,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                 </th>
               ))}
               <th className="px-3 py-2.5">Link de criativos</th>
+              <th className="px-3 py-2.5">Top Ads</th>
               <th className="w-10 px-3 py-2.5" />
             </tr>
           </thead>
@@ -268,6 +269,16 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                   onBlur={() => (editingCell.current = null)}
                   placeholder="https://..."
                 />
+                <td className="px-2 py-1.5">
+                  <Select
+                    className="h-9 w-24"
+                    value={row.top_ad ? "sim" : "nao"}
+                    onChange={(e) => handleFieldSave(row.id, { top_ad: e.target.value === "sim" })}
+                  >
+                    <option value="nao">Não</option>
+                    <option value="sim">Sim</option>
+                  </Select>
+                </td>
                 <td className="px-2 py-1.5 text-center">
                   <button
                     onClick={() => removeRow(row.id)}
@@ -281,7 +292,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
             ))}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-10 text-center text-sm text-gray-400">
+                <td colSpan={7} className="px-3 py-10 text-center text-sm text-gray-400">
                   {rows.length === 0 ? "Nenhum criativo cadastrado ainda." : "Nenhum resultado para os filtros aplicados."}
                 </td>
               </tr>
