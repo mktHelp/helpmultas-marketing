@@ -8,7 +8,9 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { TaskTable } from "@/components/tasks/TaskTable";
 import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
+import { CreativesTable } from "@/components/projects/CreativesTable";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+import { Tabs } from "@/components/ui/Tabs";
 import { createClient } from "@/lib/supabase/client";
 import { getProject, type ProjectWithOwner } from "@/lib/services/projects";
 import { listTasks } from "@/lib/services/tasks";
@@ -26,6 +28,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [tab, setTab] = useState("tasks");
 
   async function load() {
     const [p, t, pr] = await Promise.all([
@@ -78,8 +81,18 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
         </div>
       </Card>
 
-      <h3 className="mb-3 font-display text-base font-bold text-blue-900">Tarefas do projeto</h3>
-      <TaskTable tasks={tasks} profiles={profiles} onRefresh={load} canDelete={isManager} />
+      <Tabs
+        className="mb-4"
+        tabs={[
+          { key: "tasks", label: "Tarefas" },
+          { key: "creatives", label: "Criativos" },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
+
+      {tab === "tasks" && <TaskTable tasks={tasks} profiles={profiles} onRefresh={load} canDelete={isManager} />}
+      {tab === "creatives" && <CreativesTable projectId={projectId} profiles={profiles} />}
 
       <CreateTaskModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={load} defaultProjectId={projectId} />
     </div>

@@ -160,6 +160,21 @@ export interface Campaign {
   updated_at: string;
 }
 
+export interface ProjectCreative {
+  id: string;
+  project_id: string;
+  name: string;
+  unit: string;
+  delivered_by: string | null;
+  delivered_at: string | null;
+  link: string;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deliverer?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
+}
+
 export interface Tag {
   id: string;
   name: string;
