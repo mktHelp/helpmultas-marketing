@@ -32,7 +32,15 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
 
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [filters, setFilters] = useState({ name: "", unit: "", deliveredBy: "", link: "", dateFrom: "", dateTo: "" });
+  const [filters, setFilters] = useState({
+    name: "",
+    unit: "",
+    deliveredBy: "",
+    link: "",
+    dateFrom: "",
+    dateTo: "",
+    topAd: "",
+  });
 
   async function load() {
     const data = await listCreatives(supabase);
@@ -102,6 +110,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
       if (filters.deliveredBy && row.delivered_by !== filters.deliveredBy) return false;
       if (filters.dateFrom && (!row.delivered_at || row.delivered_at < filters.dateFrom)) return false;
       if (filters.dateTo && (!row.delivered_at || row.delivered_at > filters.dateTo)) return false;
+      if (filters.topAd && row.top_ad !== (filters.topAd === "sim")) return false;
       return true;
     });
 
@@ -138,18 +147,20 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
             />
           </FilterField>
           <FilterField label="Entregue por">
-            <Select
-              className="h-9 w-44"
-              value={filters.deliveredBy}
-              onChange={(e) => setFilters((f) => ({ ...f, deliveredBy: e.target.value }))}
-            >
-              <option value="">Todos</option>
-              {profiles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.full_name}
-                </option>
-              ))}
-            </Select>
+            <div className="w-44">
+              <Select
+                className="h-9"
+                value={filters.deliveredBy}
+                onChange={(e) => setFilters((f) => ({ ...f, deliveredBy: e.target.value }))}
+              >
+                <option value="">Todos</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </FilterField>
           <FilterField label="Entrega de">
             <input
@@ -175,11 +186,26 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
               placeholder="Filtrar..."
             />
           </FilterField>
+          <FilterField label="Top Ads">
+            <div className="w-28">
+              <Select
+                className="h-9"
+                value={filters.topAd}
+                onChange={(e) => setFilters((f) => ({ ...f, topAd: e.target.value }))}
+              >
+                <option value="">Todos</option>
+                <option value="sim">Sim</option>
+                <option value="nao">Não</option>
+              </Select>
+            </div>
+          </FilterField>
           {hasActiveFilters && (
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => setFilters({ name: "", unit: "", deliveredBy: "", link: "", dateFrom: "", dateTo: "" })}
+              onClick={() =>
+                setFilters({ name: "", unit: "", deliveredBy: "", link: "", dateFrom: "", dateTo: "", topAd: "" })
+              }
               className="gap-1"
             >
               <X className="h-3.5 w-3.5" /> Limpar filtros
@@ -271,7 +297,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                 />
                 <td className="px-2 py-1.5">
                   <Select
-                    className="h-9 w-24"
+                    className="h-9"
                     value={row.top_ad ? "sim" : "nao"}
                     onChange={(e) => handleFieldSave(row.id, { top_ad: e.target.value === "sim" })}
                   >
