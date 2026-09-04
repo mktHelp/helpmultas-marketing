@@ -160,9 +160,9 @@ export interface Campaign {
   updated_at: string;
 }
 
-export interface ProjectCreative {
+export interface Creative {
   id: string;
-  project_id: string;
+  project_id: string | null;
   name: string;
   unit: string;
   delivered_by: string | null;
