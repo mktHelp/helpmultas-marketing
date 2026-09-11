@@ -282,7 +282,13 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
           </thead>
           <tbody>
             {visibleRows.map((row) => (
-              <tr key={row.id} className="border-b border-gray-100 last:border-0">
+              <tr
+                key={row.id}
+                className={cn(
+                  "border-b border-gray-100 last:border-0",
+                  row.uploaded_at && "bg-[color:var(--color-success-bg)]"
+                )}
+              >
                 <EditableCell
                   value={row.name}
                   onChange={(v) => handleTextChange(row.id, "name", v)}
