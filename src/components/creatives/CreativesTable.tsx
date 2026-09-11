@@ -11,7 +11,7 @@ import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { cn } from "@/lib/utils";
 import type { Creative, Profile } from "@/types/database";
 
-const TEXT_FIELDS = ["name", "unit", "link"] as const;
+const TEXT_FIELDS = ["name", "link"] as const;
 type TextField = (typeof TEXT_FIELDS)[number];
 
 type SortField = "name" | "unit" | "deliverer" | "delivered_at";
@@ -23,6 +23,15 @@ const COLUMNS: { key: SortField; label: string }[] = [
   { key: "deliverer", label: "Nome de quem entregou" },
   { key: "delivered_at", label: "Data de entrega do arquivo" },
 ];
+
+const UNIT_OPTIONS = [
+  { value: "Franqueadora", dotClass: "bg-blue-100 border-blue-600", selectClass: "bg-blue-050 text-blue-900" },
+  { value: "Unidade", dotClass: "bg-yellow-100 border-yellow-600", selectClass: "bg-yellow-050 text-blue-900" },
+] as const;
+
+function unitMeta(value: string) {
+  return UNIT_OPTIONS.find((o) => o.value === value);
+}
 
 export function CreativesTable({ profiles }: { profiles: Profile[] }) {
   const supabase = createClient();
@@ -107,7 +116,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
   const visibleRows = useMemo(() => {
     let result = rows.filter((row) => {
       if (filters.name && !row.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
-      if (filters.unit && !row.unit.toLowerCase().includes(filters.unit.toLowerCase())) return false;
+      if (filters.unit && row.unit !== filters.unit) return false;
       if (filters.link && !row.link.toLowerCase().includes(filters.link.toLowerCase())) return false;
       if (filters.deliveredBy && row.delivered_by !== filters.deliveredBy) return false;
       if (filters.dateFrom && (!row.delivered_at || row.delivered_at < filters.dateFrom)) return false;
@@ -143,12 +152,20 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
             />
           </FilterField>
           <FilterField label="Unidade">
-            <Input
-              className="h-9 w-32"
-              value={filters.unit}
-              onChange={(e) => setFilters((f) => ({ ...f, unit: e.target.value }))}
-              placeholder="Filtrar..."
-            />
+            <div className="w-36">
+              <Select
+                className="h-9"
+                value={filters.unit}
+                onChange={(e) => setFilters((f) => ({ ...f, unit: e.target.value }))}
+              >
+                <option value="">Todos</option>
+                {UNIT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.value}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </FilterField>
           <FilterField label="Entregue por">
             <div className="w-44">
@@ -248,6 +265,23 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
         </Button>
       </div>
 
+      <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+        <span className="font-bold uppercase text-gray-500">Legenda:</span>
+        {UNIT_OPTIONS.map((o) => (
+          <span key={o.value} className="flex items-center gap-1.5">
+            <span className={cn("h-2.5 w-2.5 rounded-full border", o.dotClass)} />
+            {o.value}
+          </span>
+        ))}
+        <span className="flex items-center gap-1.5">
+          <span
+            className="h-2.5 w-2.5 rounded-full border"
+            style={{ background: "var(--color-success-bg)", borderColor: "var(--color-success)" }}
+          />
+          Já subido
+        </span>
+      </div>
+
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
         <table className="w-full min-w-[900px] border-collapse text-sm">
           <thead>
@@ -296,13 +330,20 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                   onBlur={() => (editingCell.current = null)}
                   placeholder="Nome do criativo"
                 />
-                <EditableCell
-                  value={row.unit}
-                  onChange={(v) => handleTextChange(row.id, "unit", v)}
-                  onFocus={() => (editingCell.current = `${row.id}:unit`)}
-                  onBlur={() => (editingCell.current = null)}
-                  placeholder="Unidade"
-                />
+                <td className="px-2 py-1.5">
+                  <Select
+                    className={cn("h-9 font-semibold", unitMeta(row.unit)?.selectClass)}
+                    value={row.unit}
+                    onChange={(e) => handleFieldSave(row.id, { unit: e.target.value })}
+                  >
+                    <option value="">Selecionar...</option>
+                    {UNIT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.value}
+                      </option>
+                    ))}
+                  </Select>
+                </td>
                 <td className="px-2 py-1.5">
                   <Select
                     className="h-9"
