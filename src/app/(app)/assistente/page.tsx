@@ -196,7 +196,7 @@ export default function AssistentePage() {
     <div className="flex h-full flex-col">
       <PageHeader
         title="Assistente"
-        description="Pergunte sobre tarefas e prazos, ou peça ajuda para criar conteúdo. É o Helpinho, com Gemini."
+        description="Pergunte sobre tarefas e prazos, ou peça ajuda para criar conteúdo. É o Helpinho, com ChatGPT."
       />
 
       <div className="flex h-[calc(100vh-220px)] min-h-[420px] gap-4">
