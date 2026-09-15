@@ -22,7 +22,7 @@ export type ContentType =
   | "landing_page";
 export type RecurrenceFreq = "diaria" | "semanal" | "quinzenal" | "mensal";
 export type GoalScope = "company" | "area" | "user";
-export type GoalMetric = "tasks_completed" | "on_time_rate";
+export type GoalMetric = "tasks_completed" | "on_time_rate" | "content_published";
 export type NotificationType =
   | "task_assigned"
   | "due_soon"
@@ -244,6 +244,7 @@ export interface Goal {
   area_id: string | null;
   user_id: string | null;
   metric: GoalMetric;
+  content_type: ContentType | null;
   target_value: number;
   period_start: string;
   period_end: string;

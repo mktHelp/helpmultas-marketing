@@ -7,19 +7,22 @@ import { Pencil, Plus, Target, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
 import { deleteGoal } from "@/lib/services/goals";
-import { computeGoalProgress } from "@/lib/stats";
+import { computeGoalProgress, CONTENT_TYPE_LABEL } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 import { GoalFormModal } from "./GoalFormModal";
 import type { Area, Goal, Profile, TaskStatusRow, TaskWithRelations } from "@/types/database";
 
 function goalLabel(goal: Goal) {
-  if (goal.scope === "company") return "Empresa";
-  if (goal.scope === "area") return goal.area?.name || "Área";
-  return goal.user?.full_name || "Pessoa";
+  const who = goal.scope === "company" ? "Empresa" : goal.scope === "area" ? goal.area?.name || "Área" : goal.user?.full_name || "Pessoa";
+  if (goal.metric === "content_published" && goal.content_type) {
+    return `${who} · ${CONTENT_TYPE_LABEL[goal.content_type] || goal.content_type}`;
+  }
+  return who;
 }
 
 function metricLabel(goal: Goal, current: number, target: number) {
   if (goal.metric === "on_time_rate") return `${current}% de ${target}% no prazo`;
+  if (goal.metric === "content_published") return `${current} de ${target} publicações`;
   return `${current} de ${target} tarefas`;
 }
 

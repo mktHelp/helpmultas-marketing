@@ -34,10 +34,12 @@ export function computeKpis(tasks: TaskWithRelations[], statuses: TaskStatusRow[
   return { open, completed, overdue, dueToday, inProduction, completionRate, total: tasks.length };
 }
 
-// Progress of a goal against the tasks it scopes to. "tasks_completed"
-// counts completions inside [period_start, period_end]; "on_time_rate" is
-// the % of those completions that landed on/before their due_date (tasks
-// with no due_date don't count toward either side of that ratio).
+// Progress of a goal against the tasks it scopes to.
+// - "tasks_completed": completions inside [period_start, period_end].
+// - "on_time_rate": % of those completions that landed on/before their
+//   due_date (tasks with no due_date don't count toward either side).
+// - "content_published": tasks of the goal's content_type published
+//   (publish_at) inside the period — e.g. "4 Instagram stories this week".
 export function computeGoalProgress(goal: Goal, tasks: TaskWithRelations[], statuses: TaskStatusRow[]) {
   const { doneKeys } = statusFlags(statuses);
   const start = parseISO(goal.period_start);
@@ -49,26 +51,34 @@ export function computeGoalProgress(goal: Goal, tasks: TaskWithRelations[], stat
     return true;
   });
 
-  const completedInPeriod = inScope.filter((t) => {
-    if (!doneKeys.has(t.status) || !t.completed_at) return false;
-    const completed = parseISO(t.completed_at);
-    return !isBefore(completed, start) && !isAfter(completed, end);
-  });
-
   let current: number;
-  if (goal.metric === "tasks_completed") {
-    current = completedInPeriod.length;
+  if (goal.metric === "content_published") {
+    current = inScope.filter((t) => {
+      if (t.content_type !== goal.content_type || !t.publish_at) return false;
+      const published = parseISO(t.publish_at);
+      return !isBefore(published, start) && !isAfter(published, end);
+    }).length;
   } else {
-    const withDueDate = completedInPeriod.filter((t) => t.due_date);
-    const onTime = withDueDate.filter((t) => !isAfter(parseISO(t.completed_at!), parseISO(t.due_date!)));
-    current = withDueDate.length > 0 ? Math.round((onTime.length / withDueDate.length) * 100) : 0;
+    const completedInPeriod = inScope.filter((t) => {
+      if (!doneKeys.has(t.status) || !t.completed_at) return false;
+      const completed = parseISO(t.completed_at);
+      return !isBefore(completed, start) && !isAfter(completed, end);
+    });
+
+    if (goal.metric === "tasks_completed") {
+      current = completedInPeriod.length;
+    } else {
+      const withDueDate = completedInPeriod.filter((t) => t.due_date);
+      const onTime = withDueDate.filter((t) => !isAfter(parseISO(t.completed_at!), parseISO(t.due_date!)));
+      current = withDueDate.length > 0 ? Math.round((onTime.length / withDueDate.length) * 100) : 0;
+    }
   }
 
   const percent = goal.target_value > 0 ? Math.min(100, Math.round((current / goal.target_value) * 100)) : 0;
   return { current, target: goal.target_value, percent };
 }
 
-const CONTENT_TYPE_LABEL: Record<string, string> = {
+export const CONTENT_TYPE_LABEL: Record<string, string> = {
   reels: "Reels", stories: "Stories", feed: "Feed", carrossel: "Carrossel",
   youtube: "YouTube", blog: "Blog", email: "E-mail", whatsapp: "WhatsApp",
   anuncio: "Anúncio", landing_page: "Landing page",

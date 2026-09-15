@@ -9,7 +9,12 @@ import { Select } from "@/components/ui/Select";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { createGoal, updateGoal } from "@/lib/services/goals";
-import type { Area, Goal, Profile } from "@/types/database";
+import { CONTENT_TYPE_LABEL } from "@/lib/stats";
+import type { Area, ContentType, Goal, Profile } from "@/types/database";
+
+const CONTENT_TYPES: ContentType[] = [
+  "reels", "stories", "feed", "carrossel", "youtube", "blog", "email", "whatsapp", "anuncio", "landing_page",
+];
 
 function defaultMonthRange() {
   const now = new Date();
@@ -42,7 +47,8 @@ export function GoalFormModal({
     scope: editingGoal?.scope || "company",
     area_id: editingGoal?.area_id || "",
     user_id: editingGoal?.user_id || "",
-    metric: editingGoal?.metric || "tasks_completed",
+    metric: editingGoal?.metric || "content_published",
+    content_type: editingGoal?.content_type || "",
     target_value: editingGoal?.target_value?.toString() || "",
     period_start: editingGoal?.period_start || monthRange.start,
     period_end: editingGoal?.period_end || monthRange.end,
@@ -62,6 +68,7 @@ export function GoalFormModal({
         area_id: form.scope === "area" ? form.area_id || null : null,
         user_id: form.scope === "user" ? form.user_id || null : null,
         metric: form.metric as Goal["metric"],
+        content_type: form.metric === "content_published" ? (form.content_type as ContentType) || null : null,
         target_value: Number(form.target_value),
         period_start: form.period_start,
         period_end: form.period_end,
@@ -120,13 +127,26 @@ export function GoalFormModal({
           <div>
             <Label>Métrica</Label>
             <Select value={form.metric} onChange={(e) => update("metric", e.target.value as Goal["metric"])}>
+              <option value="content_published">Conteúdo publicado (ex: 4 stories)</option>
               <option value="tasks_completed">Tarefas concluídas (quantidade)</option>
               <option value="on_time_rate">Taxa de entrega no prazo (%)</option>
             </Select>
           </div>
 
+          {form.metric === "content_published" && (
+            <div>
+              <Label>Tipo de conteúdo</Label>
+              <Select value={form.content_type} onChange={(e) => update("content_type", e.target.value)} required>
+                <option value="">Selecione</option>
+                {CONTENT_TYPES.map((ct) => (
+                  <option key={ct} value={ct}>{CONTENT_TYPE_LABEL[ct]}</option>
+                ))}
+              </Select>
+            </div>
+          )}
+
           <div>
-            <Label>Meta ({form.metric === "on_time_rate" ? "%" : "tarefas"})</Label>
+            <Label>Meta ({form.metric === "on_time_rate" ? "%" : form.metric === "content_published" ? "publicações" : "tarefas"})</Label>
             <Input
               type="number"
               min={1}

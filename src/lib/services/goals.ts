@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Goal } from "@/types/database";
+import type { ContentType, Goal } from "@/types/database";
 
 const GOAL_SELECT = `
   *,
@@ -23,6 +23,7 @@ export interface CreateGoalInput {
   area_id?: string | null;
   user_id?: string | null;
   metric: Goal["metric"];
+  content_type?: ContentType | null;
   target_value: number;
   period_start: string;
   period_end: string;
