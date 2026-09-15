@@ -30,6 +30,7 @@ export function ShareMenu({
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -63,19 +64,26 @@ export function ShareMenu({
 
   async function addMember(userId: string) {
     setPendingId(userId);
+    setError(null);
     try {
       const res = await fetch(`/api/assistente/conversations/${conversationId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
-      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error || "Não foi possível compartilhar com essa pessoa.");
+        return;
+      }
       const added = profiles.find((p) => p.id === userId);
       if (added) {
         const next = [...members, { id: added.id, full_name: added.full_name, avatar_url: added.avatar_url }];
         setMembers(next);
         onMembersChange(next);
       }
+    } catch {
+      setError("Não foi possível compartilhar com essa pessoa.");
     } finally {
       setPendingId(null);
     }
@@ -83,14 +91,21 @@ export function ShareMenu({
 
   async function removeMember(userId: string) {
     setPendingId(userId);
+    setError(null);
     try {
       const res = await fetch(`/api/assistente/conversations/${conversationId}/members/${userId}`, {
         method: "DELETE",
       });
-      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error || "Não foi possível remover o acesso dessa pessoa.");
+        return;
+      }
       const next = members.filter((m) => m.id !== userId);
       setMembers(next);
       onMembersChange(next);
+    } catch {
+      setError("Não foi possível remover o acesso dessa pessoa.");
     } finally {
       setPendingId(null);
     }
@@ -139,6 +154,7 @@ export function ShareMenu({
           {profiles.length === 0 && <p className="px-2 py-2 text-xs text-gray-400">Nenhum outro membro da equipe.</p>}
         </div>
       )}
+      {error && <p className="px-2 py-1.5 text-xs font-semibold text-[color:var(--color-danger)]">{error}</p>}
       <button
         type="button"
         onClick={onClose}
