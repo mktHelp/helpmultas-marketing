@@ -67,34 +67,46 @@ function AssistenteContent() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadConversations() {
-      try {
-        const res = await fetch("/api/assistente/conversations");
-        const data = await res.json();
-        if (cancelled) return;
-        const requestedId = searchParams.get("conversationId");
-        if (res.ok && Array.isArray(data?.conversations) && data.conversations.length > 0) {
-          setConversations(data.conversations);
-          const requested = requestedId && data.conversations.find((c: Conversation) => c.id === requestedId);
-          setActiveId(requested ? requested.id : data.conversations[0].id);
-        } else {
-          const created = await createConversation();
-          if (created && !cancelled) {
-            setConversations([created]);
-            setActiveId(created.id);
-          }
-        }
-      } catch {
-        setError("Não foi possível carregar suas conversas.");
-      } finally {
-        if (!cancelled) setLoadingConversations(false);
+  async function loadConversations(cancelledRef?: { current: boolean }) {
+    setLoadingConversations(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/assistente/conversations");
+      const data = await res.json().catch(() => null);
+      if (cancelledRef?.current) return;
+
+      if (!res.ok || !Array.isArray(data?.conversations)) {
+        // Fetch failed: show an error and let the user retry, instead of
+        // silently spawning a blank conversation that hides real history.
+        setError(data?.error || "Não foi possível carregar suas conversas. Tente novamente.");
+        return;
       }
+
+      if (data.conversations.length > 0) {
+        setConversations(data.conversations);
+        const requestedId = searchParams.get("conversationId");
+        const requested = requestedId && data.conversations.find((c: Conversation) => c.id === requestedId);
+        setActiveId(requested ? requested.id : data.conversations[0].id);
+      } else {
+        // Genuinely no conversations yet (new user) — start the first one.
+        const created = await createConversation();
+        if (created && !cancelledRef?.current) {
+          setConversations([created]);
+          setActiveId(created.id);
+        }
+      }
+    } catch {
+      setError("Não foi possível carregar suas conversas. Tente novamente.");
+    } finally {
+      if (!cancelledRef?.current) setLoadingConversations(false);
     }
-    loadConversations();
+  }
+
+  useEffect(() => {
+    const cancelledRef = { current: false };
+    loadConversations(cancelledRef);
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -237,6 +249,17 @@ function AssistenteContent() {
           </div>
           <div className="flex-1 space-y-1.5 overflow-y-auto px-2.5 pb-3">
             {loadingConversations && <p className="px-2.5 py-1 text-xs text-gray-400">Carregando...</p>}
+            {!loadingConversations && error && conversations.length === 0 && (
+              <div className="rounded-2xl border border-gray-200 bg-gray-050 px-3 py-3 text-center">
+                <p className="text-xs text-gray-500">{error}</p>
+                <button
+                  onClick={() => loadConversations()}
+                  className="mt-2 text-xs font-semibold text-blue-800 hover:underline"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            )}
             {conversations.map((c) => {
               const isActive = c.id === activeId;
               return (
