@@ -60,6 +60,7 @@ export function CreateTaskModal({
     due_date: "",
     template_id: "",
     tagIds: [] as string[],
+    estimated_minutes: "",
   });
 
   useEffect(() => {
@@ -126,6 +127,7 @@ export function CreateTaskModal({
         status: form.status,
         due_date: form.due_date ? dateInputToISO(form.due_date) : null,
         template_id: form.template_id || null,
+        estimated_minutes: form.estimated_minutes ? Number(form.estimated_minutes) : null,
         tagIds: form.tagIds,
         checklistItems: tpl?.checklist_items?.map((c) => c.title),
       });
@@ -135,7 +137,7 @@ export function CreateTaskModal({
       setForm({
         title: "", description: "", project_id: "", campaign_id: "", area_id: "",
         category_id: "", assigneeIds: [], priority: "media", status: defaultStatusKey,
-        due_date: "", template_id: "", tagIds: [],
+        due_date: "", template_id: "", tagIds: [], estimated_minutes: "",
       });
     } catch (err) {
       toast.error("Erro ao criar tarefa");
@@ -232,6 +234,17 @@ export function CreateTaskModal({
               <Label>Prazo</Label>
               <Input type="date" value={form.due_date} onChange={(e) => update("due_date", e.target.value)} />
             </div>
+          </div>
+
+          <div>
+            <Label>Tempo estimado (minutos)</Label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="Ex: 90"
+              value={form.estimated_minutes}
+              onChange={(e) => update("estimated_minutes", e.target.value)}
+            />
           </div>
 
           {tags.length > 0 && (

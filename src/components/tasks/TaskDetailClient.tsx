@@ -179,6 +179,26 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
               className="h-10 w-full rounded-[14px] border border-gray-200 bg-white px-3.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
             />
           </Field>
+          <Field label="Tempo estimado (min)">
+            <input
+              type="number"
+              min={0}
+              disabled={!canEdit}
+              defaultValue={task.estimated_minutes ?? ""}
+              onBlur={(e) => patch({ estimated_minutes: e.target.value ? Number(e.target.value) : null })}
+              className="h-10 w-full rounded-[14px] border border-gray-200 bg-white px-3.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+            />
+          </Field>
+          <Field label="Tempo real (min)">
+            <input
+              type="number"
+              min={0}
+              disabled={!canEdit}
+              defaultValue={task.actual_minutes ?? ""}
+              onBlur={(e) => patch({ actual_minutes: e.target.value ? Number(e.target.value) : null })}
+              className="h-10 w-full rounded-[14px] border border-gray-200 bg-white px-3.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+            />
+          </Field>
         </div>
 
         <div className="mt-4 flex items-center gap-4 text-xs text-gray-400">

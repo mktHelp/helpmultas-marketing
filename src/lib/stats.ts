@@ -1,6 +1,6 @@
-import { differenceInDays, isAfter, isBefore, parseISO, subDays } from "date-fns";
+import { differenceInDays, endOfDay, isAfter, isBefore, parseISO, subDays } from "date-fns";
 import { toDateKey } from "@/lib/utils";
-import type { Area, Profile, TaskStatusRow, TaskWithRelations } from "@/types/database";
+import type { Area, Goal, Profile, TaskStatusRow, TaskWithRelations } from "@/types/database";
 
 function statusFlags(statuses: TaskStatusRow[]) {
   const doneKeys = new Set(statuses.filter((s) => s.is_done).map((s) => s.key));
@@ -32,6 +32,77 @@ export function computeKpis(tasks: TaskWithRelations[], statuses: TaskStatusRow[
   const completionRate = Math.round((completed / total) * 100);
 
   return { open, completed, overdue, dueToday, inProduction, completionRate, total: tasks.length };
+}
+
+// Progress of a goal against the tasks it scopes to. "tasks_completed"
+// counts completions inside [period_start, period_end]; "on_time_rate" is
+// the % of those completions that landed on/before their due_date (tasks
+// with no due_date don't count toward either side of that ratio).
+export function computeGoalProgress(goal: Goal, tasks: TaskWithRelations[], statuses: TaskStatusRow[]) {
+  const { doneKeys } = statusFlags(statuses);
+  const start = parseISO(goal.period_start);
+  const end = endOfDay(parseISO(goal.period_end));
+
+  const inScope = tasks.filter((t) => {
+    if (goal.scope === "area") return t.area_id === goal.area_id;
+    if (goal.scope === "user") return (t.assignees || []).some((a) => a.id === goal.user_id);
+    return true;
+  });
+
+  const completedInPeriod = inScope.filter((t) => {
+    if (!doneKeys.has(t.status) || !t.completed_at) return false;
+    const completed = parseISO(t.completed_at);
+    return !isBefore(completed, start) && !isAfter(completed, end);
+  });
+
+  let current: number;
+  if (goal.metric === "tasks_completed") {
+    current = completedInPeriod.length;
+  } else {
+    const withDueDate = completedInPeriod.filter((t) => t.due_date);
+    const onTime = withDueDate.filter((t) => !isAfter(parseISO(t.completed_at!), parseISO(t.due_date!)));
+    current = withDueDate.length > 0 ? Math.round((onTime.length / withDueDate.length) * 100) : 0;
+  }
+
+  const percent = goal.target_value > 0 ? Math.min(100, Math.round((current / goal.target_value) * 100)) : 0;
+  return { current, target: goal.target_value, percent };
+}
+
+const CONTENT_TYPE_LABEL: Record<string, string> = {
+  reels: "Reels", stories: "Stories", feed: "Feed", carrossel: "Carrossel",
+  youtube: "YouTube", blog: "Blog", email: "E-mail", whatsapp: "WhatsApp",
+  anuncio: "Anúncio", landing_page: "Landing page",
+};
+
+// Estimated vs. actual minutes, averaged per content type, for tasks that
+// logged both — the raw material for "how's my editing time trending"
+// answers (dashboard widget and the Helpinho tool read the same shape).
+export function timeByContentType(tasks: TaskWithRelations[]) {
+  const groups = new Map<string, { estimated: number[]; actual: number[] }>();
+  for (const t of tasks) {
+    if (!t.content_type || t.estimated_minutes == null || t.actual_minutes == null) continue;
+    const g = groups.get(t.content_type) || { estimated: [], actual: [] };
+    g.estimated.push(t.estimated_minutes);
+    g.actual.push(t.actual_minutes);
+    groups.set(t.content_type, g);
+  }
+
+  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
+
+  return Array.from(groups.entries())
+    .map(([contentType, g]) => {
+      const estimatedAvg = avg(g.estimated);
+      const actualAvg = avg(g.actual);
+      return {
+        contentType,
+        label: CONTENT_TYPE_LABEL[contentType] || contentType,
+        estimatedAvg,
+        actualAvg,
+        diffMinutes: actualAvg - estimatedAvg,
+        sampleSize: g.actual.length,
+      };
+    })
+    .sort((a, b) => b.sampleSize - a.sampleSize);
 }
 
 export function byArea(tasks: TaskWithRelations[], areas: Area[]) {

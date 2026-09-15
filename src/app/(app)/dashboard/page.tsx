@@ -4,11 +4,14 @@ import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 import { listTasks } from "@/lib/services/tasks";
 import { listAreas, listTaskStatuses } from "@/lib/services/reference";
 import { listProfiles } from "@/lib/services/profiles";
-import { computeKpis, byArea, byStatus, productivityByDay, teamRanking, bottlenecks } from "@/lib/stats";
+import { computeKpis, byArea, byStatus, productivityByDay, teamRanking, bottlenecks, timeByContentType } from "@/lib/stats";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { AreaDonutChart, StatusBarChart, ProductivityLineChart } from "@/components/dashboard/DashboardCharts";
 import { TeamRanking } from "@/components/dashboard/TeamRanking";
+import { GoalsPanel } from "@/components/dashboard/GoalsPanel";
+import { TimeManagementCard } from "@/components/dashboard/TimeManagementCard";
+import { listGoals } from "@/lib/services/goals";
 import { TaskListItem } from "@/components/tasks/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
@@ -26,11 +29,12 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { profile } = await getCurrentUserAndProfile();
 
-  const [tasks, areas, profiles, statuses] = await Promise.all([
+  const [tasks, areas, profiles, statuses, goals] = await Promise.all([
     listTasks(supabase, {}),
     listAreas(supabase),
     listProfiles(supabase),
     listTaskStatuses(supabase),
+    listGoals(supabase),
   ]);
 
   const kpis = computeKpis(tasks, statuses);
@@ -39,6 +43,8 @@ export default async function DashboardPage() {
   const productivity = productivityByDay(tasks, 14);
   const ranking = teamRanking(tasks, profiles, statuses);
   const problems = bottlenecks(tasks, statuses);
+  const timeRows = timeByContentType(tasks);
+  const canManageGoals = profile?.role === "master" || profile?.role === "gestor";
 
   const doneOrCancelled = new Set(statuses.filter((s) => s.is_done || s.is_cancelled).map((s) => s.key));
   const priorityTasks = tasks
@@ -116,6 +122,18 @@ export default async function DashboardPage() {
             <BottleneckRow label="Vencendo em 48h" count={problems.dueSoon.length} />
           </div>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <GoalsPanel
+          goals={goals}
+          tasks={tasks}
+          statuses={statuses}
+          areas={areas}
+          profiles={profiles}
+          canManage={canManageGoals}
+        />
+        <TimeManagementCard rows={timeRows} />
       </div>
 
       <ChartCard title="Ranking da equipe">

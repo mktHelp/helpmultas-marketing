@@ -21,6 +21,8 @@ export type ContentType =
   | "anuncio"
   | "landing_page";
 export type RecurrenceFreq = "diaria" | "semanal" | "quinzenal" | "mensal";
+export type GoalScope = "company" | "area" | "user";
+export type GoalMetric = "tasks_completed" | "on_time_rate";
 export type NotificationType =
   | "task_assigned"
   | "due_soon"
@@ -171,6 +173,11 @@ export interface Creative {
   link: string;
   uploaded_at: string | null;
   top_ad: boolean;
+  impressions: number;
+  clicks: number;
+  spend: number;
+  conversions: number;
+  ctr: number;
   sort_order: number;
   created_by: string | null;
   created_at: string;
@@ -229,6 +236,22 @@ export interface Task {
   deleted_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface Goal {
+  id: string;
+  scope: GoalScope;
+  area_id: string | null;
+  user_id: string | null;
+  metric: GoalMetric;
+  target_value: number;
+  period_start: string;
+  period_end: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  area?: Pick<Area, "id" | "name" | "color"> | null;
+  user?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
 }
 
 export interface TaskWithRelations extends Task {
