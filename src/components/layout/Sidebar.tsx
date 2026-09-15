@@ -6,12 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  LogOut, X, Cake, Image as ImageIcon,
+  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { UserAvatar } from "@/components/shared/UserAvatar";
+
+const ASSISTENTE_ITEM = { href: "/assistente", label: "Assistente", icon: Bot };
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -54,6 +56,26 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <X className="h-5 w-5" />
           </button>
         )}
+      </div>
+
+      <div className="px-3 pb-3">
+        <Link
+          href={ASSISTENTE_ITEM.href}
+          onClick={onNavigate}
+          className={cn(
+            "relative flex items-center gap-3 overflow-hidden rounded-xl px-3.5 py-3 text-sm font-bold shadow-lg shadow-yellow-500/20 transition-transform hover:scale-[1.02]",
+            "bg-gradient-to-r from-yellow-400 to-yellow-500 text-blue-900",
+            pathname === ASSISTENTE_ITEM.href || pathname.startsWith(ASSISTENTE_ITEM.href + "/")
+              ? "ring-2 ring-white/70"
+              : ""
+          )}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-900">
+            <Bot className="h-[18px] w-[18px] text-yellow-400" strokeWidth={2.2} />
+          </span>
+          {ASSISTENTE_ITEM.label}
+          <Sparkles className="ml-auto h-4 w-4 shrink-0 text-blue-900/70" />
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
