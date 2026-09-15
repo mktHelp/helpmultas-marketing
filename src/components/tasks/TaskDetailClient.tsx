@@ -27,7 +27,12 @@ import { listProfiles } from "@/lib/services/profiles";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { dateInputToISO, formatDate, isoToDateInputValue } from "@/lib/utils";
-import type { ActivityLog, Profile, TaskAttachment, TaskComment, TaskWithRelations } from "@/types/database";
+import { CONTENT_TYPE_LABEL } from "@/lib/stats";
+import type { ActivityLog, ContentType, Profile, TaskAttachment, TaskComment, TaskWithRelations } from "@/types/database";
+
+const CONTENT_TYPES: ContentType[] = [
+  "reels", "stories", "feed", "carrossel", "youtube", "blog", "email", "whatsapp", "anuncio", "landing_page",
+];
 
 export function TaskDetailClient({ taskId }: { taskId: string }) {
   const router = useRouter();
@@ -178,6 +183,18 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
               onChange={(e) => patch({ due_date: e.target.value ? dateInputToISO(e.target.value) : null })}
               className="h-10 w-full rounded-[14px] border border-gray-200 bg-white px-3.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
             />
+          </Field>
+          <Field label="Tipo de conteúdo">
+            <Select
+              value={task.content_type || ""}
+              disabled={!canEdit}
+              onChange={(e) => patch({ content_type: (e.target.value || null) as ContentType | null })}
+            >
+              <option value="">Nenhum</option>
+              {CONTENT_TYPES.map((ct) => (
+                <option key={ct} value={ct}>{CONTENT_TYPE_LABEL[ct]}</option>
+              ))}
+            </Select>
           </Field>
           <Field label="Tempo estimado (min)">
             <input

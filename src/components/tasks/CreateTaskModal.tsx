@@ -15,7 +15,12 @@ import { listProfiles } from "@/lib/services/profiles";
 import { createTask } from "@/lib/services/tasks";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { dateInputToISO } from "@/lib/utils";
-import type { Area, Campaign, Category, Profile, Project, Tag, TaskTemplate } from "@/types/database";
+import { CONTENT_TYPE_LABEL } from "@/lib/stats";
+import type { Area, Campaign, Category, ContentType, Profile, Project, Tag, TaskTemplate } from "@/types/database";
+
+const CONTENT_TYPES: ContentType[] = [
+  "reels", "stories", "feed", "carrossel", "youtube", "blog", "email", "whatsapp", "anuncio", "landing_page",
+];
 
 export function CreateTaskModal({
   open,
@@ -61,6 +66,7 @@ export function CreateTaskModal({
     template_id: "",
     tagIds: [] as string[],
     estimated_minutes: "",
+    content_type: "",
   });
 
   useEffect(() => {
@@ -128,6 +134,7 @@ export function CreateTaskModal({
         due_date: form.due_date ? dateInputToISO(form.due_date) : null,
         template_id: form.template_id || null,
         estimated_minutes: form.estimated_minutes ? Number(form.estimated_minutes) : null,
+        content_type: (form.content_type as ContentType) || null,
         tagIds: form.tagIds,
         checklistItems: tpl?.checklist_items?.map((c) => c.title),
       });
@@ -137,7 +144,7 @@ export function CreateTaskModal({
       setForm({
         title: "", description: "", project_id: "", campaign_id: "", area_id: "",
         category_id: "", assigneeIds: [], priority: "media", status: defaultStatusKey,
-        due_date: "", template_id: "", tagIds: [], estimated_minutes: "",
+        due_date: "", template_id: "", tagIds: [], estimated_minutes: "", content_type: "",
       });
     } catch (err) {
       toast.error("Erro ao criar tarefa");
@@ -236,15 +243,26 @@ export function CreateTaskModal({
             </div>
           </div>
 
-          <div>
-            <Label>Tempo estimado (minutos)</Label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="Ex: 90"
-              value={form.estimated_minutes}
-              onChange={(e) => update("estimated_minutes", e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Tipo de conteúdo</Label>
+              <Select value={form.content_type} onChange={(e) => update("content_type", e.target.value)}>
+                <option value="">Nenhum</option>
+                {CONTENT_TYPES.map((ct) => (
+                  <option key={ct} value={ct}>{CONTENT_TYPE_LABEL[ct]}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>Tempo estimado (minutos)</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="Ex: 90"
+                value={form.estimated_minutes}
+                onChange={(e) => update("estimated_minutes", e.target.value)}
+              />
+            </div>
           </div>
 
           {tags.length > 0 && (

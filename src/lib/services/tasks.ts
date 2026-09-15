@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Task, TaskWithRelations, TaskChecklistItem, TaskComment, TaskAttachment, TaskStatus, Tag, Profile } from "@/types/database";
+import type { ContentType, Task, TaskWithRelations, TaskChecklistItem, TaskComment, TaskAttachment, TaskStatus, Tag, Profile } from "@/types/database";
 
 // Explicit `: string` (not a literal type) so the Supabase client's compile-time
 // select-string parser doesn't try to statically parse this multi-relation
@@ -129,7 +129,7 @@ export interface CreateTaskInput {
   campaign_id?: string | null;
   area_id?: string | null;
   category_id?: string | null;
-  content_type?: string | null;
+  content_type?: ContentType | null;
   created_by: string;
   status?: TaskStatus;
   priority?: string;
