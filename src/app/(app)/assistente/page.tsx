@@ -1,18 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Bot, Plus, Send, Sparkles, Trash2 } from "lucide-react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Bot, Plus, Send, Share2, Sparkles, Trash2, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
+import { ShareMenu } from "./ShareMenu";
 
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  author?: { full_name: string } | null;
+}
+
+interface Member {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
 }
 
 interface Conversation {
@@ -20,6 +29,10 @@ interface Conversation {
   title: string;
   preview: string;
   updated_at: string;
+  user_id: string;
+  isOwner: boolean;
+  owner?: { full_name: string; avatar_url: string | null } | null;
+  members?: Member[];
 }
 
 const SUGESTOES = [
@@ -29,7 +42,16 @@ const SUGESTOES = [
 ];
 
 export default function AssistentePage() {
+  return (
+    <Suspense fallback={null}>
+      <AssistenteContent />
+    </Suspense>
+  );
+}
+
+function AssistenteContent() {
   const { profile } = useAuth();
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -38,6 +60,7 @@ export default function AssistentePage() {
   const [sending, setSending] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shareMenuFor, setShareMenuFor] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,9 +74,11 @@ export default function AssistentePage() {
         const res = await fetch("/api/assistente/conversations");
         const data = await res.json();
         if (cancelled) return;
+        const requestedId = searchParams.get("conversationId");
         if (res.ok && Array.isArray(data?.conversations) && data.conversations.length > 0) {
           setConversations(data.conversations);
-          setActiveId(data.conversations[0].id);
+          const requested = requestedId && data.conversations.find((c: Conversation) => c.id === requestedId);
+          setActiveId(requested ? requested.id : data.conversations[0].id);
         } else {
           const created = await createConversation();
           if (created && !cancelled) {
@@ -160,7 +185,10 @@ export default function AssistentePage() {
     const conversationId = activeId;
     setError(null);
     setInput("");
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", content }]);
+    setMessages((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), role: "user", content, author: profile ? { full_name: profile.full_name } : null },
+    ]);
     setSending(true);
 
     try {
@@ -200,45 +228,78 @@ export default function AssistentePage() {
       />
 
       <div className="flex h-[calc(100vh-220px)] min-h-[420px] gap-4">
-        <Card className="hidden w-64 shrink-0 flex-col overflow-hidden p-0 sm:flex">
-          <div className="border-b border-gray-200 p-3">
+        <Card className="hidden w-72 shrink-0 flex-col overflow-hidden p-0 sm:flex">
+          <div className="p-3">
             <Button onClick={handleNewConversation} className="w-full justify-center" size="sm">
               <Plus className="mr-1.5 h-4 w-4" />
               Nova conversa
             </Button>
           </div>
-          <div className="flex-1 space-y-1 overflow-y-auto p-2">
-            {loadingConversations && <p className="px-2 py-1 text-xs text-gray-400">Carregando...</p>}
-            {conversations.map((c) => (
-              <div
-                key={c.id}
-                className={cn(
-                  "group flex items-start gap-1 rounded-lg pl-3 pr-1.5 py-2",
-                  c.id === activeId ? "bg-blue-900" : "hover:bg-blue-050"
-                )}
-              >
-                <button onClick={() => setActiveId(c.id)} className="min-w-0 flex-1 text-left" title={c.title}>
-                  <p className={cn("truncate text-sm font-medium", c.id === activeId ? "text-white" : "text-blue-900")}>
-                    {c.title}
-                  </p>
-                  {c.preview && (
-                    <p className={cn("mt-0.5 truncate text-xs", c.id === activeId ? "text-blue-200" : "text-gray-500")}>
-                      {c.preview}
-                    </p>
-                  )}
-                </button>
-                <button
-                  onClick={() => handleDeleteConversation(c.id)}
+          <div className="flex-1 space-y-1.5 overflow-y-auto px-2.5 pb-3">
+            {loadingConversations && <p className="px-2.5 py-1 text-xs text-gray-400">Carregando...</p>}
+            {conversations.map((c) => {
+              const isActive = c.id === activeId;
+              return (
+                <div
+                  key={c.id}
                   className={cn(
-                    "mt-1 shrink-0 rounded p-1 opacity-0 group-hover:opacity-100",
-                    c.id === activeId ? "text-blue-200 hover:text-white" : "text-gray-400 hover:text-[color:var(--color-danger)]"
+                    "group relative flex items-start gap-1 rounded-2xl border px-3 py-2.5 transition-colors",
+                    isActive ? "border-yellow-400 bg-yellow-050" : "border-transparent hover:border-gray-200 hover:bg-gray-050"
                   )}
-                  title="Excluir conversa"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
+                  <button onClick={() => setActiveId(c.id)} className="min-w-0 flex-1 text-left" title={c.title}>
+                    <p className={cn("truncate text-sm font-semibold", isActive ? "text-blue-900" : "text-blue-900/90")}>
+                      {c.title}
+                    </p>
+                    {c.preview && <p className="mt-0.5 truncate text-xs text-gray-500">{c.preview}</p>}
+                    {!c.isOwner && c.owner && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-050 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                        <Users className="h-2.5 w-2.5" />
+                        Compartilhada por {c.owner.full_name.split(" ")[0]}
+                      </span>
+                    )}
+                    {c.isOwner && c.members && c.members.length > 0 && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-050 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
+                        <Users className="h-2.5 w-2.5" />
+                        Compartilhada com {c.members.length} {c.members.length === 1 ? "pessoa" : "pessoas"}
+                      </span>
+                    )}
+                  </button>
+
+                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    {c.isOwner && (
+                      <button
+                        onClick={() => setShareMenuFor(shareMenuFor === c.id ? null : c.id)}
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-white hover:text-blue-900"
+                        title="Compartilhar conversa"
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {c.isOwner && (
+                      <button
+                        onClick={() => handleDeleteConversation(c.id)}
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-white hover:text-[color:var(--color-danger)]"
+                        title="Excluir conversa"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {shareMenuFor === c.id && (
+                    <ShareMenu
+                      conversationId={c.id}
+                      ownerId={c.user_id}
+                      onClose={() => setShareMenuFor(null)}
+                      onMembersChange={(members) =>
+                        setConversations((prev) => prev.map((x) => (x.id === c.id ? { ...x, members } : x)))
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </Card>
 
@@ -270,25 +331,34 @@ export default function AssistentePage() {
               </div>
             )}
 
-            {messages.map((m) => (
-              <div key={m.id} className={cn("flex items-end gap-2.5", m.role === "user" && "flex-row-reverse")}>
-                {m.role === "assistant" ? (
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-900">
-                    <Bot className="h-4 w-4 text-yellow-500" />
-                  </span>
-                ) : (
-                  <UserAvatar name={profile?.full_name || "Você"} avatarUrl={profile?.avatar_url} size="sm" />
-                )}
-                <div
-                  className={cn(
-                    "max-w-[75%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm",
-                    m.role === "user" ? "bg-yellow-500 text-blue-900" : "bg-gray-050 text-blue-900"
+            {messages.map((m) => {
+              const authorName = m.role === "user" ? m.author?.full_name : null;
+              const isOwnMessage = !authorName || authorName === profile?.full_name;
+              return (
+                <div key={m.id} className={cn("flex items-end gap-2.5", m.role === "user" && isOwnMessage && "flex-row-reverse")}>
+                  {m.role === "assistant" ? (
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-900">
+                      <Bot className="h-4 w-4 text-yellow-500" />
+                    </span>
+                  ) : (
+                    <UserAvatar name={authorName || profile?.full_name || "Você"} avatarUrl={isOwnMessage ? profile?.avatar_url : null} size="sm" />
                   )}
-                >
-                  {m.content}
+                  <div className={cn("flex max-w-[75%] flex-col", m.role === "user" && isOwnMessage && "items-end")}>
+                    {m.role === "user" && authorName && !isOwnMessage && (
+                      <span className="mb-0.5 px-1 text-[11px] font-semibold text-gray-400">{authorName}</span>
+                    )}
+                    <div
+                      className={cn(
+                        "whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm",
+                        m.role === "user" ? "bg-yellow-500 text-blue-900" : "bg-gray-050 text-blue-900"
+                      )}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {sending && (
               <div className="flex items-end gap-2.5">

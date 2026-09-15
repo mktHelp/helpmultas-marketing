@@ -80,9 +80,11 @@ export function NotificationDropdown() {
                 href={
                   n.task_id
                     ? `/tasks/${n.task_id}`
-                    : n.type === "birthday" || n.type === "work_anniversary"
-                      ? "/birthdays"
-                      : "#"
+                    : n.conversation_id
+                      ? `/assistente?conversationId=${n.conversation_id}`
+                      : n.type === "birthday" || n.type === "work_anniversary"
+                        ? "/birthdays"
+                        : "#"
                 }
                 onClick={async () => {
                   await markAsRead(supabase, n.id);

@@ -28,8 +28,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("assistant_messages")
-    .select("id, role, content, created_at")
-    .eq("user_id", user.id)
+    .select("id, role, content, created_at, author:profiles!user_id(full_name)")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
     .limit(HISTORY_LIMIT);
@@ -69,7 +68,6 @@ export async function POST(request: Request) {
     .from("assistant_conversations")
     .select("id, title, preview")
     .eq("id", conversationId)
-    .eq("user_id", user.id)
     .single();
 
   if (conversationError || !conversation) {

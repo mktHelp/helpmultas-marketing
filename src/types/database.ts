@@ -31,7 +31,8 @@ export type NotificationType =
   | "comment_added"
   | "status_changed"
   | "birthday"
-  | "work_anniversary";
+  | "work_anniversary"
+  | "conversation_shared";
 
 export interface Profile {
   id: string;
@@ -282,6 +283,7 @@ export interface Notification {
   title: string;
   message: string;
   task_id: string | null;
+  conversation_id: string | null;
   read_at: string | null;
   created_at: string;
 }
