@@ -24,6 +24,7 @@ export function CreateTaskModal({
   defaultStatus,
   defaultProjectId,
   defaultCampaignId,
+  defaultTitle,
 }: {
   open: boolean;
   onClose: () => void;
@@ -31,6 +32,7 @@ export function CreateTaskModal({
   defaultStatus?: string;
   defaultProjectId?: string;
   defaultCampaignId?: string;
+  defaultTitle?: string;
 }) {
   const { profile } = useAuth();
   const { activeStatuses, defaultStatusKey } = useTaskStatuses();
@@ -59,6 +61,11 @@ export function CreateTaskModal({
     template_id: "",
     tagIds: [] as string[],
   });
+
+  useEffect(() => {
+    if (open && defaultTitle) update("title", defaultTitle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultTitle]);
 
   useEffect(() => {
     if (!open) return;

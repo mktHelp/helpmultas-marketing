@@ -10,6 +10,7 @@ import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 import { ShareMenu } from "./ShareMenu";
+import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 
 interface ChatMessage {
   id: string;
@@ -41,6 +42,22 @@ const SUGESTOES = [
   "Me dá um rascunho de legenda para um reels sobre recurso de multa",
 ];
 
+// Detecta pedidos de criar tarefa direto na mensagem (sem precisar da IA),
+// pra abrir o formulário completo em vez de ficar perguntando campo por
+// campo no chat. Retorna o texto restante (possível título) ou null se a
+// mensagem não for um pedido de criação.
+function detectCreateTaskIntent(text: string): string | null {
+  const patterns = [
+    /^\s*(?:crie|criar|cria)\s+(?:uma\s+)?(?:nova\s+)?tarefas?\s*(?:nova)?\s*(?:sobre|pra|para|de|:)?\s*(.*)$/i,
+    /^\s*nova\s+tarefas?\s*(?:sobre|pra|para|de|:)?\s*(.*)$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.trim().match(pattern);
+    if (match) return match[1]?.trim() || "";
+  }
+  return null;
+}
+
 export default function AssistentePage() {
   return (
     <Suspense fallback={null}>
@@ -61,6 +78,8 @@ function AssistenteContent() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareMenuFor, setShareMenuFor] = useState<string | null>(null);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [createTaskTitle, setCreateTaskTitle] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -193,6 +212,24 @@ function AssistenteContent() {
   async function send(text: string) {
     const content = text.trim();
     if (!content || sending || !activeId) return;
+
+    const createTitle = detectCreateTaskIntent(content);
+    if (createTitle !== null) {
+      setError(null);
+      setInput("");
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "user", content, author: profile ? { full_name: profile.full_name } : null },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "Claro! Abri o formulário de nova tarefa pra você preencher os detalhes.",
+        },
+      ]);
+      setCreateTaskTitle(createTitle);
+      setCreateTaskOpen(true);
+      return;
+    }
 
     const conversationId = activeId;
     setError(null);
@@ -420,6 +457,19 @@ function AssistenteContent() {
           </form>
         </Card>
       </div>
+
+      <CreateTaskModal
+        open={createTaskOpen}
+        onClose={() => setCreateTaskOpen(false)}
+        defaultTitle={createTaskTitle}
+        onCreated={() => {
+          setCreateTaskOpen(false);
+          setMessages((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), role: "assistant", content: "Tarefa criada com sucesso! Precisa de mais alguma coisa?" },
+          ]);
+        }}
+      />
     </div>
   );
 }
