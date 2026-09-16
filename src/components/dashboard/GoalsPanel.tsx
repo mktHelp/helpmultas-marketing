@@ -20,12 +20,14 @@ function goalLabel(goal: Goal) {
   return who;
 }
 
-function metricLabel(goal: Goal, current: number, target: number) {
-  if (goal.metric === "on_time_rate") return `${current}% de ${target}% no prazo`;
-  if (goal.metric === "content_published") {
-    return goal.is_recurring ? `${current} de ${target} hoje` : `${current} de ${target} publicações`;
+function goalDisplay(goal: Goal, current: number, target: number) {
+  if (goal.metric === "on_time_rate") {
+    return { big: `${current}%`, target: `meta ${target}%`, unit: "no prazo" };
   }
-  return `${current} de ${target} tarefas`;
+  if (goal.metric === "content_published") {
+    return { big: `${current}`, target: `/ ${target}`, unit: goal.is_recurring ? "hoje" : "publicações" };
+  }
+  return { big: `${current}`, target: `/ ${target}`, unit: "tarefas" };
 }
 
 export function GoalsPanel({
@@ -82,13 +84,15 @@ export function GoalsPanel({
           <p className="text-sm text-gray-400">Nenhuma meta ativa no momento.</p>
         </div>
       ) : (
-        <div className="mt-3 space-y-3">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {goals.map((goal) => {
             const progress = computeGoalProgress(goal, tasks, statuses);
+            const display = goalDisplay(goal, progress.current, progress.target);
+            const hit = progress.percent >= 100;
             return (
-              <div key={goal.id} className="group rounded-xl bg-gray-050 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="flex items-center gap-1.5 text-sm font-semibold text-blue-900">
+              <div key={goal.id} className="group rounded-2xl border border-gray-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-blue-900">
                     {goalLabel(goal)}
                     {goal.is_recurring && (
                       <span className="rounded-full bg-blue-050 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">
@@ -97,7 +101,7 @@ export function GoalsPanel({
                     )}
                   </p>
                   {canManage && (
-                    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                       <button
                         onClick={() => {
                           setEditingGoal(goal);
@@ -116,13 +120,19 @@ export function GoalsPanel({
                     </div>
                   )}
                 </div>
-                <p className="mt-0.5 text-xs text-gray-500">{metricLabel(goal, progress.current, progress.target)}</p>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200">
-                  <div
-                    className={cn("h-full rounded-full", progress.percent >= 100 ? "bg-[color:var(--color-success)]" : "bg-yellow-500")}
-                    style={{ width: `${Math.max(4, progress.percent)}%` }}
-                  />
+
+                <div className="mt-3 flex items-baseline gap-1.5">
+                  <span
+                    className={cn(
+                      "font-display text-3xl font-extrabold",
+                      hit ? "text-[color:var(--color-success)]" : "text-blue-900"
+                    )}
+                  >
+                    {display.big}
+                  </span>
+                  <span className="text-sm font-semibold text-gray-400">{display.target}</span>
                 </div>
+                <p className="mt-0.5 text-xs font-medium text-gray-500">{display.unit}</p>
               </div>
             );
           })}

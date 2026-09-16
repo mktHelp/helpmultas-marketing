@@ -195,6 +195,10 @@ export default function TeleprompterPage() {
     }
     setPlaying(true);
     if (!fullscreen) enterFullscreen();
+    // Resync with the real scroll position in case the user dragged the
+    // text manually while paused, so resuming continues from there instead
+    // of jumping back to wherever our own accumulator last left off.
+    if (containerRef.current) scrollAccumRef.current = containerRef.current.scrollTop;
     lastTsRef.current = null;
     rafRef.current = requestAnimationFrame((ts) => tickRef.current(ts));
   }
