@@ -98,7 +98,11 @@ export function socialFollowerDeltas(
       ? rows.find((s) => s.snapshot_date < latest.snapshot_date) ?? null
       : null;
     const delta = latest && previous ? latest.followers_count - previous.followers_count : null;
-    return { account, latest, previous, delta };
+    // Immediately preceding poll (any date) — with the automation running
+    // hourly, this is "what it was ~1h ago", distinct from `previous`
+    // which skips ahead to yesterday's last reading.
+    const hourAgo = rows[1] ?? null;
+    return { account, latest, previous, delta, hourAgo };
   });
 }
 

@@ -69,7 +69,7 @@ export function SocialFollowersCard({
         </div>
       ) : (
         <div className="mt-3 space-y-2.5">
-          {rows.map(({ account, latest, delta }) => (
+          {rows.map(({ account, latest, delta, hourAgo }) => (
             <div key={account.id} className="rounded-xl bg-gray-050 p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -130,6 +130,11 @@ export function SocialFollowersCard({
                     Atualizado às {formatTime(latest.captured_at)}
                     {latest.source !== "manual" && " · automático"}
                   </p>
+                  {hourAgo && hourAgo.id !== latest.id && (
+                    <p className="mt-0.5 text-[11px] text-gray-400">
+                      Há 1h ({formatTime(hourAgo.captured_at)}): {hourAgo.followers_count.toLocaleString("pt-BR")}
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="mt-1.5 text-xs text-gray-400">
