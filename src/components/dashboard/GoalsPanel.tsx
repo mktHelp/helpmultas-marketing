@@ -88,12 +88,20 @@ export function GoalsPanel({
             const progress = computeGoalProgress(goal, tasks, statuses);
             const display = goalDisplay(goal, progress.target);
             return (
-              <div key={goal.id} className="group rounded-2xl border border-gray-200 bg-white p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-blue-900">
+              <div
+                key={goal.id}
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-400 to-yellow-500 p-4 shadow-lg shadow-yellow-500/25 transition-transform hover:scale-[1.02]"
+              >
+                <Target
+                  className="pointer-events-none absolute -right-4 -top-4 h-24 w-24 text-blue-900/10"
+                  strokeWidth={1.5}
+                />
+
+                <div className="relative flex items-start justify-between gap-2">
+                  <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-blue-900">
                     {goalLabel(goal)}
                     {goal.is_recurring && (
-                      <span className="rounded-full bg-blue-050 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">
+                      <span className="rounded-full bg-blue-900/15 px-1.5 py-0.5 text-[10px] font-extrabold text-blue-900">
                         DIÁRIA
                       </span>
                     )}
@@ -105,13 +113,13 @@ export function GoalsPanel({
                           setEditingGoal(goal);
                           setModalOpen(true);
                         }}
-                        className="rounded p-1 text-gray-400 hover:text-blue-900"
+                        className="rounded p-1 text-blue-900/60 hover:bg-white/30 hover:text-blue-900"
                       >
                         <Pencil className="h-3 w-3" />
                       </button>
                       <button
                         onClick={() => handleDelete(goal.id)}
-                        className="rounded p-1 text-gray-400 hover:text-[color:var(--color-danger)]"
+                        className="rounded p-1 text-blue-900/60 hover:bg-white/30 hover:text-[color:var(--color-danger)]"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -119,10 +127,14 @@ export function GoalsPanel({
                   )}
                 </div>
 
-                <div className="mt-3">
-                  <span className="font-display text-3xl font-extrabold text-blue-900">{display.big}</span>
+                <div className="relative mt-3">
+                  <span className="font-display text-4xl font-extrabold leading-none text-blue-900">
+                    {display.big}
+                  </span>
                 </div>
-                <p className="mt-0.5 text-xs font-medium text-gray-500">{display.unit}</p>
+                <p className="relative mt-1 text-xs font-extrabold uppercase tracking-wide text-blue-900/70">
+                  {display.unit}
+                </p>
               </div>
             );
           })}
