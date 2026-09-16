@@ -9,7 +9,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100/50">
+    <div
+      className="flex h-screen overflow-hidden bg-gray-100/50"
+      style={{
+        paddingTop: "env(safe-area-inset-top)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}
+    >
       <LiveCursors />
       <div className="hidden lg:block">
         <Sidebar />
@@ -26,7 +33,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8">{children}</main>
+        <main
+          className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8"
+          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

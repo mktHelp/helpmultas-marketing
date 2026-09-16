@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Marketing Hub",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
 };
 
