@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
 import { deleteGoal } from "@/lib/services/goals";
 import { computeGoalProgress, CONTENT_TYPE_LABEL } from "@/lib/stats";
-import { cn } from "@/lib/utils";
 import { GoalFormModal } from "./GoalFormModal";
 import type { Area, Goal, Profile, TaskStatusRow, TaskWithRelations } from "@/types/database";
 
@@ -20,14 +19,14 @@ function goalLabel(goal: Goal) {
   return who;
 }
 
-function goalDisplay(goal: Goal, current: number, target: number) {
+function goalDisplay(goal: Goal, target: number) {
   if (goal.metric === "on_time_rate") {
-    return { big: `${current}%`, target: `meta ${target}%`, unit: "no prazo" };
+    return { big: `${target}%`, unit: "no prazo" };
   }
   if (goal.metric === "content_published") {
-    return { big: `${current}`, target: `/ ${target}`, unit: goal.is_recurring ? "hoje" : "publicações" };
+    return { big: `${target}`, unit: goal.is_recurring ? "por dia" : "publicações" };
   }
-  return { big: `${current}`, target: `/ ${target}`, unit: "tarefas" };
+  return { big: `${target}`, unit: "tarefas" };
 }
 
 export function GoalsPanel({
@@ -87,8 +86,7 @@ export function GoalsPanel({
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {goals.map((goal) => {
             const progress = computeGoalProgress(goal, tasks, statuses);
-            const display = goalDisplay(goal, progress.current, progress.target);
-            const hit = progress.percent >= 100;
+            const display = goalDisplay(goal, progress.target);
             return (
               <div key={goal.id} className="group rounded-2xl border border-gray-200 bg-white p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -121,16 +119,8 @@ export function GoalsPanel({
                   )}
                 </div>
 
-                <div className="mt-3 flex items-baseline gap-1.5">
-                  <span
-                    className={cn(
-                      "font-display text-3xl font-extrabold",
-                      hit ? "text-[color:var(--color-success)]" : "text-blue-900"
-                    )}
-                  >
-                    {display.big}
-                  </span>
-                  <span className="text-sm font-semibold text-gray-400">{display.target}</span>
+                <div className="mt-3">
+                  <span className="font-display text-3xl font-extrabold text-blue-900">{display.big}</span>
                 </div>
                 <p className="mt-0.5 text-xs font-medium text-gray-500">{display.unit}</p>
               </div>
