@@ -1,0 +1,23 @@
+{
+  "name": "Marketing Hub — Help Multas",
+  "short_name": "Marketing Hub",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c1e3e",
+  "theme_color": "#0c1e3e",
+  "icons": [
+    {
+      "src": "/logos/helpinho-3d.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logos/helpinho-3d.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

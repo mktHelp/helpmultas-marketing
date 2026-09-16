@@ -24,7 +24,8 @@ import type { TeleprompterScript } from "@/types/database";
 const MIN_FONT = 24;
 const MAX_FONT = 96;
 const MIN_SPEED = 1;
-const MAX_SPEED = 10;
+const MAX_SPEED = 20;
+const PX_PER_SEC_PER_SPEED = 12;
 
 function StageButton({
   onClick, label, children, primary, large, active,
@@ -158,17 +159,29 @@ export default function TeleprompterPage() {
     speedRef.current = speed;
   }, [speed]);
 
-  const tickRef = useRef<() => void>(() => {});
-  const tick = useCallback(() => {
+  // Accumulates fractional pixels ourselves — el.scrollTop rounds to an
+  // integer internally, so writing sub-pixel deltas straight to it makes
+  // slow speeds stall (each frame's fraction gets rounded away to 0).
+  const scrollAccumRef = useRef(0);
+  const lastTsRef = useRef<number | null>(null);
+
+  const tickRef = useRef<(ts: number) => void>(() => {});
+  const tick = useCallback((ts: number) => {
     const el = containerRef.current;
     if (el) {
-      el.scrollTop += speedRef.current * 0.6;
+      if (lastTsRef.current == null) lastTsRef.current = ts;
+      const dt = Math.min((ts - lastTsRef.current) / 1000, 0.1);
+      lastTsRef.current = ts;
+
+      scrollAccumRef.current += speedRef.current * PX_PER_SEC_PER_SPEED * dt;
+      el.scrollTop = scrollAccumRef.current;
+
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
         stop();
         return;
       }
     }
-    rafRef.current = requestAnimationFrame(() => tickRef.current());
+    rafRef.current = requestAnimationFrame((next) => tickRef.current(next));
   }, [stop]);
 
   useEffect(() => {
@@ -182,15 +195,19 @@ export default function TeleprompterPage() {
     }
     setPlaying(true);
     if (!fullscreen) enterFullscreen();
-    rafRef.current = requestAnimationFrame(() => tickRef.current());
+    lastTsRef.current = null;
+    rafRef.current = requestAnimationFrame((ts) => tickRef.current(ts));
   }
 
   function handlePause() {
     stop();
+    lastTsRef.current = null;
   }
 
   function handleRestart() {
     stop();
+    lastTsRef.current = null;
+    scrollAccumRef.current = 0;
     if (containerRef.current) containerRef.current.scrollTop = 0;
   }
 
@@ -379,6 +396,12 @@ export default function TeleprompterPage() {
           "fixed inset-0 z-[100] flex-col bg-black",
           fullscreen ? "flex" : "hidden"
         )}
+        style={{
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+          paddingLeft: "env(safe-area-inset-left)",
+          paddingRight: "env(safe-area-inset-right)",
+        }}
       >
         <div
           ref={containerRef}
