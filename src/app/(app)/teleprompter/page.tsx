@@ -26,6 +26,36 @@ const MAX_FONT = 96;
 const MIN_SPEED = 1;
 const MAX_SPEED = 10;
 
+function StageButton({
+  onClick, label, children, primary, large, active,
+}: {
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+  primary?: boolean;
+  large?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full transition-colors active:scale-95",
+        large ? "h-12 w-12" : "h-10 w-10",
+        primary
+          ? "bg-yellow-500 text-blue-900 hover:bg-yellow-400"
+          : active
+          ? "bg-yellow-500/90 text-blue-900"
+          : "bg-white/10 text-white hover:bg-white/20"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function TeleprompterPage() {
   const supabase = createClient();
   const { profile: me } = useAuth();
@@ -369,48 +399,60 @@ export default function TeleprompterPage() {
 
         {/* Barra de controles flutuante */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-4 sm:pb-6">
-          <div className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-2xl bg-white/10 px-3 py-2.5 backdrop-blur-md sm:gap-3 sm:px-4 sm:py-3">
-            <div className="flex items-center gap-1.5">
-              <Button size="icon" variant="secondary" onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 4))}>
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-8 text-center text-sm font-bold text-white">{fontSize}</span>
-              <Button size="icon" variant="secondary" onClick={() => setFontSize((f) => Math.min(MAX_FONT, f + 4))}>
-                <Plus className="h-4 w-4" />
-              </Button>
+          <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2.5 rounded-2xl bg-black/80 px-3 py-3 backdrop-blur-md sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:gap-4 sm:px-4">
+            {/* Fonte + Velocidade */}
+            <div className="flex items-center justify-between gap-3 sm:justify-start sm:gap-4">
+              <div className="flex items-center gap-1.5">
+                <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Fonte</span>
+                <StageButton onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 4))} label="Diminuir fonte">
+                  <Minus className="h-4 w-4" />
+                </StageButton>
+                <span className="w-6 text-center text-sm font-bold text-white">{fontSize}</span>
+                <StageButton onClick={() => setFontSize((f) => Math.min(MAX_FONT, f + 4))} label="Aumentar fonte">
+                  <Plus className="h-4 w-4" />
+                </StageButton>
+              </div>
+
+              <div className="h-6 w-px shrink-0 bg-white/15" />
+
+              <div className="flex items-center gap-1.5">
+                <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Vel.</span>
+                <StageButton onClick={() => setSpeed((v) => Math.max(MIN_SPEED, v - 1))} label="Diminuir velocidade">
+                  <Minus className="h-4 w-4" />
+                </StageButton>
+                <span className="w-6 text-center text-sm font-bold text-white">{speed}</span>
+                <StageButton onClick={() => setSpeed((v) => Math.min(MAX_SPEED, v + 1))} label="Aumentar velocidade">
+                  <Plus className="h-4 w-4" />
+                </StageButton>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <Button size="icon" variant="secondary" onClick={() => setSpeed((v) => Math.max(MIN_SPEED, v - 1))}>
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-8 text-center text-sm font-bold text-white">{speed}</span>
-              <Button size="icon" variant="secondary" onClick={() => setSpeed((v) => Math.min(MAX_SPEED, v + 1))}>
-                <Plus className="h-4 w-4" />
-              </Button>
+            <div className="hidden h-6 w-px shrink-0 bg-white/15 sm:block" />
+
+            {/* Ações */}
+            <div className="flex items-center justify-center gap-2.5">
+              <StageButton onClick={handleRestart} label="Reiniciar">
+                <RotateCcw className="h-4 w-4" />
+              </StageButton>
+
+              {playing ? (
+                <StageButton onClick={handlePause} label="Pausar" primary large>
+                  <Pause className="h-5 w-5" />
+                </StageButton>
+              ) : (
+                <StageButton onClick={handlePlay} label="Iniciar" primary large>
+                  <Play className="h-5 w-5" />
+                </StageButton>
+              )}
+
+              <StageButton onClick={() => setMirrored((m) => !m)} label="Espelhar texto" active={mirrored}>
+                {mirrored ? <ChevronsRightLeft className="h-4 w-4" /> : <ChevronsLeftRight className="h-4 w-4" />}
+              </StageButton>
+
+              <StageButton onClick={exitFullscreen} label="Fechar tela cheia">
+                <X className="h-4 w-4" />
+              </StageButton>
             </div>
-
-            <Button variant="secondary" size="icon" onClick={handleRestart} title="Reiniciar">
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-
-            {playing ? (
-              <Button size="icon" onClick={handlePause} title="Pausar">
-                <Pause className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button size="icon" onClick={handlePlay} title="Iniciar">
-                <Play className="h-4 w-4" />
-              </Button>
-            )}
-
-            <Button variant="secondary" size="icon" onClick={() => setMirrored((m) => !m)} title="Espelhar">
-              {mirrored ? <ChevronsRightLeft className="h-4 w-4" /> : <ChevronsLeftRight className="h-4 w-4" />}
-            </Button>
-
-            <Button variant="secondary" size="icon" onClick={exitFullscreen} title="Fechar">
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </div>
