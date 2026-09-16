@@ -80,9 +80,11 @@ export function computeGoalProgress(goal: Goal, tasks: TaskWithRelations[], stat
   return { current, target: goal.target_value, percent };
 }
 
-// Day-over-day follower change per account, from a list of snapshots
-// (one per account per day, most recent first is not required). Returns
-// the latest count plus the delta vs. the snapshot right before it.
+// Day-over-day follower change per account, from intraday snapshots (the
+// automated poller writes one every 15 minutes, so there can be many rows
+// per day). Compares the most recent snapshot against the last snapshot
+// from the closest earlier day, so the delta reads as "since yesterday"
+// rather than noise between two 15-minute polls.
 export function socialFollowerDeltas(
   accounts: SocialAccount[],
   snapshots: SocialFollowerSnapshot[]
@@ -90,9 +92,11 @@ export function socialFollowerDeltas(
   return accounts.map((account) => {
     const rows = snapshots
       .filter((s) => s.account_id === account.id)
-      .sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
+      .sort((a, b) => b.captured_at.localeCompare(a.captured_at));
     const latest = rows[0] ?? null;
-    const previous = rows[1] ?? null;
+    const previous = latest
+      ? rows.find((s) => s.snapshot_date < latest.snapshot_date) ?? null
+      : null;
     const delta = latest && previous ? latest.followers_count - previous.followers_count : null;
     return { account, latest, previous, delta };
   });

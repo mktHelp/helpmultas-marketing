@@ -270,6 +270,7 @@ export interface SocialAccount {
   label: string;
   platform: string;
   handle: string | null;
+  ig_username: string | null;
   sort_order: number;
   created_at: string;
 }
@@ -277,8 +278,10 @@ export interface SocialAccount {
 export interface SocialFollowerSnapshot {
   id: string;
   account_id: string;
+  captured_at: string;
   snapshot_date: string;
   followers_count: number;
+  media_count: number | null;
   source: string;
   created_by: string | null;
   created_at: string;

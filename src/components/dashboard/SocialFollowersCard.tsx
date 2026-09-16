@@ -8,11 +8,15 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
-import { upsertFollowerSnapshot } from "@/lib/services/social";
+import { addFollowerSnapshot } from "@/lib/services/social";
 import { socialFollowerDeltas } from "@/lib/stats";
 import { useAuth } from "@/lib/auth-context";
-import { cn, toDateKey } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { SocialAccount, SocialFollowerSnapshot } from "@/types/database";
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
 
 export function SocialFollowersCard({
   accounts,
@@ -36,11 +40,11 @@ export function SocialFollowersCard({
     if (!profile || !value) return;
     setSaving(true);
     try {
-      await upsertFollowerSnapshot(supabase, {
+      await addFollowerSnapshot(supabase, {
         account_id: accountId,
-        snapshot_date: toDateKey(new Date()),
         followers_count: Number(value),
         created_by: profile.id,
+        source: "manual",
       });
       toast.success("Seguidores atualizados");
       setEditingId(null);
@@ -106,21 +110,27 @@ export function SocialFollowersCard({
                   </Button>
                 </div>
               ) : latest ? (
-                <div className="mt-1.5 flex items-baseline gap-3">
-                  <span className="text-xl font-bold text-blue-900">{latest.followers_count.toLocaleString("pt-BR")}</span>
-                  {delta !== null && (
-                    <span
-                      className={cn(
-                        "flex items-center gap-1 text-xs font-bold",
-                        delta > 0 ? "text-[color:var(--color-success)]" : delta < 0 ? "text-[color:var(--color-danger)]" : "text-gray-400"
-                      )}
-                    >
-                      {delta > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : delta < 0 ? <TrendingDown className="h-3.5 w-3.5" /> : null}
-                      {delta > 0 ? "+" : ""}
-                      {delta} hoje
-                    </span>
-                  )}
-                </div>
+                <>
+                  <div className="mt-1.5 flex items-baseline gap-3">
+                    <span className="text-xl font-bold text-blue-900">{latest.followers_count.toLocaleString("pt-BR")}</span>
+                    {delta !== null && (
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 text-xs font-bold",
+                          delta > 0 ? "text-[color:var(--color-success)]" : delta < 0 ? "text-[color:var(--color-danger)]" : "text-gray-400"
+                        )}
+                      >
+                        {delta > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : delta < 0 ? <TrendingDown className="h-3.5 w-3.5" /> : null}
+                        {delta > 0 ? "+" : ""}
+                        {delta} desde ontem
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    Atualizado às {formatTime(latest.captured_at)}
+                    {latest.source !== "manual" && " · automático"}
+                  </p>
+                </>
               ) : (
                 <p className="mt-1.5 text-xs text-gray-400">
                   {canManage ? "Sem registro ainda — clique no lápis para adicionar." : "Sem registro ainda."}
