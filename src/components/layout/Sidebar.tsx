@@ -52,7 +52,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   }
 
   return (
-    <div className="flex h-full w-64 flex-col bg-blue-900">
+    <div
+      className="flex h-full w-64 flex-col bg-blue-900"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <div className="flex items-center justify-between px-5 py-6">
         <Image src="/logos/wordmark-white.png" alt="Help Multas" width={130} height={32} />
         {onNavigate && (
