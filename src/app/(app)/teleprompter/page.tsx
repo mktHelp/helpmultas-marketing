@@ -247,8 +247,8 @@ export default function TeleprompterPage() {
         {/* Editor + palco */}
         <div className="space-y-4">
           <Card className="space-y-3 p-4">
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1 min-w-0">
                 <Label>Título do roteiro</Label>
                 <Input
                   value={title}
@@ -261,7 +261,7 @@ export default function TeleprompterPage() {
                   style={{ fontSize: 16 }}
                 />
               </div>
-              <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+              <Button onClick={handleSave} disabled={saving} className="gap-1.5 w-full sm:w-auto">
                 <Save className="h-4 w-4" /> {saving ? "Salvando..." : selected ? "Atualizar" : "Salvar"}
               </Button>
             </div>
@@ -282,7 +282,7 @@ export default function TeleprompterPage() {
           </Card>
 
           {/* Controles */}
-          <Card className="flex flex-wrap items-center gap-4 p-4">
+          <Card className="flex flex-wrap items-center gap-3 p-4 sm:gap-4">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-500">Fonte</span>
               <Button size="icon" variant="secondary" onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 4))}>
@@ -315,22 +315,23 @@ export default function TeleprompterPage() {
               {mirrored ? "Espelhado" : "Normal"}
             </Button>
 
-            <div className="ml-auto flex items-center gap-2">
-              <Button variant="secondary" onClick={handleRestart} className="gap-1.5">
+            <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+              <Button variant="secondary" onClick={handleRestart} className="flex-1 gap-1.5 sm:flex-none">
                 <RotateCcw className="h-4 w-4" /> Reiniciar
               </Button>
               {playing ? (
-                <Button onClick={handlePause} className="gap-1.5">
+                <Button onClick={handlePause} className="flex-1 gap-1.5 sm:flex-none">
                   <Pause className="h-4 w-4" /> Pausar
                 </Button>
               ) : (
-                <Button onClick={handlePlay} className="gap-1.5">
+                <Button onClick={handlePlay} className="flex-1 gap-1.5 sm:flex-none">
                   <Play className="h-4 w-4" /> Iniciar
                 </Button>
               )}
               <Button
                 variant="secondary"
                 size="icon"
+                className="shrink-0"
                 onClick={() => (fullscreen ? exitFullscreen() : enterFullscreen())}
                 title={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
               >
@@ -351,7 +352,7 @@ export default function TeleprompterPage() {
       >
         <div
           ref={containerRef}
-          className="flex-1 overflow-y-auto overscroll-none px-10 py-24 md:px-24"
+          className="flex-1 overflow-y-auto overscroll-none px-6 py-20 sm:px-10 sm:py-24 md:px-24"
           style={{ scrollBehavior: "auto" }}
         >
           <p
@@ -367,8 +368,8 @@ export default function TeleprompterPage() {
         </div>
 
         {/* Barra de controles flutuante */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-6">
-          <div className="pointer-events-auto flex flex-wrap items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-md">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-4 sm:pb-6">
+          <div className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-2xl bg-white/10 px-3 py-2.5 backdrop-blur-md sm:gap-3 sm:px-4 sm:py-3">
             <div className="flex items-center gap-1.5">
               <Button size="icon" variant="secondary" onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 4))}>
                 <Minus className="h-4 w-4" />
