@@ -309,7 +309,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-        <table className="w-full min-w-[1400px] border-collapse text-sm">
+        <table className="w-full min-w-[1240px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-050 text-left text-xs font-bold uppercase text-gray-500">
               {COLUMNS.map((col) => (
@@ -336,16 +336,16 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
               ))}
               <th className="px-3 py-2.5">Link de criativos</th>
               <th className="px-3 py-2.5">Subido na data de</th>
-              <th className="px-3 py-2.5">Impressões</th>
-              <th className="px-3 py-2.5">Cliques</th>
-              <th className="px-3 py-2.5">Investimento (R$)</th>
-              <th className="px-3 py-2.5">Conversões</th>
-              <th className="px-3 py-2.5">
+              <th className="w-20 px-2 py-2.5">Impr.</th>
+              <th className="w-16 px-2 py-2.5">Cliques</th>
+              <th className="w-20 px-2 py-2.5">Invest. (R$)</th>
+              <th className="w-16 px-2 py-2.5">Conv.</th>
+              <th className="w-24 px-2 py-2.5">
                 <button
                   onClick={() => toggleSort("ctr")}
                   className={cn("flex items-center gap-1 hover:text-blue-900", sortField === "ctr" && "text-blue-900")}
                 >
-                  CTR (ranking)
+                  CTR
                   {sortField === "ctr" ? (
                     sortDir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
                   ) : (
@@ -353,8 +353,8 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                   )}
                 </button>
               </th>
-              <th className="px-3 py-2.5">Top Ads</th>
-              <th className="w-10 px-3 py-2.5" />
+              <th className="sticky right-10 z-10 w-24 border-l border-gray-200 bg-gray-050 px-2 py-2.5">Top Ads</th>
+              <th className="sticky right-0 z-10 w-10 border-l border-gray-200 bg-gray-050 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
@@ -441,27 +441,27 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                     className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                   />
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-1.5 py-1.5">
                   <input
                     type="number"
                     min={0}
                     value={row.impressions || ""}
                     placeholder="0"
                     onChange={(e) => handleNumberChange(row.id, "impressions", e.target.value)}
-                    className="h-9 w-24 rounded-[10px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                   />
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-1.5 py-1.5">
                   <input
                     type="number"
                     min={0}
                     value={row.clicks || ""}
                     placeholder="0"
                     onChange={(e) => handleNumberChange(row.id, "clicks", e.target.value)}
-                    className="h-9 w-20 rounded-[10px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                   />
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-1.5 py-1.5">
                   <input
                     type="number"
                     min={0}
@@ -469,26 +469,26 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                     value={row.spend || ""}
                     placeholder="0,00"
                     onChange={(e) => handleNumberChange(row.id, "spend", e.target.value)}
-                    className="h-9 w-24 rounded-[10px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                   />
                 </td>
-                <td className="px-2 py-1.5">
+                <td className="px-1.5 py-1.5">
                   <input
                     type="number"
                     min={0}
                     value={row.conversions || ""}
                     placeholder="0"
                     onChange={(e) => handleNumberChange(row.id, "conversions", e.target.value)}
-                    className="h-9 w-20 rounded-[10px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                   />
                 </td>
-                <td className="px-3 py-1.5">
-                  <div className="flex items-center gap-2">
+                <td className="px-2 py-1.5">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap">
                     <span className="font-semibold text-blue-900">{(row.ctr * 100).toFixed(2)}%</span>
                     {ctrRank.get(row.id) && ctrRank.get(row.id)! <= 3 && (
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                          "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
                           ctrRank.get(row.id) === 1 && "bg-yellow-100 text-yellow-700",
                           ctrRank.get(row.id) === 2 && "bg-gray-200 text-gray-700",
                           ctrRank.get(row.id) === 3 && "bg-orange-100 text-orange-700"
@@ -499,7 +499,12 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                     )}
                   </div>
                 </td>
-                <td className="px-2 py-1.5">
+                <td
+                  className={cn(
+                    "sticky right-10 z-10 border-l border-gray-200 px-2 py-1.5",
+                    row.uploaded_at ? "bg-[color:var(--color-success-bg)]" : "bg-white"
+                  )}
+                >
                   <Select
                     className="h-9"
                     value={row.top_ad ? "sim" : "nao"}
@@ -509,7 +514,12 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                     <option value="sim">Sim</option>
                   </Select>
                 </td>
-                <td className="px-2 py-1.5 text-center">
+                <td
+                  className={cn(
+                    "sticky right-0 z-10 border-l border-gray-200 px-2 py-1.5 text-center",
+                    row.uploaded_at ? "bg-[color:var(--color-success-bg)]" : "bg-white"
+                  )}
+                >
                   <button
                     onClick={() => removeRow(row.id)}
                     className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-[color:var(--color-danger)]"
