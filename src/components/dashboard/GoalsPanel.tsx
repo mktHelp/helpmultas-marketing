@@ -22,7 +22,9 @@ function goalLabel(goal: Goal) {
 
 function metricLabel(goal: Goal, current: number, target: number) {
   if (goal.metric === "on_time_rate") return `${current}% de ${target}% no prazo`;
-  if (goal.metric === "content_published") return `${current} de ${target} publicações`;
+  if (goal.metric === "content_published") {
+    return goal.is_recurring ? `${current} de ${target} hoje` : `${current} de ${target} publicações`;
+  }
   return `${current} de ${target} tarefas`;
 }
 
@@ -86,7 +88,14 @@ export function GoalsPanel({
             return (
               <div key={goal.id} className="group rounded-xl bg-gray-050 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-blue-900">{goalLabel(goal)}</p>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-blue-900">
+                    {goalLabel(goal)}
+                    {goal.is_recurring && (
+                      <span className="rounded-full bg-blue-050 px-1.5 py-0.5 text-[10px] font-bold text-blue-800">
+                        DIÁRIA
+                      </span>
+                    )}
+                  </p>
                   {canManage && (
                     <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                       <button

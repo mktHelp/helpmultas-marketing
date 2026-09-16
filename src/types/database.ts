@@ -256,12 +256,32 @@ export interface Goal {
   content_type: ContentType | null;
   target_value: number;
   period_start: string;
-  period_end: string;
+  period_end: string | null;
+  is_recurring: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;
   area?: Pick<Area, "id" | "name" | "color"> | null;
   user?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
+}
+
+export interface SocialAccount {
+  id: string;
+  label: string;
+  platform: string;
+  handle: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SocialFollowerSnapshot {
+  id: string;
+  account_id: string;
+  snapshot_date: string;
+  followers_count: number;
+  source: string;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface TaskWithRelations extends Task {

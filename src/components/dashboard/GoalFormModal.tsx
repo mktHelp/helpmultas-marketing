@@ -6,6 +6,8 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { Switch } from "@/components/ui/Checkbox";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { createGoal, updateGoal } from "@/lib/services/goals";
@@ -47,11 +49,11 @@ export function GoalFormModal({
     scope: editingGoal?.scope || "company",
     area_id: editingGoal?.area_id || "",
     user_id: editingGoal?.user_id || "",
-    metric: editingGoal?.metric || "content_published",
     content_type: editingGoal?.content_type || "",
     target_value: editingGoal?.target_value?.toString() || "",
     period_start: editingGoal?.period_start || monthRange.start,
     period_end: editingGoal?.period_end || monthRange.end,
+    is_recurring: editingGoal?.is_recurring || false,
   });
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -67,11 +69,12 @@ export function GoalFormModal({
         scope: form.scope as Goal["scope"],
         area_id: form.scope === "area" ? form.area_id || null : null,
         user_id: form.scope === "user" ? form.user_id || null : null,
-        metric: form.metric as Goal["metric"],
-        content_type: form.metric === "content_published" ? (form.content_type as ContentType) || null : null,
+        metric: "content_published" as Goal["metric"],
+        content_type: (form.content_type as ContentType) || null,
         target_value: Number(form.target_value),
         period_start: form.period_start,
-        period_end: form.period_end,
+        period_end: form.is_recurring ? null : form.period_end,
+        is_recurring: form.is_recurring,
         created_by: profile.id,
       };
       if (editingGoal) {
@@ -126,27 +129,31 @@ export function GoalFormModal({
 
           <div>
             <Label>Métrica</Label>
-            <Select value={form.metric} onChange={(e) => update("metric", e.target.value as Goal["metric"])}>
-              <option value="content_published">Conteúdo publicado (ex: 4 stories)</option>
-              <option value="tasks_completed">Tarefas concluídas (quantidade)</option>
-              <option value="on_time_rate">Taxa de entrega no prazo (%)</option>
+            <p className="flex h-10 items-center rounded-[14px] border border-gray-200 bg-gray-050 px-3.5 text-sm text-blue-900">
+              Conteúdo publicado
+            </p>
+          </div>
+
+          <div>
+            <Label>Tipo de conteúdo</Label>
+            <Select value={form.content_type} onChange={(e) => update("content_type", e.target.value)} required>
+              <option value="">Selecione</option>
+              {CONTENT_TYPES.map((ct) => (
+                <option key={ct} value={ct}>{CONTENT_TYPE_LABEL[ct]}</option>
+              ))}
             </Select>
           </div>
 
-          {form.metric === "content_published" && (
+          <div className="flex items-center justify-between rounded-[14px] border border-gray-200 px-3.5 py-2.5">
             <div>
-              <Label>Tipo de conteúdo</Label>
-              <Select value={form.content_type} onChange={(e) => update("content_type", e.target.value)} required>
-                <option value="">Selecione</option>
-                {CONTENT_TYPES.map((ct) => (
-                  <option key={ct} value={ct}>{CONTENT_TYPE_LABEL[ct]}</option>
-                ))}
-              </Select>
+              <p className="text-sm font-semibold text-blue-900">Meta contínua</p>
+              <p className="text-xs text-gray-500">Todos os dias, sem data para acabar (ex: stories diários)</p>
             </div>
-          )}
+            <Switch checked={form.is_recurring} onCheckedChange={(v) => update("is_recurring", v)} />
+          </div>
 
           <div>
-            <Label>Meta ({form.metric === "on_time_rate" ? "%" : form.metric === "content_published" ? "publicações" : "tarefas"})</Label>
+            <Label>Meta (publicações {form.is_recurring ? "por dia" : "no período"})</Label>
             <Input
               type="number"
               min={1}
@@ -156,15 +163,17 @@ export function GoalFormModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className={cn("grid gap-4", form.is_recurring ? "grid-cols-1" : "grid-cols-2")}>
             <div>
-              <Label>De</Label>
+              <Label>{form.is_recurring ? "A partir de" : "De"}</Label>
               <Input type="date" value={form.period_start} onChange={(e) => update("period_start", e.target.value)} required />
             </div>
-            <div>
-              <Label>Até</Label>
-              <Input type="date" value={form.period_end} onChange={(e) => update("period_end", e.target.value)} required />
-            </div>
+            {!form.is_recurring && (
+              <div>
+                <Label>Até</Label>
+                <Input type="date" value={form.period_end} onChange={(e) => update("period_end", e.target.value)} required />
+              </div>
+            )}
           </div>
         </DialogBody>
         <DialogFooter>

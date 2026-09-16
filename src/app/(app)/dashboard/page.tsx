@@ -11,7 +11,9 @@ import { AreaDonutChart, StatusBarChart, ProductivityLineChart } from "@/compone
 import { TeamRanking } from "@/components/dashboard/TeamRanking";
 import { GoalsPanel } from "@/components/dashboard/GoalsPanel";
 import { TimeManagementCard } from "@/components/dashboard/TimeManagementCard";
+import { SocialFollowersCard } from "@/components/dashboard/SocialFollowersCard";
 import { listGoals } from "@/lib/services/goals";
+import { listSocialAccounts, listRecentFollowerSnapshots } from "@/lib/services/social";
 import { TaskListItem } from "@/components/tasks/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
@@ -29,12 +31,14 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { profile } = await getCurrentUserAndProfile();
 
-  const [tasks, areas, profiles, statuses, goals] = await Promise.all([
+  const [tasks, areas, profiles, statuses, goals, socialAccounts, socialSnapshots] = await Promise.all([
     listTasks(supabase, {}),
     listAreas(supabase),
     listProfiles(supabase),
     listTaskStatuses(supabase),
     listGoals(supabase),
+    listSocialAccounts(supabase),
+    listRecentFollowerSnapshots(supabase),
   ]);
 
   const kpis = computeKpis(tasks, statuses);
@@ -66,6 +70,19 @@ export default async function DashboardPage() {
       </div>
 
       <TodayAnniversaries />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <GoalsPanel
+          goals={goals}
+          tasks={tasks}
+          statuses={statuses}
+          areas={areas}
+          profiles={profiles}
+          canManage={canManageGoals}
+        />
+        <TimeManagementCard rows={timeRows} />
+        <SocialFollowersCard accounts={socialAccounts} snapshots={socialSnapshots} canManage={canManageGoals} />
+      </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         <StatCard icon={ListTodo} label="Tarefas abertas" value={kpis.open} tone="neutral" />
@@ -122,18 +139,6 @@ export default async function DashboardPage() {
             <BottleneckRow label="Vencendo em 48h" count={problems.dueSoon.length} />
           </div>
         </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <GoalsPanel
-          goals={goals}
-          tasks={tasks}
-          statuses={statuses}
-          areas={areas}
-          profiles={profiles}
-          canManage={canManageGoals}
-        />
-        <TimeManagementCard rows={timeRows} />
       </div>
 
       <ChartCard title="Ranking da equipe">

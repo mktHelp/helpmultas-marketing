@@ -1,6 +1,6 @@
-import { differenceInDays, endOfDay, isAfter, isBefore, parseISO, subDays } from "date-fns";
+import { differenceInDays, endOfDay, isAfter, isBefore, parseISO, startOfDay, subDays } from "date-fns";
 import { toDateKey } from "@/lib/utils";
-import type { Area, Goal, Profile, TaskStatusRow, TaskWithRelations } from "@/types/database";
+import type { Area, Goal, Profile, SocialAccount, SocialFollowerSnapshot, TaskStatusRow, TaskWithRelations } from "@/types/database";
 
 function statusFlags(statuses: TaskStatusRow[]) {
   const doneKeys = new Set(statuses.filter((s) => s.is_done).map((s) => s.key));
@@ -40,10 +40,12 @@ export function computeKpis(tasks: TaskWithRelations[], statuses: TaskStatusRow[
 //   due_date (tasks with no due_date don't count toward either side).
 // - "content_published": tasks of the goal's content_type published
 //   (publish_at) inside the period — e.g. "4 Instagram stories this week".
+// A recurring goal (e.g. "1 story every day, forever") has no period_end —
+// its window is always "today" instead of the stored period.
 export function computeGoalProgress(goal: Goal, tasks: TaskWithRelations[], statuses: TaskStatusRow[]) {
   const { doneKeys } = statusFlags(statuses);
-  const start = parseISO(goal.period_start);
-  const end = endOfDay(parseISO(goal.period_end));
+  const start = goal.is_recurring ? startOfDay(new Date()) : parseISO(goal.period_start);
+  const end = goal.is_recurring ? endOfDay(new Date()) : endOfDay(parseISO(goal.period_end!));
 
   const inScope = tasks.filter((t) => {
     if (goal.scope === "area") return t.area_id === goal.area_id;
@@ -76,6 +78,24 @@ export function computeGoalProgress(goal: Goal, tasks: TaskWithRelations[], stat
 
   const percent = goal.target_value > 0 ? Math.min(100, Math.round((current / goal.target_value) * 100)) : 0;
   return { current, target: goal.target_value, percent };
+}
+
+// Day-over-day follower change per account, from a list of snapshots
+// (one per account per day, most recent first is not required). Returns
+// the latest count plus the delta vs. the snapshot right before it.
+export function socialFollowerDeltas(
+  accounts: SocialAccount[],
+  snapshots: SocialFollowerSnapshot[]
+) {
+  return accounts.map((account) => {
+    const rows = snapshots
+      .filter((s) => s.account_id === account.id)
+      .sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date));
+    const latest = rows[0] ?? null;
+    const previous = rows[1] ?? null;
+    const delta = latest && previous ? latest.followers_count - previous.followers_count : null;
+    return { account, latest, previous, delta };
+  });
 }
 
 export const CONTENT_TYPE_LABEL: Record<string, string> = {

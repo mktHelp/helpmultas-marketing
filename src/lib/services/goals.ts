@@ -11,7 +11,7 @@ export async function listGoals(supabase: SupabaseClient, activeOnly = true) {
   let query = supabase.from("goals").select(GOAL_SELECT).order("period_start", { ascending: false });
   if (activeOnly) {
     const today = new Date().toISOString().slice(0, 10);
-    query = query.lte("period_start", today).gte("period_end", today);
+    query = query.lte("period_start", today).or(`is_recurring.eq.true,period_end.gte.${today}`);
   }
   const { data, error } = await query;
   if (error) throw error;
@@ -26,7 +26,8 @@ export interface CreateGoalInput {
   content_type?: ContentType | null;
   target_value: number;
   period_start: string;
-  period_end: string;
+  period_end: string | null;
+  is_recurring: boolean;
   created_by: string;
 }
 
