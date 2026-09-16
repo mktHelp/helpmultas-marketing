@@ -19,11 +19,11 @@ type NumberField = "impressions" | "clicks" | "spend" | "conversions";
 type SortField = "name" | "unit" | "deliverer" | "delivered_at" | "ctr";
 type SortDir = "asc" | "desc";
 
-const COLUMNS: { key: SortField; label: string }[] = [
-  { key: "name", label: "Nome" },
-  { key: "unit", label: "Unidade" },
-  { key: "deliverer", label: "Nome de quem entregou" },
-  { key: "delivered_at", label: "Data de entrega do arquivo" },
+const COLUMNS: { key: SortField; label: string; widthClass: string }[] = [
+  { key: "name", label: "Nome", widthClass: "w-64" },
+  { key: "unit", label: "Unidade", widthClass: "w-40" },
+  { key: "deliverer", label: "Nome de quem entregou", widthClass: "w-48" },
+  { key: "delivered_at", label: "Data de entrega do arquivo", widthClass: "w-44" },
 ];
 
 const UNIT_OPTIONS = [
@@ -104,8 +104,9 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
   }
 
   async function addRow() {
-    const created = await createCreative(supabase, { sort_order: rows.length });
-    setRows((prev) => [...prev, created]);
+    const minSortOrder = rows.reduce((min, r) => Math.min(min, r.sort_order), 0);
+    const created = await createCreative(supabase, { sort_order: minSortOrder - 1 });
+    setRows((prev) => [created, ...prev]);
   }
 
   async function removeRow(rowId: string) {
@@ -309,11 +310,11 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-        <table className="w-full min-w-[1240px] border-collapse text-sm">
+        <table className="w-full min-w-[1560px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-050 text-left text-xs font-bold uppercase text-gray-500">
               {COLUMNS.map((col) => (
-                <th key={col.key} className="px-3 py-2.5">
+                <th key={col.key} className={cn("px-3 py-2.5", col.widthClass)}>
                   <button
                     onClick={() => toggleSort(col.key)}
                     className={cn(
@@ -334,8 +335,8 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                   </button>
                 </th>
               ))}
-              <th className="px-3 py-2.5">Link de criativos</th>
-              <th className="px-3 py-2.5">Subido na data de</th>
+              <th className="w-56 px-3 py-2.5">Link de criativos</th>
+              <th className="w-44 px-3 py-2.5">Subido na data de</th>
               <th className="w-20 px-2 py-2.5">Impr.</th>
               <th className="w-16 px-2 py-2.5">Cliques</th>
               <th className="w-20 px-2 py-2.5">Invest. (R$)</th>
