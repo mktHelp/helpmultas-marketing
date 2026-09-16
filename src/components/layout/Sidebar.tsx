@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles,
+  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles, Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -29,6 +29,10 @@ const NAV = [
   { href: "/team", label: "Equipe", icon: Users },
   { href: "/birthdays", label: "Aniversários", icon: Cake },
   { href: "/reports", label: "Relatórios", icon: BarChart3 },
+];
+
+const NAV_SECONDARY = [
+  { href: "/teleprompter", label: "Teleprompter", icon: Mic },
   { href: "/trash", label: "Lixeira", icon: Trash2 },
   { href: "/settings", label: "Configurações", icon: Settings },
 ];
@@ -80,6 +84,27 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
         {NAV.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                active ? "bg-yellow-500 text-blue-900" : "text-blue-100 hover:bg-white/10"
+              )}
+            >
+              <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+              {item.label}
+            </Link>
+          );
+        })}
+
+        <div className="my-2 border-t border-white/10" />
+
+        {NAV_SECONDARY.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           return (

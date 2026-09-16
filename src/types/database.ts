@@ -62,6 +62,15 @@ export interface Birthday {
   updated_at: string;
 }
 
+export interface TeleprompterScript {
+  id: string;
+  title: string;
+  content: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface BirthdayPhoto {
   id: string;
   birthday_id: string;
