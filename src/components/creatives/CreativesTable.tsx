@@ -25,7 +25,11 @@ const COLUMNS: { key: SortField; label: string; widthClass: string }[] = [
   { key: "delivered_at", label: "Data de entrega do arquivo", widthClass: "w-44" },
 ];
 
-const UNIT_OPTIONS = [{ value: "Franqueadora" }, { value: "Unidade" }] as const;
+const UNIT_OPTIONS = [
+  { value: "Franqueadora", dotClass: "bg-blue-100 border-blue-600" },
+  { value: "Unidade", dotClass: "bg-yellow-100 border-yellow-600" },
+] as const;
+
 
 export function CreativesTable({ profiles }: { profiles: Profile[] }) {
   const supabase = createClient();
@@ -279,6 +283,12 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
 
       <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
         <span className="font-bold uppercase text-gray-500">Legenda:</span>
+        {UNIT_OPTIONS.map((o) => (
+          <span key={o.value} className="flex items-center gap-1.5">
+            <span className={cn("h-2.5 w-2.5 rounded-full border", o.dotClass)} />
+            {o.value}
+          </span>
+        ))}
         <span className="flex items-center gap-1.5">
           <span
             className="h-2.5 w-2.5 rounded-full border"
@@ -338,8 +348,9 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                 />
                 <td className="px-2 py-1.5">
                   <div className="flex flex-col gap-1">
-                    <Select
-                      className="h-9"
+<div className="relative">
+                                          <Select
+                      className={cn("h-9", row.unit && "pl-8")}
                       value={row.unit}
                       onChange={(e) =>
                         handleFieldSave(row.id, {
@@ -355,6 +366,15 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                         </option>
                       ))}
                     </Select>
+                      {row.unit && (
+                        <span
+                          className={cn(
+                            "pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border",
+                            UNIT_OPTIONS.find((o) => o.value === row.unit)?.dotClass
+                          )}
+                        />
+                      )}
+                    </div>
                     {row.unit === "Unidade" && (
                       <Select
                         className="h-9"
