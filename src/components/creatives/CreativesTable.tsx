@@ -15,26 +15,17 @@ import type { Creative, Profile } from "@/types/database";
 const TEXT_FIELDS = ["name", "link"] as const;
 type TextField = (typeof TEXT_FIELDS)[number];
 
-type NumberField = "impressions" | "clicks" | "spend" | "conversions";
-
-type SortField = "name" | "unit" | "deliverer" | "delivered_at" | "ctr";
+type SortField = "name" | "unit" | "deliverer" | "delivered_at";
 type SortDir = "asc" | "desc";
 
 const COLUMNS: { key: SortField; label: string; widthClass: string }[] = [
   { key: "name", label: "Nome", widthClass: "w-64" },
-  { key: "unit", label: "Unidade", widthClass: "w-40" },
+  { key: "unit", label: "Unidade", widthClass: "w-56" },
   { key: "deliverer", label: "Nome de quem entregou", widthClass: "w-48" },
   { key: "delivered_at", label: "Data de entrega do arquivo", widthClass: "w-44" },
 ];
 
-const UNIT_OPTIONS = [
-  { value: "Franqueadora", dotClass: "bg-blue-100 border-blue-600", selectClass: "bg-blue-050 text-blue-900" },
-  { value: "Unidade", dotClass: "bg-yellow-100 border-yellow-600", selectClass: "bg-yellow-050 text-blue-900" },
-] as const;
-
-function unitMeta(value: string) {
-  return UNIT_OPTIONS.find((o) => o.value === value);
-}
+const UNIT_OPTIONS = [{ value: "Franqueadora" }, { value: "Unidade" }] as const;
 
 export function CreativesTable({ profiles }: { profiles: Profile[] }) {
   const supabase = createClient();
@@ -88,17 +79,6 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
     }, 500);
   }
 
-  function handleNumberChange(rowId: string, field: NumberField, value: string) {
-    const parsed = value === "" ? 0 : Number(value);
-    setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, [field]: parsed } : r)));
-
-    const key = `${rowId}:${field}`;
-    if (saveTimers.current[key]) clearTimeout(saveTimers.current[key]);
-    saveTimers.current[key] = setTimeout(() => {
-      updateCreative(supabase, rowId, { [field]: parsed }).catch(() => {});
-    }, 500);
-  }
-
   async function handleFieldSave(rowId: string, patch: Partial<Creative>) {
     setRows((prev) => prev.map((r) => (r.id === rowId ? { ...r, ...patch } : r)));
     await updateCreative(supabase, rowId, patch).catch(() => {});
@@ -145,15 +125,6 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
 
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
-  // Ranking position by CTR, independent of the current sort/filter — only
-  // creatives with impressions logged compete for a rank.
-  const ctrRank = useMemo(() => {
-    const ranked = rows.filter((r) => r.impressions > 0).sort((a, b) => b.ctr - a.ctr);
-    const map = new Map<string, number>();
-    ranked.forEach((r, i) => map.set(r.id, i + 1));
-    return map;
-  }, [rows]);
-
   const visibleRows = useMemo(() => {
     let result = rows.filter((row) => {
       if (filters.name && !row.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
@@ -170,10 +141,6 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
 
     if (sortField) {
       result = [...result].sort((a, b) => {
-        if (sortField === "ctr") {
-          const cmp = a.ctr - b.ctr;
-          return sortDir === "asc" ? cmp : -cmp;
-        }
         const av = sortField === "deliverer" ? a.deliverer?.full_name ?? "" : (a[sortField] ?? "");
         const bv = sortField === "deliverer" ? b.deliverer?.full_name ?? "" : (b[sortField] ?? "");
         const cmp = String(av).localeCompare(String(bv), "pt-BR");
@@ -312,12 +279,6 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
 
       <div className="mb-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
         <span className="font-bold uppercase text-gray-500">Legenda:</span>
-        {UNIT_OPTIONS.map((o) => (
-          <span key={o.value} className="flex items-center gap-1.5">
-            <span className={cn("h-2.5 w-2.5 rounded-full border", o.dotClass)} />
-            {o.value}
-          </span>
-        ))}
         <span className="flex items-center gap-1.5">
           <span
             className="h-2.5 w-2.5 rounded-full border"
@@ -328,7 +289,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-        <table className="w-full min-w-[1560px] border-collapse text-sm">
+        <table className="w-full min-w-[1100px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-050 text-left text-xs font-bold uppercase text-gray-500">
               {COLUMNS.map((col) => (
@@ -355,23 +316,6 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
               ))}
               <th className="w-56 px-3 py-2.5">Link de criativos</th>
               <th className="w-44 px-3 py-2.5">Subido na data de</th>
-              <th className="w-20 px-2 py-2.5">Impr.</th>
-              <th className="w-16 px-2 py-2.5">Cliques</th>
-              <th className="w-20 px-2 py-2.5">Invest. (R$)</th>
-              <th className="w-16 px-2 py-2.5">Conv.</th>
-              <th className="w-24 px-2 py-2.5">
-                <button
-                  onClick={() => toggleSort("ctr")}
-                  className={cn("flex items-center gap-1 hover:text-blue-900", sortField === "ctr" && "text-blue-900")}
-                >
-                  CTR
-                  {sortField === "ctr" ? (
-                    sortDir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                  ) : (
-                    <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                  )}
-                </button>
-              </th>
               <th className="sticky right-20 z-10 w-24 border-l border-gray-200 bg-gray-050 px-2 py-2.5">Top Ads</th>
               <th className="sticky right-0 z-10 w-20 border-l border-gray-200 bg-gray-050 px-2 py-2.5" />
             </tr>
@@ -395,7 +339,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                 <td className="px-2 py-1.5">
                   <div className="flex flex-col gap-1">
                     <Select
-                      className={cn("h-9 font-semibold", unitMeta(row.unit)?.selectClass)}
+                      className="h-9"
                       value={row.unit}
                       onChange={(e) =>
                         handleFieldSave(row.id, {
@@ -417,7 +361,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                         value={row.unit_name}
                         onChange={(e) => handleFieldSave(row.id, { unit_name: e.target.value })}
                       >
-                        <option value="">Qual unidade?</option>
+                        <option value="">Selecionar unidade...</option>
                         {FRANCHISE_UNITS.map((u) => (
                           <option key={u} value={u}>
                             {u.replace("HELP MULTAS ", "")}
@@ -481,64 +425,6 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                     className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                   />
                 </td>
-                <td className="px-1.5 py-1.5">
-                  <input
-                    type="number"
-                    min={0}
-                    value={row.impressions || ""}
-                    placeholder="0"
-                    onChange={(e) => handleNumberChange(row.id, "impressions", e.target.value)}
-                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                  />
-                </td>
-                <td className="px-1.5 py-1.5">
-                  <input
-                    type="number"
-                    min={0}
-                    value={row.clicks || ""}
-                    placeholder="0"
-                    onChange={(e) => handleNumberChange(row.id, "clicks", e.target.value)}
-                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                  />
-                </td>
-                <td className="px-1.5 py-1.5">
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={row.spend || ""}
-                    placeholder="0,00"
-                    onChange={(e) => handleNumberChange(row.id, "spend", e.target.value)}
-                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                  />
-                </td>
-                <td className="px-1.5 py-1.5">
-                  <input
-                    type="number"
-                    min={0}
-                    value={row.conversions || ""}
-                    placeholder="0"
-                    onChange={(e) => handleNumberChange(row.id, "conversions", e.target.value)}
-                    className="h-9 w-full rounded-[10px] border border-gray-200 bg-white px-2 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                  />
-                </td>
-                <td className="px-2 py-1.5">
-                  <div className="flex items-center gap-1.5 whitespace-nowrap">
-                    <span className="font-semibold text-blue-900">{(row.ctr * 100).toFixed(2)}%</span>
-                    {ctrRank.get(row.id) && ctrRank.get(row.id)! <= 3 && (
-                      <span
-                        className={cn(
-                          "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
-                          ctrRank.get(row.id) === 1 && "bg-yellow-100 text-yellow-700",
-                          ctrRank.get(row.id) === 2 && "bg-gray-200 text-gray-700",
-                          ctrRank.get(row.id) === 3 && "bg-orange-100 text-orange-700"
-                        )}
-                      >
-                        #{ctrRank.get(row.id)}
-                      </span>
-                    )}
-                  </div>
-                </td>
                 <td
                   className={cn(
                     "sticky right-20 z-10 border-l border-gray-200 px-2 py-1.5",
@@ -556,10 +442,11 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                 </td>
                 <td
                   className={cn(
-                    "sticky right-0 z-10 border-l border-gray-200 px-2 py-1.5 text-center",
+                    "sticky right-0 z-10 border-l border-gray-200 px-2 py-1.5",
                     row.uploaded_at ? "bg-[color:var(--color-success-bg)]" : "bg-white"
                   )}
                 >
+                  <div className="flex items-center justify-center gap-0.5">
                   <button
                     onClick={() => duplicateRow(row)}
                     className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-050 hover:text-blue-900"
@@ -575,12 +462,13 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
+                  </div>
                 </td>
               </tr>
             ))}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={13} className="px-3 py-10 text-center text-sm text-gray-400">
+                <td colSpan={8} className="px-3 py-10 text-center text-sm text-gray-400">
                   {rows.length === 0 ? "Nenhum criativo cadastrado ainda." : "Nenhum resultado para os filtros aplicados."}
                 </td>
               </tr>
