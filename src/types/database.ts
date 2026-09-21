@@ -177,6 +177,7 @@ export interface Creative {
   project_id: string | null;
   name: string;
   unit: string;
+  unit_name: string;
   delivered_by: string | null;
   delivered_at: string | null;
   link: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, ExternalLink, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { createCreative, deleteCreative, listCreatives, updateCreative } from "@/lib/services/creatives";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { cn } from "@/lib/utils";
+import { FRANCHISE_UNITS } from "@/lib/franchise-units";
 import type { Creative, Profile } from "@/types/database";
 
 const TEXT_FIELDS = ["name", "link"] as const;
@@ -107,6 +108,23 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
     const minSortOrder = rows.reduce((min, r) => Math.min(min, r.sort_order), 0);
     const created = await createCreative(supabase, { sort_order: minSortOrder - 1 });
     setRows((prev) => [created, ...prev]);
+  }
+
+  async function duplicateRow(row: Creative) {
+    const created = await createCreative(supabase, {
+      name: row.name,
+      unit: row.unit,
+      unit_name: row.unit_name,
+      delivered_by: row.delivered_by,
+      delivered_at: row.delivered_at,
+      link: row.link,
+      top_ad: row.top_ad,
+      sort_order: row.sort_order - 1,
+    });
+    setRows((prev) => {
+      const i = prev.findIndex((r) => r.id === row.id);
+      return [...prev.slice(0, i + 1), created, ...prev.slice(i + 1)];
+    });
   }
 
   async function removeRow(rowId: string) {
@@ -354,8 +372,8 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                   )}
                 </button>
               </th>
-              <th className="sticky right-10 z-10 w-24 border-l border-gray-200 bg-gray-050 px-2 py-2.5">Top Ads</th>
-              <th className="sticky right-0 z-10 w-10 border-l border-gray-200 bg-gray-050 px-2 py-2.5" />
+              <th className="sticky right-20 z-10 w-24 border-l border-gray-200 bg-gray-050 px-2 py-2.5">Top Ads</th>
+              <th className="sticky right-0 z-10 w-20 border-l border-gray-200 bg-gray-050 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
@@ -375,18 +393,39 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                   placeholder="Nome do criativo"
                 />
                 <td className="px-2 py-1.5">
-                  <Select
-                    className={cn("h-9 font-semibold", unitMeta(row.unit)?.selectClass)}
-                    value={row.unit}
-                    onChange={(e) => handleFieldSave(row.id, { unit: e.target.value })}
-                  >
-                    <option value="">Selecionar...</option>
-                    {UNIT_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.value}
-                      </option>
-                    ))}
-                  </Select>
+                  <div className="flex flex-col gap-1">
+                    <Select
+                      className={cn("h-9 font-semibold", unitMeta(row.unit)?.selectClass)}
+                      value={row.unit}
+                      onChange={(e) =>
+                        handleFieldSave(row.id, {
+                          unit: e.target.value,
+                          ...(e.target.value !== "Unidade" && { unit_name: "" }),
+                        })
+                      }
+                    >
+                      <option value="">Selecionar...</option>
+                      {UNIT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.value}
+                        </option>
+                      ))}
+                    </Select>
+                    {row.unit === "Unidade" && (
+                      <Select
+                        className="h-9"
+                        value={row.unit_name}
+                        onChange={(e) => handleFieldSave(row.id, { unit_name: e.target.value })}
+                      >
+                        <option value="">Qual unidade?</option>
+                        {FRANCHISE_UNITS.map((u) => (
+                          <option key={u} value={u}>
+                            {u.replace("HELP MULTAS ", "")}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </div>
                 </td>
                 <td className="px-2 py-1.5">
                   <Select
@@ -502,7 +541,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                 </td>
                 <td
                   className={cn(
-                    "sticky right-10 z-10 border-l border-gray-200 px-2 py-1.5",
+                    "sticky right-20 z-10 border-l border-gray-200 px-2 py-1.5",
                     row.uploaded_at ? "bg-[color:var(--color-success-bg)]" : "bg-white"
                   )}
                 >
@@ -521,6 +560,14 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                     row.uploaded_at ? "bg-[color:var(--color-success-bg)]" : "bg-white"
                   )}
                 >
+                  <button
+                    onClick={() => duplicateRow(row)}
+                    className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-050 hover:text-blue-900"
+                    aria-label="Duplicar linha"
+                    title="Duplicar linha"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => removeRow(row.id)}
                     className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-[color:var(--color-danger)]"
