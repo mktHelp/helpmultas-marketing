@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, TrendingDown, TrendingUp } from "lucide-react";
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Cell,
 } from "recharts";
 import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { Select } from "@/components/ui/Select";
@@ -70,48 +70,6 @@ export function SocialFollowerHistoryModal({
   }, []);
 
   const sortedMonths = [...months].sort((a, b) => a - b);
-
-  const summaries = useMemo(() => {
-    return sortedMonths
-      .map((m) => {
-        const history = histories[m];
-        if (!history || history.length === 0) return null;
-        const first = history[0];
-        const last = history[history.length - 1];
-        const gained = history.reduce((sum, d) => sum + (d.delta && d.delta > 0 ? d.delta : 0), 0);
-        const lost = history.reduce((sum, d) => sum + (d.delta && d.delta < 0 ? -d.delta : 0), 0);
-        return {
-          month: m,
-          label: MONTHS_SHORT[m],
-          color: MONTH_COLORS[sortedMonths.indexOf(m) % MONTH_COLORS.length],
-          start: first.followers,
-          end: last.followers,
-          net: last.followers - first.followers,
-          gained,
-          lost,
-        };
-      })
-      .filter((s): s is NonNullable<typeof s> => s !== null);
-  }, [sortedMonths, histories]);
-
-  // One row per day-of-month (01..31), one column per selected month, so
-  // months line up side by side for comparison in the grouped bar chart.
-  const chartData = useMemo(() => {
-    const dayCount = Math.max(1, ...sortedMonths.map((m) => new Date(year, m + 1, 0).getDate()));
-    return Array.from({ length: dayCount }, (_, i) => {
-      const day = i + 1;
-      const dayLabel = String(day).padStart(2, "0");
-      const row: Record<string, number | string> = { day: dayLabel };
-      for (const m of sortedMonths) {
-        const history = histories[m] || [];
-        const entry = history.find((d) => Number(d.date.slice(-2)) === day);
-        if (entry) row[MONTHS_SHORT[m]] = entry.followers;
-      }
-      return row;
-    });
-  }, [sortedMonths, histories, year]);
-
-  const hasData = sortedMonths.some((m) => (histories[m] || []).length > 0);
   const years = [now.getFullYear(), now.getFullYear() - 1];
 
   function toggleMonth(m: number) {
@@ -131,7 +89,7 @@ export function SocialFollowerHistoryModal({
         subtitle={account ? `@${account.label}` : undefined}
         onClose={onClose}
       />
-      <DialogBody className="space-y-5">
+      <DialogBody className="space-y-6">
         <div className="flex items-center gap-2">
           <div className="relative" ref={pickerRef}>
             <button
@@ -170,102 +128,161 @@ export function SocialFollowerHistoryModal({
           </Select>
         </div>
 
-        {summaries.length > 0 && (
-          <div className="flex flex-wrap gap-3">
-            {summaries.map((s) => (
-              <div key={s.month} className="min-w-[190px] flex-1 rounded-xl bg-gray-050 p-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                  <p className="text-xs font-semibold text-gray-500">{MONTHS[s.month]}</p>
-                </div>
-                <div className="mt-1.5 flex items-baseline gap-2">
-                  <span className="text-lg font-bold text-blue-900">{s.end.toLocaleString("pt-BR")}</span>
-                  <span
-                    className={cn(
-                      "flex items-center gap-0.5 text-xs font-bold",
-                      s.net > 0 ? "text-[color:var(--color-success)]" : s.net < 0 ? "text-[color:var(--color-danger)]" : "text-gray-400"
-                    )}
-                  >
-                    {s.net > 0 ? <TrendingUp className="h-3 w-3" /> : s.net < 0 ? <TrendingDown className="h-3 w-3" /> : null}
-                    {s.net > 0 ? "+" : ""}
-                    {s.net}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-[11px] text-gray-400">
-                  +{s.gained} / -{s.lost} no mês
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div>
-          {loading ? (
-            <div className="flex h-[280px] items-center justify-center text-sm text-gray-400">Carregando...</div>
-          ) : !hasData ? (
-            <div className="flex h-[280px] items-center justify-center text-sm text-gray-400">
-              Sem registros para o período selecionado.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData} margin={{ left: -20, top: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#7c8e98" }}
-                  axisLine={false}
-                  tickLine={false}
-                  domain={["dataMin - 20", "dataMax + 20"]}
-                />
-                <RTooltip
-                  contentStyle={{ borderRadius: 12, border: "1px solid #d8e0e4", fontSize: 13 }}
-                  formatter={(value, name) => [Number(value).toLocaleString("pt-BR"), name]}
-                  labelFormatter={(label) => `Dia ${label}`}
-                />
-                <Legend
-                  wrapperStyle={{ fontSize: 12, color: "#7c8e98" }}
-                  formatter={(value) => MONTHS[MONTHS_SHORT.indexOf(value)] || value}
-                />
-                {sortedMonths.map((m, i) => (
-                  <Bar
-                    key={m}
-                    dataKey={MONTHS_SHORT[m]}
-                    fill={MONTH_COLORS[i % MONTH_COLORS.length]}
-                    radius={[6, 6, 0, 0]}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {hasData && (
-          <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-gray-050 text-xs text-gray-500">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold">Dia</th>
-                  {sortedMonths.map((m) => (
-                    <th key={m} className="px-3 py-2 text-right font-semibold">{MONTHS_SHORT[m]}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[...chartData].reverse().map((row) => (
-                  <tr key={row.day as string} className="border-t border-gray-100">
-                    <td className="px-3 py-2 text-blue-900">{row.day}</td>
-                    {sortedMonths.map((m) => (
-                      <td key={m} className="px-3 py-2 text-right font-semibold text-blue-900">
-                        {row[MONTHS_SHORT[m]] != null ? Number(row[MONTHS_SHORT[m]]).toLocaleString("pt-BR") : "—"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {loading ? (
+          <div className="flex h-[200px] items-center justify-center text-sm text-gray-400">Carregando...</div>
+        ) : (
+          sortedMonths.map((m, i) => (
+            <MonthReport
+              key={m}
+              month={m}
+              color={MONTH_COLORS[i % MONTH_COLORS.length]}
+              history={histories[m] || []}
+              showLabel={sortedMonths.length > 1}
+            />
+          ))
         )}
       </DialogBody>
     </Dialog>
+  );
+}
+
+function MonthReport({
+  month,
+  color,
+  history,
+  showLabel,
+}: {
+  month: number;
+  color: string;
+  history: MonthHistory;
+  showLabel: boolean;
+}) {
+  if (history.length === 0) {
+    return (
+      <div>
+        {showLabel && <MonthLabel month={month} color={color} />}
+        <div className="flex h-[160px] items-center justify-center text-sm text-gray-400">
+          Sem registros para {MONTHS[month]}.
+        </div>
+      </div>
+    );
+  }
+
+  const first = history[0];
+  const last = history[history.length - 1];
+  const gained = history.reduce((sum, d) => sum + (d.delta && d.delta > 0 ? d.delta : 0), 0);
+  const lost = history.reduce((sum, d) => sum + (d.delta && d.delta < 0 ? -d.delta : 0), 0);
+  const net = last.followers - first.followers;
+
+  return (
+    <div className="space-y-5">
+      {showLabel && <MonthLabel month={month} color={color} />}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryStat label="Início do mês" value={first.followers.toLocaleString("pt-BR")} />
+        <SummaryStat label="Atual" value={last.followers.toLocaleString("pt-BR")} />
+        <SummaryStat
+          label="Saldo no mês"
+          value={`${net > 0 ? "+" : ""}${net.toLocaleString("pt-BR")}`}
+          tone={net > 0 ? "success" : net < 0 ? "danger" : undefined}
+          icon={net > 0 ? TrendingUp : net < 0 ? TrendingDown : undefined}
+        />
+        <SummaryStat label="Ganhos / Perdas" value={`+${gained} / -${lost}`} />
+      </div>
+
+      <ResponsiveContainer width="100%" height={260}>
+        <BarChart data={history} margin={{ left: -20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
+          <YAxis
+            tick={{ fontSize: 11, fill: "#7c8e98" }}
+            axisLine={false}
+            tickLine={false}
+            domain={["dataMin - 20", "dataMax + 20"]}
+          />
+          <RTooltip
+            contentStyle={{ borderRadius: 12, border: "1px solid #d8e0e4", fontSize: 13 }}
+            formatter={(value, _name, props) => {
+              const delta = (props?.payload as { delta?: number | null } | undefined)?.delta;
+              return [
+                `${Number(value).toLocaleString("pt-BR")}${delta != null ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}`,
+                "Seguidores",
+              ];
+            }}
+          />
+          <Bar dataKey="followers" radius={[6, 6, 0, 0]}>
+            {history.map((d) => (
+              <Cell key={d.date} fill={d.delta == null || d.delta >= 0 ? "#fcbf00" : "#243746"} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+
+      <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-gray-050 text-xs text-gray-500">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">Dia</th>
+              <th className="px-3 py-2 text-right font-semibold">Seguidores</th>
+              <th className="px-3 py-2 text-right font-semibold">Variação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...history].reverse().map((d) => (
+              <tr key={d.date} className="border-t border-gray-100">
+                <td className="px-3 py-2 text-blue-900">{d.label}</td>
+                <td className="px-3 py-2 text-right font-semibold text-blue-900">
+                  {d.followers.toLocaleString("pt-BR")}
+                </td>
+                <td
+                  className={cn(
+                    "px-3 py-2 text-right font-semibold",
+                    d.delta == null ? "text-gray-400" : d.delta > 0 ? "text-[color:var(--color-success)]" : d.delta < 0 ? "text-[color:var(--color-danger)]" : "text-gray-400"
+                  )}
+                >
+                  {d.delta == null ? "—" : `${d.delta > 0 ? "+" : ""}${d.delta}`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MonthLabel({ month, color }: { month: number; color: string }) {
+  return (
+    <div className="flex items-center gap-2 border-t border-gray-100 pt-5 first:border-0 first:pt-0">
+      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+      <h4 className="font-display text-sm font-semibold text-blue-900">{MONTHS[month]}</h4>
+    </div>
+  );
+}
+
+function SummaryStat({
+  label,
+  value,
+  tone,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  tone?: "success" | "danger";
+  icon?: typeof TrendingUp;
+}) {
+  return (
+    <div className="rounded-xl bg-gray-050 p-3">
+      <p className="text-[11px] text-gray-500">{label}</p>
+      <p
+        className={cn(
+          "mt-1 flex items-center gap-1 text-lg font-bold",
+          tone === "success" ? "text-[color:var(--color-success)]" : tone === "danger" ? "text-[color:var(--color-danger)]" : "text-blue-900"
+        )}
+      >
+        {Icon && <Icon className="h-4 w-4" />}
+        {value}
+      </p>
+    </div>
   );
 }
