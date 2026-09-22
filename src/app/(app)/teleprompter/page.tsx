@@ -275,6 +275,11 @@ export default function TeleprompterPage() {
   async function startCamera() {
     setCameraError(null);
     setCameraLoading(true);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Este navegador não tem acesso à câmera aqui (é preciso HTTPS).");
+      setCameraLoading(false);
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
@@ -304,7 +309,14 @@ export default function TeleprompterPage() {
 
   function startRecording() {
     const stream = streamRef.current;
-    if (!stream) return;
+    if (!stream) {
+      toast.error("Câmera ainda não está pronta. Aguarde ou verifique as permissões.");
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      toast.error("Este navegador não suporta gravação de vídeo.");
+      return;
+    }
     discardRecording();
     chunksRef.current = [];
     const candidates = [
@@ -643,7 +655,7 @@ export default function TeleprompterPage() {
         )}
 
         {/* Barra de controles flutuante */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-4 sm:pb-6">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-4 sm:pb-6">
           {!selfieMode && (
             <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2.5 rounded-2xl bg-black/80 px-3 py-3 backdrop-blur-md sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:gap-4 sm:px-4">
               {/* Fonte + Velocidade */}
