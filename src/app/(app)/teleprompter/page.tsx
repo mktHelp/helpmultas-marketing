@@ -396,6 +396,16 @@ export default function TeleprompterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A pré-visualização da câmera é desmontada enquanto o vídeo gravado é
+  // exibido; ao voltar para ela (novo elemento <video>), reconecta o
+  // MediaStream que já está ativo em vez de pedir a câmera de novo.
+  useEffect(() => {
+    if (selfieMode && !recordedUrl && cameraVideoRef.current && streamRef.current) {
+      cameraVideoRef.current.srcObject = streamRef.current;
+      cameraVideoRef.current.play().catch(() => {});
+    }
+  }, [selfieMode, recordedUrl]);
+
   // ------------------- Fullscreen -------------------
 
   function enterFullscreen() {
@@ -723,6 +733,19 @@ export default function TeleprompterPage() {
                 </StageButton>
                 <span className="w-6 text-center text-sm font-bold text-white">{fontSize}</span>
                 <StageButton onClick={() => setFontSize((f) => Math.min(MAX_FONT, f + 4))} label="Aumentar fonte">
+                  <Plus className="h-4 w-4" />
+                </StageButton>
+              </div>
+
+              <div className="h-6 w-px shrink-0 bg-white/15" />
+
+              <div className="flex items-center gap-1.5">
+                <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Vel.</span>
+                <StageButton onClick={() => setSpeed((v) => Math.max(MIN_SPEED, v - 1))} label="Diminuir velocidade">
+                  <Minus className="h-4 w-4" />
+                </StageButton>
+                <span className="w-6 text-center text-sm font-bold text-white">{speed}</span>
+                <StageButton onClick={() => setSpeed((v) => Math.min(MAX_SPEED, v + 1))} label="Aumentar velocidade">
                   <Plus className="h-4 w-4" />
                 </StageButton>
               </div>
