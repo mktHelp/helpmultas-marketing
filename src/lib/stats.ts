@@ -106,6 +106,25 @@ export function socialFollowerDeltas(
   });
 }
 
+// One row per day (the last snapshot captured that day) plus its
+// day-over-day delta — the shape the follower history chart/table need.
+export function dailyFollowerHistory(snapshots: SocialFollowerSnapshot[]) {
+  const byDay = new Map<string, SocialFollowerSnapshot>();
+  for (const s of snapshots) {
+    const existing = byDay.get(s.snapshot_date);
+    if (!existing || s.captured_at > existing.captured_at) byDay.set(s.snapshot_date, s);
+  }
+  const days = Array.from(byDay.keys()).sort();
+  let previousCount: number | null = null;
+  return days.map((date) => {
+    const snapshot = byDay.get(date)!;
+    const delta = previousCount === null ? null : snapshot.followers_count - previousCount;
+    previousCount = snapshot.followers_count;
+    const [, mm, dd] = date.split("-");
+    return { date, label: `${dd}/${mm}`, followers: snapshot.followers_count, delta };
+  });
+}
+
 export const CONTENT_TYPE_LABEL: Record<string, string> = {
   reels: "Reels", stories: "Stories", feed: "Feed", carrossel: "Carrossel",
   youtube: "YouTube", blog: "Blog", email: "E-mail", whatsapp: "WhatsApp",

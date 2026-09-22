@@ -12,6 +12,7 @@ import { addFollowerSnapshot } from "@/lib/services/social";
 import { socialFollowerDeltas } from "@/lib/stats";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
+import { SocialFollowerHistoryModal } from "@/components/dashboard/SocialFollowerHistoryModal";
 import type { SocialAccount, SocialFollowerSnapshot } from "@/types/database";
 
 function formatTime(iso: string) {
@@ -33,6 +34,7 @@ export function SocialFollowersCard({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [historyAccount, setHistoryAccount] = useState<SocialAccount | null>(null);
 
   const rows = socialFollowerDeltas(accounts, snapshots);
 
@@ -70,7 +72,14 @@ export function SocialFollowersCard({
       ) : (
         <div className="mt-3 space-y-2.5">
           {rows.map(({ account, latest, delta, hourAgo }) => (
-            <div key={account.id} className="rounded-xl bg-gray-050 p-3">
+            <div
+              key={account.id}
+              onClick={() => editingId !== account.id && setHistoryAccount(account)}
+              className={cn(
+                "rounded-xl bg-gray-050 p-3 transition-colors",
+                editingId !== account.id && "cursor-pointer hover:bg-gray-100"
+              )}
+            >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <AtSign className="h-4 w-4 text-gray-400" />
@@ -78,7 +87,8 @@ export function SocialFollowersCard({
                 </div>
                 {canManage && editingId !== account.id && (
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setEditingId(account.id);
                       setValue(latest ? String(latest.followers_count) : "");
                     }}
@@ -90,7 +100,7 @@ export function SocialFollowersCard({
               </div>
 
               {editingId === account.id ? (
-                <div className="mt-2 flex items-end gap-2">
+                <div className="mt-2 flex items-end gap-2" onClick={(e) => e.stopPropagation()}>
                   <div className="flex-1">
                     <Label className="mb-1">Seguidores hoje</Label>
                     <Input
@@ -145,6 +155,8 @@ export function SocialFollowersCard({
           ))}
         </div>
       )}
+
+      <SocialFollowerHistoryModal account={historyAccount} onClose={() => setHistoryAccount(null)} />
     </Card>
   );
 }

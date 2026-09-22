@@ -22,6 +22,25 @@ export async function listRecentFollowerSnapshots(supabase: SupabaseClient, days
   return (data as SocialFollowerSnapshot[]) || [];
 }
 
+// All snapshots for one account within [start, end] (inclusive dates,
+// "YYYY-MM-DD"), oldest first — used to build the monthly history chart.
+export async function listFollowerSnapshotsInRange(
+  supabase: SupabaseClient,
+  accountId: string,
+  start: string,
+  end: string
+) {
+  const { data, error } = await supabase
+    .from("social_follower_snapshots")
+    .select("*")
+    .eq("account_id", accountId)
+    .gte("snapshot_date", start)
+    .lte("snapshot_date", end)
+    .order("captured_at", { ascending: true });
+  if (error) throw error;
+  return (data as SocialFollowerSnapshot[]) || [];
+}
+
 export async function addFollowerSnapshot(
   supabase: SupabaseClient,
   input: { account_id: string; followers_count: number; media_count?: number | null; created_by?: string | null; source?: string }
