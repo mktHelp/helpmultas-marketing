@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   Play, Pause, RotateCcw, Plus, Save, Trash2,
   Minus, ChevronsLeftRight, ChevronsRightLeft, Maximize2, Minimize2, X, FileText,
+  Camera, Circle, Square, Download, RefreshCw,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -79,6 +80,20 @@ export default function TeleprompterPage() {
   const stageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
+
+  // ------------------- Gravação selfie -------------------
+  const [selfieMode, setSelfieMode] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordTimerRef = useRef<number | null>(null);
 
   const load = useCallback(() => {
     listTeleprompterScripts(supabase)
@@ -217,6 +232,158 @@ export default function TeleprompterPage() {
 
   useEffect(() => stop, [stop]);
 
+  // ------------------- Gravação selfie -------------------
+
+  const stopCameraStream = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (cameraVideoRef.current) cameraVideoRef.current.srcObject = null;
+  }, []);
+
+  const clearRecordTimer = useCallback(() => {
+    if (recordTimerRef.current) {
+      window.clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+  }, []);
+
+  const discardRecording = useCallback(() => {
+    setRecordedUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setRecordSeconds(0);
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    mediaRecorderRef.current = null;
+    setRecording(false);
+    clearRecordTimer();
+  }, [clearRecordTimer]);
+
+  const exitSelfieMode = useCallback(() => {
+    stopRecording();
+    stopCameraStream();
+    discardRecording();
+    setCameraError(null);
+    setSelfieMode(false);
+  }, [stopRecording, stopCameraStream, discardRecording]);
+
+  async function startCamera() {
+    setCameraError(null);
+    setCameraLoading(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: true,
+      });
+      streamRef.current = stream;
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = stream;
+        await cameraVideoRef.current.play().catch(() => {});
+      }
+    } catch {
+      setCameraError("Não foi possível acessar a câmera/microfone. Verifique as permissões do navegador.");
+    } finally {
+      setCameraLoading(false);
+    }
+  }
+
+  async function handleToggleSelfie() {
+    if (selfieMode) {
+      exitSelfieMode();
+      return;
+    }
+    setSelfieMode(true);
+    if (!fullscreen) enterFullscreen();
+    await startCamera();
+  }
+
+  function startRecording() {
+    const stream = streamRef.current;
+    if (!stream) return;
+    discardRecording();
+    chunksRef.current = [];
+    const candidates = [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+      "video/mp4",
+    ];
+    const mimeType = candidates.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported?.(t));
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "video/webm" });
+      setRecordedUrl(URL.createObjectURL(blob));
+    };
+    recorder.start();
+    mediaRecorderRef.current = recorder;
+    setRecording(true);
+    setRecordSeconds(0);
+    recordTimerRef.current = window.setInterval(() => setRecordSeconds((s) => s + 1), 1000);
+  }
+
+  function handleRecordAgain() {
+    discardRecording();
+  }
+
+  async function handleSaveRecording() {
+    if (!recordedUrl) return;
+    try {
+      const res = await fetch(recordedUrl);
+      const blob = await res.blob();
+      const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+      const base = (title || "gravacao-selfie").trim().replace(/\s+/g, "-").toLowerCase();
+      const filename = `${base}-${Date.now()}.${ext}`;
+      const file = new File([blob], filename, { type: blob.type });
+
+      const nav = navigator as Navigator & { canShare?: (data?: ShareData) => boolean };
+      if (nav.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: filename });
+          toast.success("Vídeo enviado");
+          return;
+        } catch {
+          // usuário cancelou o compartilhamento — cai no download abaixo
+        }
+      }
+
+      const a = document.createElement("a");
+      a.href = recordedUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Vídeo salvo");
+    } catch {
+      toast.error("Erro ao salvar o vídeo");
+    }
+  }
+
+  function formatDuration(total: number) {
+    const m = Math.floor(total / 60).toString().padStart(2, "0");
+    const s = (total % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
+  useEffect(() => {
+    return () => {
+      stopCameraStream();
+      clearRecordTimer();
+      setRecordedUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ------------------- Fullscreen -------------------
 
   function enterFullscreen() {
@@ -229,6 +396,7 @@ export default function TeleprompterPage() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     setFullscreen(false);
     stop();
+    if (selfieMode) exitSelfieMode();
   }
 
   useEffect(() => {
@@ -236,11 +404,13 @@ export default function TeleprompterPage() {
       if (!document.fullscreenElement) {
         setFullscreen(false);
         stop();
+        if (selfieMode) exitSelfieMode();
       }
     }
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
-  }, [stop]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stop, selfieMode]);
 
   return (
     <div>
@@ -366,6 +536,16 @@ export default function TeleprompterPage() {
               {mirrored ? "Espelhado" : "Normal"}
             </Button>
 
+            <Button
+              variant="secondary"
+              className={cn("gap-1.5", selfieMode && "bg-yellow-100 text-blue-900")}
+              onClick={handleToggleSelfie}
+              title="Gravar em modo selfie com teleprompter na tela"
+            >
+              <Camera className="h-4 w-4" />
+              {selfieMode ? "Sair do modo selfie" : "Gravar selfie"}
+            </Button>
+
             <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
               <Button variant="secondary" onClick={handleRestart} className="flex-1 gap-1.5 sm:flex-none">
                 <RotateCcw className="h-4 w-4" /> Reiniciar
@@ -407,28 +587,123 @@ export default function TeleprompterPage() {
           paddingRight: "env(safe-area-inset-right)",
         }}
       >
-        <div
-          ref={containerRef}
-          className="flex-1 overflow-y-auto overscroll-none px-6 py-20 sm:px-10 sm:py-24 md:px-24"
-          style={{ scrollBehavior: "auto" }}
-        >
-          <p
-            className="mx-auto max-w-4xl whitespace-pre-wrap font-display font-bold leading-relaxed text-white"
-            style={{
-              fontSize: `${fontSize}px`,
-              transform: mirrored ? "scaleX(-1)" : undefined,
-            }}
+        {/* Câmera selfie ao vivo (fica atrás do texto, só é capturada pela gravação) */}
+        {selfieMode && !recordedUrl && (
+          <video
+            ref={cameraVideoRef}
+            muted
+            autoPlay
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ transform: "scaleX(-1)" }}
+          />
+        )}
+
+        {/* Revisão do vídeo gravado */}
+        {selfieMode && recordedUrl && (
+          <video
+            src={recordedUrl}
+            controls
+            playsInline
+            className="absolute inset-0 h-full w-full bg-black object-contain"
+          />
+        )}
+
+        {selfieMode && cameraError && (
+          <div className="absolute inset-x-4 top-1/2 z-10 -translate-y-1/2 rounded-2xl bg-black/80 p-4 text-center text-sm text-white">
+            {cameraError}
+          </div>
+        )}
+
+        {!(selfieMode && recordedUrl) && (
+          <div
+            ref={containerRef}
+            className="relative z-10 flex-1 overflow-y-auto overscroll-none px-6 py-20 sm:px-10 sm:py-24 md:px-24"
+            style={{ scrollBehavior: "auto" }}
           >
-            {content}
-          </p>
-          <div className="h-[60vh]" />
-        </div>
+            <p
+              className="mx-auto max-w-4xl whitespace-pre-wrap font-display font-bold leading-relaxed text-white"
+              style={{
+                fontSize: `${fontSize}px`,
+                transform: mirrored ? "scaleX(-1)" : undefined,
+                textShadow: selfieMode ? "0 2px 10px rgba(0,0,0,0.9)" : undefined,
+              }}
+            >
+              {content}
+            </p>
+            <div className="h-[60vh]" />
+          </div>
+        )}
+
+        {selfieMode && recording && (
+          <div className="pointer-events-none absolute left-4 top-4 z-20 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-sm font-bold text-white" style={{ marginTop: "env(safe-area-inset-top)" }}>
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+            REC {formatDuration(recordSeconds)}
+          </div>
+        )}
 
         {/* Barra de controles flutuante */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-4 sm:pb-6">
-          <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2.5 rounded-2xl bg-black/80 px-3 py-3 backdrop-blur-md sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:gap-4 sm:px-4">
-            {/* Fonte + Velocidade */}
-            <div className="flex items-center justify-between gap-3 sm:justify-start sm:gap-4">
+          {!selfieMode && (
+            <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2.5 rounded-2xl bg-black/80 px-3 py-3 backdrop-blur-md sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:gap-4 sm:px-4">
+              {/* Fonte + Velocidade */}
+              <div className="flex items-center justify-between gap-3 sm:justify-start sm:gap-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Fonte</span>
+                  <StageButton onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 4))} label="Diminuir fonte">
+                    <Minus className="h-4 w-4" />
+                  </StageButton>
+                  <span className="w-6 text-center text-sm font-bold text-white">{fontSize}</span>
+                  <StageButton onClick={() => setFontSize((f) => Math.min(MAX_FONT, f + 4))} label="Aumentar fonte">
+                    <Plus className="h-4 w-4" />
+                  </StageButton>
+                </div>
+
+                <div className="h-6 w-px shrink-0 bg-white/15" />
+
+                <div className="flex items-center gap-1.5">
+                  <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Vel.</span>
+                  <StageButton onClick={() => setSpeed((v) => Math.max(MIN_SPEED, v - 1))} label="Diminuir velocidade">
+                    <Minus className="h-4 w-4" />
+                  </StageButton>
+                  <span className="w-6 text-center text-sm font-bold text-white">{speed}</span>
+                  <StageButton onClick={() => setSpeed((v) => Math.min(MAX_SPEED, v + 1))} label="Aumentar velocidade">
+                    <Plus className="h-4 w-4" />
+                  </StageButton>
+                </div>
+              </div>
+
+              <div className="hidden h-6 w-px shrink-0 bg-white/15 sm:block" />
+
+              {/* Ações */}
+              <div className="flex items-center justify-center gap-2.5">
+                <StageButton onClick={handleRestart} label="Reiniciar">
+                  <RotateCcw className="h-4 w-4" />
+                </StageButton>
+
+                {playing ? (
+                  <StageButton onClick={handlePause} label="Pausar" primary large>
+                    <Pause className="h-5 w-5" />
+                  </StageButton>
+                ) : (
+                  <StageButton onClick={handlePlay} label="Iniciar" primary large>
+                    <Play className="h-5 w-5" />
+                  </StageButton>
+                )}
+
+                <StageButton onClick={() => setMirrored((m) => !m)} label="Espelhar texto" active={mirrored}>
+                  {mirrored ? <ChevronsRightLeft className="h-4 w-4" /> : <ChevronsLeftRight className="h-4 w-4" />}
+                </StageButton>
+
+                <StageButton onClick={exitFullscreen} label="Fechar tela cheia">
+                  <X className="h-4 w-4" />
+                </StageButton>
+              </div>
+            </div>
+          )}
+
+          {selfieMode && !recordedUrl && (
+            <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2.5 rounded-2xl bg-black/80 px-3 py-3 backdrop-blur-md sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:gap-4 sm:px-4">
               <div className="flex items-center gap-1.5">
                 <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Fonte</span>
                 <StageButton onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 4))} label="Diminuir fonte">
@@ -440,47 +715,61 @@ export default function TeleprompterPage() {
                 </StageButton>
               </div>
 
-              <div className="h-6 w-px shrink-0 bg-white/15" />
+              <div className="hidden h-6 w-px shrink-0 bg-white/15 sm:block" />
 
-              <div className="flex items-center gap-1.5">
-                <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/50">Vel.</span>
-                <StageButton onClick={() => setSpeed((v) => Math.max(MIN_SPEED, v - 1))} label="Diminuir velocidade">
-                  <Minus className="h-4 w-4" />
+              <div className="flex items-center justify-center gap-2.5">
+                <StageButton onClick={handleRestart} label="Reiniciar texto">
+                  <RotateCcw className="h-4 w-4" />
                 </StageButton>
-                <span className="w-6 text-center text-sm font-bold text-white">{speed}</span>
-                <StageButton onClick={() => setSpeed((v) => Math.min(MAX_SPEED, v + 1))} label="Aumentar velocidade">
-                  <Plus className="h-4 w-4" />
+
+                {playing ? (
+                  <StageButton onClick={handlePause} label="Pausar rolagem">
+                    <Pause className="h-4 w-4" />
+                  </StageButton>
+                ) : (
+                  <StageButton onClick={handlePlay} label="Iniciar rolagem">
+                    <Play className="h-4 w-4" />
+                  </StageButton>
+                )}
+
+                {cameraLoading ? (
+                  <StageButton onClick={() => {}} label="Carregando câmera" primary large>
+                    <Camera className="h-5 w-5 animate-pulse" />
+                  </StageButton>
+                ) : recording ? (
+                  <StageButton onClick={stopRecording} label="Parar gravação" primary large active>
+                    <Square className="h-5 w-5" />
+                  </StageButton>
+                ) : (
+                  <StageButton onClick={startRecording} label="Iniciar gravação" primary large>
+                    <Circle className="h-5 w-5" />
+                  </StageButton>
+                )}
+
+                <StageButton onClick={exitSelfieMode} label="Sair do modo selfie">
+                  <X className="h-4 w-4" />
                 </StageButton>
               </div>
             </div>
+          )}
 
-            <div className="hidden h-6 w-px shrink-0 bg-white/15 sm:block" />
-
-            {/* Ações */}
-            <div className="flex items-center justify-center gap-2.5">
-              <StageButton onClick={handleRestart} label="Reiniciar">
-                <RotateCcw className="h-4 w-4" />
-              </StageButton>
-
-              {playing ? (
-                <StageButton onClick={handlePause} label="Pausar" primary large>
-                  <Pause className="h-5 w-5" />
+          {selfieMode && recordedUrl && (
+            <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2.5 rounded-2xl bg-black/80 px-3 py-3 backdrop-blur-md sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:gap-4 sm:px-4">
+              <div className="flex items-center justify-center gap-2.5">
+                <StageButton onClick={handleRecordAgain} label="Gravar novamente">
+                  <RefreshCw className="h-4 w-4" />
                 </StageButton>
-              ) : (
-                <StageButton onClick={handlePlay} label="Iniciar" primary large>
-                  <Play className="h-5 w-5" />
+
+                <StageButton onClick={handleSaveRecording} label="Salvar no celular" primary large>
+                  <Download className="h-5 w-5" />
                 </StageButton>
-              )}
 
-              <StageButton onClick={() => setMirrored((m) => !m)} label="Espelhar texto" active={mirrored}>
-                {mirrored ? <ChevronsRightLeft className="h-4 w-4" /> : <ChevronsLeftRight className="h-4 w-4" />}
-              </StageButton>
-
-              <StageButton onClick={exitFullscreen} label="Fechar tela cheia">
-                <X className="h-4 w-4" />
-              </StageButton>
+                <StageButton onClick={exitSelfieMode} label="Sair do modo selfie">
+                  <X className="h-4 w-4" />
+                </StageButton>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
