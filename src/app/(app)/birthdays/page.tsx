@@ -216,7 +216,7 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
             </Button>
           </div>
 
-          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200">
+          <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 sm:grid">
             {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
               <div key={d} className="bg-blue-900 py-2 text-center text-xs font-bold text-white">{d}</div>
             ))}
@@ -250,6 +250,45 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
                 </div>
               );
             })}
+          </div>
+
+          <div className="space-y-3 sm:hidden">
+            {days.filter((d) => isSameMonth(d, month) && itemsForDay(d).length > 0).length === 0 && (
+              <p className="py-10 text-center text-sm text-gray-400">Nada neste mês.</p>
+            )}
+            {days
+              .filter((day) => isSameMonth(day, month))
+              .map((day) => {
+                const dayItems = itemsForDay(day);
+                if (dayItems.length === 0) return null;
+                return (
+                  <div key={day.toISOString()} className="rounded-2xl border border-gray-200 bg-white p-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                          isToday(day) ? "bg-yellow-500 text-blue-900" : "bg-gray-050 text-gray-500"
+                        )}
+                      >
+                        {format(day, "d")}
+                      </span>
+                      <span className="text-sm font-semibold capitalize text-blue-900">{format(day, "EEEE", { locale: ptBR })}</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {dayItems.map((it) => (
+                        <button
+                          key={it.id}
+                          onClick={() => onSelect(it)}
+                          className="flex w-full items-center gap-1.5 rounded-md bg-yellow-100 px-2 py-1.5 text-left text-xs font-semibold text-blue-900 hover:bg-yellow-200"
+                        >
+                          <Cake className="h-3.5 w-3.5 shrink-0" />
+                          {it.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}

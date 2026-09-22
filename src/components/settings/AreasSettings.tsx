@@ -109,7 +109,7 @@ export function AreasSettings() {
               <input
                 defaultValue={a.name}
                 onBlur={(e) => renameArea(a, e.target.value)}
-                className="flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-sm font-semibold text-blue-900 hover:border-gray-200 focus:border-gray-200 focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-sm font-semibold text-blue-900 hover:border-gray-200 focus:border-gray-200 focus:outline-none"
               />
               <button onClick={() => setDeleteAreaTarget(a)} className="text-gray-400 hover:text-[color:var(--color-danger)]">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -135,7 +135,7 @@ export function AreasSettings() {
               <input
                 defaultValue={c.name}
                 onBlur={(e) => renameCategory(c, e.target.value)}
-                className="flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-semibold text-blue-900 hover:border-gray-200 focus:border-gray-200 focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-semibold text-blue-900 hover:border-gray-200 focus:border-gray-200 focus:outline-none"
               />
               <span className="shrink-0 text-xs text-gray-400">{areas.find((a) => a.id === c.area_id)?.name}</span>
               <button onClick={() => setDeleteCategoryTarget(c)} className="text-gray-400 hover:text-[color:var(--color-danger)]">

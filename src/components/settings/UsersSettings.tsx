@@ -62,7 +62,7 @@ export function UsersSettings() {
         <Button onClick={() => setOpen(true)} className="gap-1.5"><Plus className="h-4 w-4" /> Novo usuário</Button>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-050 text-left text-xs font-bold uppercase text-gray-500">

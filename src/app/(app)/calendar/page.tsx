@@ -6,6 +6,7 @@ import {
   addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format,
   isSameDay, isSameMonth, isToday, parseISO, startOfMonth, startOfWeek, subMonths,
 } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -52,7 +53,7 @@ export default function CalendarPage() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="font-display text-sm font-bold text-blue-900 capitalize w-32 text-center">
-              {format(month, "MMMM yyyy")}
+              {format(month, "MMMM yyyy", { locale: ptBR })}
             </span>
             <Button size="icon" variant="secondary" onClick={() => setMonth(addMonths(month, 1))}>
               <ChevronRight className="h-4 w-4" />
@@ -61,7 +62,7 @@ export default function CalendarPage() {
         }
       />
 
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200">
+      <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 sm:grid">
         {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
           <div key={d} className="bg-blue-900 py-2 text-center text-xs font-bold text-white">{d}</div>
         ))}
@@ -100,6 +101,44 @@ export default function CalendarPage() {
             </div>
           );
         })}
+      </div>
+
+      <div className="space-y-3 sm:hidden">
+        {days.filter((d) => isSameMonth(d, month) && tasksByDay(d).length > 0).length === 0 && (
+          <p className="py-10 text-center text-sm text-gray-400">Nenhum prazo neste mês.</p>
+        )}
+        {days
+          .filter((day) => isSameMonth(day, month))
+          .map((day) => {
+            const dayTasks = tasksByDay(day);
+            if (dayTasks.length === 0) return null;
+            return (
+              <div key={day.toISOString()} className="rounded-2xl border border-gray-200 bg-white p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                      isToday(day) ? "bg-yellow-500 text-blue-900" : "bg-gray-050 text-gray-500"
+                    )}
+                  >
+                    {format(day, "d")}
+                  </span>
+                  <span className="text-sm font-semibold capitalize text-blue-900">{format(day, "EEEE", { locale: ptBR })}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {dayTasks.map((t) => (
+                    <Link
+                      key={t.id}
+                      href={`/tasks/${t.id}`}
+                      className="block rounded-md bg-blue-050 px-2 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-100"
+                    >
+                      {t.title}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

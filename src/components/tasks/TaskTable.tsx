@@ -95,7 +95,45 @@ export function TaskTable({
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-gray-50 sm:hidden">
+        {tasks.map((task) => {
+          const overdue = isOverdue(task.due_date, task.completed_at);
+          return (
+            <div key={task.id} className="flex items-start gap-3 px-4 py-3">
+              <Checkbox checked={selected.includes(task.id)} onChange={() => toggle(task.id)} className="mt-1 shrink-0" />
+              <Link href={`/tasks/${task.id}`} className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-blue-900">{task.title}</p>
+                {task.project && <p className="truncate text-xs text-gray-400">{task.project.name}</p>}
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                  {task.area?.name && <span>{task.area.name}</span>}
+                  <span className={cn("flex items-center gap-1 whitespace-nowrap", overdue && "font-semibold text-[color:var(--color-danger)]")}>
+                    {overdue && <AlertTriangle className="h-3 w-3 shrink-0" />}
+                    {formatDate(task.due_date)}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <PriorityBadge priority={task.priority} />
+                  <StatusBadge status={task.status} />
+                  {task.assignees && task.assignees.length > 0 && (
+                    <div className="flex items-center -space-x-1.5">
+                      {task.assignees.slice(0, 3).map((a) => (
+                        <UserAvatar key={a.id} name={a.full_name} avatarUrl={a.avatar_url} size="xs" className="ring-2 ring-white" />
+                      ))}
+                      {task.assignees.length > 3 && (
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-700 ring-2 ring-white">
+                          +{task.assignees.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-left text-xs font-bold uppercase text-gray-500">
