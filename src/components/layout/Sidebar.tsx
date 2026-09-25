@@ -110,20 +110,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
         <div className="my-2 border-t border-white/10" />
 
-        <p className="px-3.5 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-blue-200/70">
-          Outras áreas
-        </p>
-        <Link
-          href={EXPANSION_ITEM.href}
-          onClick={onNavigate}
-          className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-blue-100 transition-colors hover:bg-white/10"
-        >
-          <EXPANSION_ITEM.icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
-          {EXPANSION_ITEM.label}
-        </Link>
-
-        <div className="my-2 border-t border-white/10" />
-
         {NAV_SECONDARY.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
@@ -142,6 +128,20 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </Link>
           );
         })}
+
+        <div className="my-2 border-t border-white/10" />
+
+        <p className="px-3.5 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-blue-200/70">
+          Outras áreas
+        </p>
+        <Link
+          href={EXPANSION_ITEM.href}
+          onClick={onNavigate}
+          className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-blue-100 transition-colors hover:bg-white/10"
+        >
+          <EXPANSION_ITEM.icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+          {EXPANSION_ITEM.label}
+        </Link>
       </nav>
 
       <div className="border-t border-white/10 p-4">
