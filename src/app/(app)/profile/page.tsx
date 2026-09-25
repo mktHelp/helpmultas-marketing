@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { updateProfile } from "@/lib/services/profiles";
 
-const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro" };
+const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro", expansao: "Expansão" };
 
 export default function ProfilePage() {
   const { profile, refresh } = useAuth();

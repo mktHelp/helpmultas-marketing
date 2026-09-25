@@ -6,6 +6,7 @@ export async function listProfiles(supabase: SupabaseClient) {
     .from("profiles")
     .select("*")
     .eq("is_active", true)
+    .neq("role", "expansao") // expansion accounts aren't team members (pickers, rankings, etc.)
     .order("full_name");
   if (error) throw error;
   return data as Profile[];

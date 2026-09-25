@@ -52,7 +52,7 @@ export function GlobalSearch() {
         supabase.from("tasks").select("id, title, status").ilike("title", `%${query}%`).limit(5),
         supabase.from("projects").select("id, name").ilike("name", `%${query}%`).limit(3),
         supabase.from("campaigns").select("id, name").ilike("name", `%${query}%`).limit(3),
-        supabase.from("profiles").select("id, full_name, job_title").ilike("full_name", `%${query}%`).limit(3),
+        supabase.from("profiles").select("id, full_name, job_title").neq("role", "expansao").ilike("full_name", `%${query}%`).limit(3),
       ]);
 
       const r: Result[] = [

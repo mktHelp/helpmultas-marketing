@@ -2,7 +2,7 @@
 // Once the project is linked, replace with:
 //   npx supabase gen types typescript --project-id <id> > src/types/database.ts
 
-export type UserRole = "master" | "gestor" | "membro";
+export type UserRole = "master" | "gestor" | "membro" | "expansao";
 export type TaskPriority = "baixa" | "media" | "alta" | "urgente";
 // Task stages ("etapas") are user-managed data (see task_statuses table /
 // Settings > Etapas), not a fixed set - any string key defined there is valid.

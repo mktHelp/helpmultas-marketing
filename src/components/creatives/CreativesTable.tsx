@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Copy, ExternalLink, Plus, Trash2, X } 
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
+import { Pagination } from "@/components/ui/Pagination";
 import { createClient } from "@/lib/supabase/client";
 import { createCreative, deleteCreative, listCreatives, updateCreative } from "@/lib/services/creatives";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
@@ -25,6 +26,12 @@ const COLUMNS: { key: SortField; label: string; widthClass: string }[] = [
   { key: "delivered_at", label: "Data de entrega do arquivo", widthClass: "w-44" },
 ];
 
+const PAGE_SIZE = 10;
+
+// Sticky header cells: the inset shadow stands in for the row border, which
+// border-collapse leaves behind when the cell sticks.
+const STICKY_TH = "sticky top-0 bg-gray-050 shadow-[inset_0_-1px_0_var(--gray-200)]";
+
 const UNIT_OPTIONS = [
   { value: "Franqueadora", dotClass: "bg-blue-100 border-blue-600" },
   { value: "Unidade", dotClass: "bg-yellow-100 border-yellow-600" },
@@ -39,6 +46,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
 
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     name: "",
     unit: "",
@@ -92,6 +100,7 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
     const minSortOrder = rows.reduce((min, r) => Math.min(min, r.sort_order), 0);
     const created = await createCreative(supabase, { sort_order: minSortOrder - 1 });
     setRows((prev) => [created, ...prev]);
+    setPage(1);
   }
 
   async function duplicateRow(row: Creative) {
@@ -154,6 +163,13 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
 
     return result;
   }, [rows, filters, sortField, sortDir]);
+
+  // Filtering shows every match at once; pagination only applies to the unfiltered list.
+  const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = hasActiveFilters
+    ? visibleRows
+    : visibleRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div>
@@ -298,12 +314,12 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
         </span>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+      <div className="max-h-[70vh] overflow-auto rounded-2xl border border-gray-200 bg-white">
         <table className="w-full min-w-[1100px] border-collapse text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-050 text-left text-xs font-bold uppercase text-gray-500">
+            <tr className="text-left text-xs font-bold uppercase text-gray-500">
               {COLUMNS.map((col) => (
-                <th key={col.key} className={cn("px-3 py-2.5", col.widthClass)}>
+                <th key={col.key} className={cn(STICKY_TH, "z-20 px-3 py-2.5", col.widthClass)}>
                   <button
                     onClick={() => toggleSort(col.key)}
                     className={cn(
@@ -324,14 +340,14 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
                   </button>
                 </th>
               ))}
-              <th className="w-56 px-3 py-2.5">Link de criativos</th>
-              <th className="w-44 px-3 py-2.5">Subido na data de</th>
-              <th className="sticky right-20 z-10 w-24 border-l border-gray-200 bg-gray-050 px-2 py-2.5">Top Ads</th>
-              <th className="sticky right-0 z-10 w-20 border-l border-gray-200 bg-gray-050 px-2 py-2.5" />
+              <th className={cn(STICKY_TH, "z-20 w-56 px-3 py-2.5")}>Link de criativos</th>
+              <th className={cn(STICKY_TH, "z-20 w-44 px-3 py-2.5")}>Subido na data de</th>
+              <th className={cn(STICKY_TH, "right-20 z-30 w-24 border-l border-gray-200 px-2 py-2.5")}>Top Ads</th>
+              <th className={cn(STICKY_TH, "right-0 z-30 w-20 border-l border-gray-200 px-2 py-2.5")} />
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map((row) => (
+            {pageRows.map((row) => (
               <tr
                 key={row.id}
                 className={cn(
@@ -496,6 +512,10 @@ export function CreativesTable({ profiles }: { profiles: Profile[] }) {
           </tbody>
         </table>
       </div>
+
+      {!hasActiveFilters && (
+        <Pagination page={currentPage} pageSize={PAGE_SIZE} total={visibleRows.length} onPageChange={setPage} />
+      )}
     </div>
   );
 }

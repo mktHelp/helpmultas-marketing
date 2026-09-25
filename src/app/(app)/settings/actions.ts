@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { UserRole } from "@/types/database";
 
 async function assertAdmin() {
   const supabase = await createClient();
@@ -16,7 +17,7 @@ async function assertAdmin() {
 export async function createUserAction(input: {
   email: string;
   fullName: string;
-  role: "master" | "gestor" | "membro";
+  role: UserRole;
   department?: string;
   jobTitle?: string;
   password: string;

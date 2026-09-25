@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles, Mic,
+  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles, Mic, HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -31,13 +31,16 @@ const NAV = [
   { href: "/reports", label: "Relatórios", icon: BarChart3 },
 ];
 
+// Standalone dashboard (outside this shell) shared with the expansion team.
+const EXPANSION_ITEM = { href: "/expansao", label: "Expansão", icon: HandCoins };
+
 const NAV_SECONDARY = [
   { href: "/teleprompter", label: "Teleprompter", icon: Mic },
   { href: "/trash", label: "Lixeira", icon: Trash2 },
   { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
-const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro" };
+const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro", expansao: "Expansão" };
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -104,6 +107,20 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </Link>
           );
         })}
+
+        <div className="my-2 border-t border-white/10" />
+
+        <p className="px-3.5 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-blue-200/70">
+          Outras áreas
+        </p>
+        <Link
+          href={EXPANSION_ITEM.href}
+          onClick={onNavigate}
+          className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-blue-100 transition-colors hover:bg-white/10"
+        >
+          <EXPANSION_ITEM.icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+          {EXPANSION_ITEM.label}
+        </Link>
 
         <div className="my-2 border-t border-white/10" />
 

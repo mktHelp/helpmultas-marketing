@@ -76,7 +76,7 @@ export default async function LoginPage({
           </form>
 
           <p className="mt-8 text-center text-xs text-gray-500">
-            Acesso restrito ao time de Marketing Help Multas.
+            Acesso restrito a colaboradores Help Multas.
           </p>
         </div>
       </div>

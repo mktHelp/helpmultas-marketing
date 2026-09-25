@@ -14,7 +14,7 @@ import { listAllProfiles } from "@/lib/services/profiles";
 import { createUserAction, deactivateUserAction, reactivateUserAction } from "@/app/(app)/settings/actions";
 import type { Profile, UserRole } from "@/types/database";
 
-const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro" };
+const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro", expansao: "Expansão" };
 
 export function UsersSettings() {
   const supabase = createClient();
@@ -124,7 +124,11 @@ export function UsersSettings() {
                   <option value="membro">Membro</option>
                   <option value="gestor">Gestor</option>
                   <option value="master">Master</option>
+                  <option value="expansao">Expansão (só criativos)</option>
                 </Select>
+                {form.role === "expansao" && (
+                  <p className="mt-1 text-xs text-gray-500">Acessa apenas a dash de criativos da Franqueadora.</p>
+                )}
               </div>
               <div>
                 <Label>Departamento</Label>

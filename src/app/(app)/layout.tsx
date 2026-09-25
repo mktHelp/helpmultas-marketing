@@ -9,6 +9,8 @@ import type { TaskStatusRow } from "@/types/database";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, profile } = await getCurrentUserAndProfile();
   if (!user) redirect("/login");
+  // Expansion accounts only ever see the standalone creatives dashboard.
+  if (profile?.role === "expansao") redirect("/expansao");
 
   const supabase = await createClient();
   const { data: statuses } = await supabase.from("task_statuses").select("*").order("sort_order");

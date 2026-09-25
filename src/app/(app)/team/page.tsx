@@ -14,7 +14,7 @@ import { useTaskStatuses } from "@/lib/task-status-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import type { Profile, TaskWithRelations } from "@/types/database";
 
-const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro" };
+const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro", expansao: "Expansão" };
 
 export default function TeamPage() {
   const supabase = createClient();
