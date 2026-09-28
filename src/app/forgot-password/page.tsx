@@ -1,20 +1,20 @@
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { signIn } from "./actions";
+import { requestPasswordReset } from "./actions";
 import { Input, Label } from "@/components/ui/Input";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { SubmitButton } from "@/components/shared/SubmitButton";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 
-export default async function LoginPage({
+export default async function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; redirectTo?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string }>;
 }) {
   const params = await searchParams;
 
   const { user } = await getCurrentUserAndProfile();
-  if (user) redirect(params.redirectTo || "/dashboard");
+  if (user) redirect("/dashboard");
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
@@ -42,8 +42,10 @@ export default async function LoginPage({
             <Image src="/logos/lockup-yellow.png" alt="Help Multas" width={64} height={64} />
           </div>
 
-          <h2 className="font-display text-2xl font-bold text-blue-900">Bem-vindo de volta</h2>
-          <p className="mt-1 text-sm text-gray-500">Entre com suas credenciais para acessar o painel.</p>
+          <h2 className="font-display text-2xl font-bold text-blue-900">Esqueci a senha</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Informe seu e-mail e enviaremos um link para redefinir sua senha.
+          </p>
 
           {params.error && (
             <div className="mt-4 rounded-[14px] bg-[color:var(--color-danger-bg)] px-4 py-3 text-sm text-[color:var(--color-danger)]">
@@ -51,32 +53,27 @@ export default async function LoginPage({
             </div>
           )}
 
-          <form action={signIn} className="mt-6 space-y-4">
-            <input type="hidden" name="redirectTo" value={params.redirectTo || "/dashboard"} />
-            <div>
-              <Label htmlFor="email">E-mail</Label>
-              <Input id="email" name="email" type="email" placeholder="voce@helpmultas.com" required />
+          {params.sent ? (
+            <div className="mt-6 rounded-[14px] bg-blue-050 px-4 py-3 text-sm text-blue-900">
+              Se este e-mail estiver cadastrado, você receberá um link para redefinir sua senha em
+              instantes. Confira também a caixa de spam.
             </div>
-            <div>
-              <Label htmlFor="password">Senha</Label>
-              <Input id="password" name="password" type="password" placeholder="••••••••" required />
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <Checkbox name="remember" defaultChecked />
-                Lembrar acesso
-              </label>
-              <a href="/forgot-password" className="text-sm font-semibold text-blue-900 hover:underline">
-                Esqueci a senha
-              </a>
-            </div>
-            <SubmitButton size="lg" className="w-full gap-2" pendingLabel="Entrando...">
-              Entrar
-            </SubmitButton>
-          </form>
+          ) : (
+            <form action={requestPasswordReset} className="mt-6 space-y-4">
+              <div>
+                <Label htmlFor="email">E-mail</Label>
+                <Input id="email" name="email" type="email" placeholder="voce@helpmultas.com" required />
+              </div>
+              <SubmitButton size="lg" className="w-full gap-2" pendingLabel="Enviando...">
+                Enviar link de redefinição
+              </SubmitButton>
+            </form>
+          )}
 
-          <p className="mt-8 text-center text-xs text-gray-500">
-            Acesso restrito a colaboradores Help Multas.
+          <p className="mt-8 text-center text-sm text-gray-500">
+            <Link href="/login" className="font-semibold text-blue-900 hover:underline">
+              Voltar para o login
+            </Link>
           </p>
         </div>
       </div>

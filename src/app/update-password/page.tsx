@@ -1,20 +1,19 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { signIn } from "./actions";
+import { updatePassword } from "./actions";
 import { Input, Label } from "@/components/ui/Input";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { SubmitButton } from "@/components/shared/SubmitButton";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 
-export default async function LoginPage({
+export default async function UpdatePasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; redirectTo?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
 
   const { user } = await getCurrentUserAndProfile();
-  if (user) redirect(params.redirectTo || "/dashboard");
+  if (!user) redirect("/login?error=Sua%20sess%C3%A3o%20expirou%2C%20solicite%20um%20novo%20link");
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
@@ -42,8 +41,8 @@ export default async function LoginPage({
             <Image src="/logos/lockup-yellow.png" alt="Help Multas" width={64} height={64} />
           </div>
 
-          <h2 className="font-display text-2xl font-bold text-blue-900">Bem-vindo de volta</h2>
-          <p className="mt-1 text-sm text-gray-500">Entre com suas credenciais para acessar o painel.</p>
+          <h2 className="font-display text-2xl font-bold text-blue-900">Defina uma nova senha</h2>
+          <p className="mt-1 text-sm text-gray-500">Escolha uma nova senha para acessar o painel.</p>
 
           {params.error && (
             <div className="mt-4 rounded-[14px] bg-[color:var(--color-danger-bg)] px-4 py-3 text-sm text-[color:var(--color-danger)]">
@@ -51,33 +50,33 @@ export default async function LoginPage({
             </div>
           )}
 
-          <form action={signIn} className="mt-6 space-y-4">
-            <input type="hidden" name="redirectTo" value={params.redirectTo || "/dashboard"} />
+          <form action={updatePassword} className="mt-6 space-y-4">
             <div>
-              <Label htmlFor="email">E-mail</Label>
-              <Input id="email" name="email" type="email" placeholder="voce@helpmultas.com" required />
+              <Label htmlFor="password">Nova senha</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                minLength={8}
+                required
+              />
             </div>
             <div>
-              <Label htmlFor="password">Senha</Label>
-              <Input id="password" name="password" type="password" placeholder="••••••••" required />
+              <Label htmlFor="confirmPassword">Confirme a nova senha</Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                minLength={8}
+                required
+              />
             </div>
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <Checkbox name="remember" defaultChecked />
-                Lembrar acesso
-              </label>
-              <a href="/forgot-password" className="text-sm font-semibold text-blue-900 hover:underline">
-                Esqueci a senha
-              </a>
-            </div>
-            <SubmitButton size="lg" className="w-full gap-2" pendingLabel="Entrando...">
-              Entrar
+            <SubmitButton size="lg" className="w-full gap-2" pendingLabel="Salvando...">
+              Salvar nova senha
             </SubmitButton>
           </form>
-
-          <p className="mt-8 text-center text-xs text-gray-500">
-            Acesso restrito a colaboradores Help Multas.
-          </p>
         </div>
       </div>
     </div>
