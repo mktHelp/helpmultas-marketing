@@ -125,19 +125,31 @@ export function SocialFollowersCard({
                 </div>
               ) : latest ? (
                 <>
-                  <div className="mt-1.5 flex items-baseline gap-3">
-                    <span className="text-xl font-bold text-blue-900">{latest.followers_count.toLocaleString("pt-BR")}</span>
-                    {delta !== null && (
-                      <span
-                        className={cn(
-                          "flex items-center gap-1 text-xs font-bold",
-                          delta > 0 ? "text-[color:var(--color-success)]" : delta < 0 ? "text-[color:var(--color-danger)]" : "text-gray-400"
-                        )}
+                  <div className="mt-1.5 flex items-center justify-between gap-3">
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-xl font-bold text-blue-900">{latest.followers_count.toLocaleString("pt-BR")}</span>
+                      {delta !== null && (
+                        <span
+                          className={cn(
+                            "flex items-center gap-1 text-xs font-bold",
+                            delta > 0 ? "text-[color:var(--color-success)]" : delta < 0 ? "text-[color:var(--color-danger)]" : "text-gray-400"
+                          )}
+                        >
+                          {delta > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : delta < 0 ? <TrendingDown className="h-3.5 w-3.5" /> : null}
+                          {delta > 0 ? "+" : ""}
+                          {delta} desde ontem
+                        </span>
+                      )}
+                    </div>
+                    {account.link_slug && (
+                      <div
+                        className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#25d366] px-2.5 py-1"
+                        title={`${clicksByAccount.get(account.id)?.total ?? 0} cliques nos últimos dias`}
                       >
-                        {delta > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : delta < 0 ? <TrendingDown className="h-3.5 w-3.5" /> : null}
-                        {delta > 0 ? "+" : ""}
-                        {delta} desde ontem
-                      </span>
+                        <MousePointerClick className="h-3.5 w-3.5 text-white" />
+                        <span className="text-sm font-bold text-white">{clicksByAccount.get(account.id)?.today ?? 0}</span>
+                        <span className="text-[10px] font-semibold text-white/80">hoje</span>
+                      </div>
                     )}
                   </div>
                   <p className="mt-1 text-[11px] text-gray-400">
@@ -153,15 +165,6 @@ export function SocialFollowersCard({
               ) : (
                 <p className="mt-1.5 text-xs text-gray-400">
                   {canManage ? "Sem registro ainda — clique no lápis para adicionar." : "Sem registro ainda."}
-                </p>
-              )}
-              {account.link_slug && (
-                <p className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-blue-900">
-                  <MousePointerClick className="h-3 w-3 text-gray-400" />
-                  {clicksByAccount.get(account.id)?.today ?? 0} cliques no link hoje
-                  <span className="font-normal text-gray-400">
-                    ({clicksByAccount.get(account.id)?.total ?? 0} nos últimos dias)
-                  </span>
                 </p>
               )}
             </div>

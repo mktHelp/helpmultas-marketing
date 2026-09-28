@@ -117,3 +117,39 @@ export function isoToDateInputValue(iso: string | null | undefined) {
   if (!iso) return "";
   return toDateKey(iso);
 }
+
+// Coarse device/OS/browser labels for the link-click log — good enough to
+// tell "someone on a phone via Instagram" from "desktop Chrome, direct",
+// not meant to be a full UA parser.
+export function parseUserAgent(ua: string | null | undefined) {
+  if (!ua) return { device: "Desconhecido", os: null as string | null, browser: null as string | null };
+
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
+  let os: string | null = null;
+  if (/Android/i.test(ua)) os = "Android";
+  else if (/iPhone|iPad|iPod|iOS/i.test(ua)) os = "iOS";
+  else if (/Windows/i.test(ua)) os = "Windows";
+  else if (/Mac OS X/i.test(ua)) os = "macOS";
+  else if (/Linux/i.test(ua)) os = "Linux";
+
+  let browser: string | null = null;
+  if (/EdgA?\//i.test(ua)) browser = "Edge";
+  else if (/OPR\//i.test(ua)) browser = "Opera";
+  else if (/Instagram/i.test(ua)) browser = "Instagram";
+  else if (/FBAN|FBAV/i.test(ua)) browser = "Facebook";
+  else if (/CriOS|Chrome\//i.test(ua)) browser = "Chrome";
+  else if (/FxiOS|Firefox\//i.test(ua)) browser = "Firefox";
+  else if (/Safari\//i.test(ua)) browser = "Safari";
+
+  return { device: isMobile ? "Celular" : "Computador", os, browser };
+}
+
+// Best-effort "where the click came from" label for a referrer URL.
+export function referrerLabel(referrer: string | null | undefined) {
+  if (!referrer) return "Direto";
+  try {
+    return new URL(referrer).hostname.replace(/^www\./, "");
+  } catch {
+    return referrer;
+  }
+}

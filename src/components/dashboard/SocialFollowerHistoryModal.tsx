@@ -11,8 +11,8 @@ import { Checkbox } from "@/components/ui/Checkbox";
 import { createClient } from "@/lib/supabase/client";
 import { listFollowerSnapshotsInRange, listLinkClicksInRange } from "@/lib/services/social";
 import { dailyFollowerHistory, dailyLinkClickHistory } from "@/lib/stats";
-import { cn } from "@/lib/utils";
-import type { SocialAccount } from "@/types/database";
+import { cn, parseUserAgent, referrerLabel } from "@/lib/utils";
+import type { SocialAccount, SocialLinkClick } from "@/types/database";
 
 const MONTHS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -29,7 +29,6 @@ function monthRange(year: number, month: number) {
 }
 
 type MonthHistory = ReturnType<typeof dailyFollowerHistory>;
-type MonthClickHistory = ReturnType<typeof dailyLinkClickHistory>;
 
 export function SocialFollowerHistoryModal({
   account,
@@ -45,7 +44,7 @@ export function SocialFollowerHistoryModal({
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [histories, setHistories] = useState<Record<number, MonthHistory>>({});
-  const [clickHistories, setClickHistories] = useState<Record<number, MonthClickHistory>>({});
+  const [clicksByMonth, setClicksByMonth] = useState<Record<number, SocialLinkClick[]>>({});
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,12 +55,12 @@ export function SocialFollowerHistoryModal({
         const { start, end } = monthRange(year, m);
         const snapshots = await listFollowerSnapshotsInRange(supabase, account.id, start, end);
         const clicks = account.link_slug ? await listLinkClicksInRange(supabase, account.id, start, end) : [];
-        return [m, dailyFollowerHistory(snapshots), dailyLinkClickHistory(clicks)] as const;
+        return [m, dailyFollowerHistory(snapshots), clicks] as const;
       })
     )
       .then((entries) => {
         setHistories(Object.fromEntries(entries.map(([m, followers]) => [m, followers])));
-        setClickHistories(Object.fromEntries(entries.map(([m, , clicks]) => [m, clicks])));
+        setClicksByMonth(Object.fromEntries(entries.map(([m, , clicks]) => [m, clicks])));
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,7 +142,7 @@ export function SocialFollowerHistoryModal({
               month={m}
               color={MONTH_COLORS[i % MONTH_COLORS.length]}
               history={histories[m] || []}
-              clickHistory={account?.link_slug ? clickHistories[m] || [] : null}
+              clicks={account?.link_slug ? clicksByMonth[m] || [] : null}
               showLabel={sortedMonths.length > 1}
             />
           ))
@@ -157,13 +156,13 @@ function MonthReport({
   month,
   color,
   history,
-  clickHistory,
+  clicks,
   showLabel,
 }: {
   month: number;
   color: string;
   history: MonthHistory;
-  clickHistory: MonthClickHistory | null;
+  clicks: SocialLinkClick[] | null;
   showLabel: boolean;
 }) {
   if (history.length === 0) {
@@ -257,13 +256,14 @@ function MonthReport({
         </table>
       </div>
 
-      {clickHistory && <LinkClicksSection month={month} history={clickHistory} />}
+      {clicks && <LinkClicksSection month={month} clicks={clicks} />}
     </div>
   );
 }
 
-function LinkClicksSection({ month, history }: { month: number; history: MonthClickHistory }) {
-  const total = history.reduce((sum, d) => sum + d.clicks, 0);
+function LinkClicksSection({ month, clicks }: { month: number; clicks: SocialLinkClick[] }) {
+  const history = dailyLinkClickHistory(clicks);
+  const total = clicks.length;
 
   return (
     <div className="space-y-3 rounded-xl border border-gray-200 p-3">
@@ -277,19 +277,63 @@ function LinkClicksSection({ month, history }: { month: number; history: MonthCl
           Sem cliques registrados para {MONTHS[month]}.
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={history} margin={{ left: -20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <RTooltip
-              contentStyle={{ borderRadius: 12, border: "1px solid #d8e0e4", fontSize: 13 }}
-              formatter={(value) => [value, "Cliques"]}
-            />
-            <Bar dataKey="clicks" radius={[6, 6, 0, 0]} fill="#25d366" />
-          </BarChart>
-        </ResponsiveContainer>
+        <>
+          <ResponsiveContainer width="100%" height={140}>
+            <BarChart data={history} margin={{ left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <RTooltip
+                contentStyle={{ borderRadius: 12, border: "1px solid #d8e0e4", fontSize: 13 }}
+                formatter={(value) => [value, "Cliques"]}
+              />
+              <Bar dataKey="clicks" radius={[6, 6, 0, 0]} fill="#25d366" />
+            </BarChart>
+          </ResponsiveContainer>
+
+          <LinkClicksLog clicks={clicks} />
+        </>
       )}
+    </div>
+  );
+}
+
+function LinkClicksLog({ clicks }: { clicks: SocialLinkClick[] }) {
+  const sorted = [...clicks].sort((a, b) => b.clicked_at.localeCompare(a.clicked_at));
+
+  return (
+    <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200">
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 bg-gray-050 text-xs text-gray-500">
+          <tr>
+            <th className="px-3 py-2 text-left font-semibold">Quando</th>
+            <th className="px-3 py-2 text-left font-semibold">Origem</th>
+            <th className="px-3 py-2 text-left font-semibold">Dispositivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((c) => {
+            const clickedAt = new Date(c.clicked_at);
+            const { device, os, browser } = parseUserAgent(c.user_agent);
+            return (
+              <tr key={c.id} className="border-t border-gray-100">
+                <td className="whitespace-nowrap px-3 py-2 text-blue-900">
+                  {clickedAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}{" "}
+                  <span className="text-gray-400">
+                    {clickedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-gray-500">{referrerLabel(c.referrer)}</td>
+                <td className="px-3 py-2 text-gray-500">
+                  {device}
+                  {os && ` · ${os}`}
+                  {browser && ` · ${browser}`}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
