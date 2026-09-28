@@ -5,7 +5,7 @@ import { SubmitButton } from "@/components/shared/SubmitButton";
 export default async function ConfirmPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token_hash?: string; type?: string; next?: string }>;
+  searchParams: Promise<{ code?: string; next?: string }>;
 }) {
   const params = await searchParams;
 
@@ -41,8 +41,7 @@ export default async function ConfirmPage({
           </p>
 
           <form action={confirmRecovery} className="mt-6 space-y-4">
-            <input type="hidden" name="token_hash" value={params.token_hash || ""} />
-            <input type="hidden" name="type" value={params.type || ""} />
+            <input type="hidden" name="code" value={params.code || ""} />
             <input type="hidden" name="next" value={params.next || "/dashboard"} />
             <SubmitButton size="lg" className="w-full gap-2" pendingLabel="Confirmando...">
               Confirmar e continuar
