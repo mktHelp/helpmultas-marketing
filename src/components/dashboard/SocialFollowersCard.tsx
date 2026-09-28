@@ -3,17 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AtSign, Pencil, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { AtSign, MousePointerClick, Pencil, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 import { addFollowerSnapshot } from "@/lib/services/social";
-import { socialFollowerDeltas } from "@/lib/stats";
+import { socialFollowerDeltas, socialLinkClickCounts } from "@/lib/stats";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 import { SocialFollowerHistoryModal } from "@/components/dashboard/SocialFollowerHistoryModal";
-import type { SocialAccount, SocialFollowerSnapshot } from "@/types/database";
+import type { SocialAccount, SocialFollowerSnapshot, SocialLinkClick } from "@/types/database";
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -22,10 +22,12 @@ function formatTime(iso: string) {
 export function SocialFollowersCard({
   accounts,
   snapshots,
+  linkClicks,
   canManage,
 }: {
   accounts: SocialAccount[];
   snapshots: SocialFollowerSnapshot[];
+  linkClicks: SocialLinkClick[];
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -37,6 +39,8 @@ export function SocialFollowersCard({
   const [historyAccount, setHistoryAccount] = useState<SocialAccount | null>(null);
 
   const rows = socialFollowerDeltas(accounts, snapshots);
+  const clickCounts = socialLinkClickCounts(accounts, linkClicks);
+  const clicksByAccount = new Map(clickCounts.map((c) => [c.account.id, c]));
 
   async function handleSave(accountId: string) {
     if (!profile || !value) return;
@@ -149,6 +153,15 @@ export function SocialFollowersCard({
               ) : (
                 <p className="mt-1.5 text-xs text-gray-400">
                   {canManage ? "Sem registro ainda — clique no lápis para adicionar." : "Sem registro ainda."}
+                </p>
+              )}
+              {account.link_slug && (
+                <p className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-blue-900">
+                  <MousePointerClick className="h-3 w-3 text-gray-400" />
+                  {clicksByAccount.get(account.id)?.today ?? 0} cliques no link hoje
+                  <span className="font-normal text-gray-400">
+                    ({clicksByAccount.get(account.id)?.total ?? 0} nos últimos dias)
+                  </span>
                 </p>
               )}
             </div>

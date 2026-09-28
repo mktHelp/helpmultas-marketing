@@ -9,8 +9,8 @@ import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { Select } from "@/components/ui/Select";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { createClient } from "@/lib/supabase/client";
-import { listFollowerSnapshotsInRange } from "@/lib/services/social";
-import { dailyFollowerHistory } from "@/lib/stats";
+import { listFollowerSnapshotsInRange, listLinkClicksInRange } from "@/lib/services/social";
+import { dailyFollowerHistory, dailyLinkClickHistory } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 import type { SocialAccount } from "@/types/database";
 
@@ -29,6 +29,7 @@ function monthRange(year: number, month: number) {
 }
 
 type MonthHistory = ReturnType<typeof dailyFollowerHistory>;
+type MonthClickHistory = ReturnType<typeof dailyLinkClickHistory>;
 
 export function SocialFollowerHistoryModal({
   account,
@@ -44,6 +45,7 @@ export function SocialFollowerHistoryModal({
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [histories, setHistories] = useState<Record<number, MonthHistory>>({});
+  const [clickHistories, setClickHistories] = useState<Record<number, MonthClickHistory>>({});
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,10 +55,14 @@ export function SocialFollowerHistoryModal({
       months.map(async (m) => {
         const { start, end } = monthRange(year, m);
         const snapshots = await listFollowerSnapshotsInRange(supabase, account.id, start, end);
-        return [m, dailyFollowerHistory(snapshots)] as const;
+        const clicks = account.link_slug ? await listLinkClicksInRange(supabase, account.id, start, end) : [];
+        return [m, dailyFollowerHistory(snapshots), dailyLinkClickHistory(clicks)] as const;
       })
     )
-      .then((entries) => setHistories(Object.fromEntries(entries)))
+      .then((entries) => {
+        setHistories(Object.fromEntries(entries.map(([m, followers]) => [m, followers])));
+        setClickHistories(Object.fromEntries(entries.map(([m, , clicks]) => [m, clicks])));
+      })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account, year, months]);
@@ -137,6 +143,7 @@ export function SocialFollowerHistoryModal({
               month={m}
               color={MONTH_COLORS[i % MONTH_COLORS.length]}
               history={histories[m] || []}
+              clickHistory={account?.link_slug ? clickHistories[m] || [] : null}
               showLabel={sortedMonths.length > 1}
             />
           ))
@@ -150,11 +157,13 @@ function MonthReport({
   month,
   color,
   history,
+  clickHistory,
   showLabel,
 }: {
   month: number;
   color: string;
   history: MonthHistory;
+  clickHistory: MonthClickHistory | null;
   showLabel: boolean;
 }) {
   if (history.length === 0) {
@@ -247,6 +256,40 @@ function MonthReport({
           </tbody>
         </table>
       </div>
+
+      {clickHistory && <LinkClicksSection month={month} history={clickHistory} />}
+    </div>
+  );
+}
+
+function LinkClicksSection({ month, history }: { month: number; history: MonthClickHistory }) {
+  const total = history.reduce((sum, d) => sum + d.clicks, 0);
+
+  return (
+    <div className="space-y-3 rounded-xl border border-gray-200 p-3">
+      <div className="flex items-center justify-between">
+        <h5 className="text-xs font-semibold text-gray-500">Cliques no link do WhatsApp</h5>
+        <span className="text-sm font-bold text-blue-900">{total} em {MONTHS[month]}</span>
+      </div>
+
+      {history.length === 0 ? (
+        <div className="flex h-[100px] items-center justify-center text-sm text-gray-400">
+          Sem cliques registrados para {MONTHS[month]}.
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={140}>
+          <BarChart data={history} margin={{ left: -20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <RTooltip
+              contentStyle={{ borderRadius: 12, border: "1px solid #d8e0e4", fontSize: 13 }}
+              formatter={(value) => [value, "Cliques"]}
+            />
+            <Bar dataKey="clicks" radius={[6, 6, 0, 0]} fill="#25d366" />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

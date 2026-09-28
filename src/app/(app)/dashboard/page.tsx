@@ -13,7 +13,7 @@ import { GoalsPanel } from "@/components/dashboard/GoalsPanel";
 import { TimeManagementCard } from "@/components/dashboard/TimeManagementCard";
 import { SocialFollowersCard } from "@/components/dashboard/SocialFollowersCard";
 import { listGoals } from "@/lib/services/goals";
-import { listSocialAccounts, listRecentFollowerSnapshots } from "@/lib/services/social";
+import { listSocialAccounts, listRecentFollowerSnapshots, listRecentLinkClicks } from "@/lib/services/social";
 import { TaskListItem } from "@/components/tasks/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { profile } = await getCurrentUserAndProfile();
 
-  const [tasks, areas, profiles, statuses, goals, socialAccounts, socialSnapshots] = await Promise.all([
+  const [tasks, areas, profiles, statuses, goals, socialAccounts, socialSnapshots, socialLinkClicks] = await Promise.all([
     listTasks(supabase, {}),
     listAreas(supabase),
     listProfiles(supabase),
@@ -39,6 +39,7 @@ export default async function DashboardPage() {
     listGoals(supabase),
     listSocialAccounts(supabase),
     listRecentFollowerSnapshots(supabase),
+    listRecentLinkClicks(supabase),
   ]);
 
   const kpis = computeKpis(tasks, statuses);
@@ -81,7 +82,12 @@ export default async function DashboardPage() {
           canManage={canManageGoals}
         />
         <TimeManagementCard rows={timeRows} />
-        <SocialFollowersCard accounts={socialAccounts} snapshots={socialSnapshots} canManage={canManageGoals} />
+        <SocialFollowersCard
+          accounts={socialAccounts}
+          snapshots={socialSnapshots}
+          linkClicks={socialLinkClicks}
+          canManage={canManageGoals}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">

@@ -1,6 +1,6 @@
 import { differenceInDays, endOfDay, isAfter, isBefore, parseISO, startOfDay, subDays } from "date-fns";
 import { toDateKey } from "@/lib/utils";
-import type { Area, Goal, Profile, SocialAccount, SocialFollowerSnapshot, TaskStatusRow, TaskWithRelations } from "@/types/database";
+import type { Area, Goal, Profile, SocialAccount, SocialFollowerSnapshot, SocialLinkClick, TaskStatusRow, TaskWithRelations } from "@/types/database";
 
 function statusFlags(statuses: TaskStatusRow[]) {
   const doneKeys = new Set(statuses.filter((s) => s.is_done).map((s) => s.key));
@@ -122,6 +122,34 @@ export function dailyFollowerHistory(snapshots: SocialFollowerSnapshot[]) {
     previousCount = snapshot.followers_count;
     const [, mm, dd] = date.split("-");
     return { date, label: `${dd}/${mm}`, followers: snapshot.followers_count, delta };
+  });
+}
+
+// Clicks on the account's WhatsApp link "today" (from midnight) vs. total
+// within the fetched window - the shape the follower card's click badge
+// needs. `clicks` only covers however many days the caller fetched
+// (listRecentLinkClicks), not all-time.
+export function socialLinkClickCounts(accounts: SocialAccount[], clicks: SocialLinkClick[]) {
+  const startOfToday = startOfDay(new Date());
+  return accounts.map((account) => {
+    const rows = clicks.filter((c) => c.account_id === account.id);
+    const today = rows.filter((c) => !isBefore(parseISO(c.clicked_at), startOfToday)).length;
+    return { account, today, total: rows.length };
+  });
+}
+
+// One row per day with its click count - same shape as dailyFollowerHistory,
+// for the click history chart/table in the history modal.
+export function dailyLinkClickHistory(clicks: SocialLinkClick[]) {
+  const byDay = new Map<string, number>();
+  for (const c of clicks) {
+    const date = c.clicked_at.slice(0, 10);
+    byDay.set(date, (byDay.get(date) || 0) + 1);
+  }
+  const days = Array.from(byDay.keys()).sort();
+  return days.map((date) => {
+    const [, mm, dd] = date.split("-");
+    return { date, label: `${dd}/${mm}`, clicks: byDay.get(date)! };
   });
 }
 

@@ -272,6 +272,7 @@ export interface SocialAccount {
   platform: string;
   handle: string | null;
   ig_username: string | null;
+  link_slug: string | null;
   sort_order: number;
   created_at: string;
 }
@@ -285,6 +286,16 @@ export interface SocialFollowerSnapshot {
   media_count: number | null;
   source: string;
   created_by: string | null;
+  created_at: string;
+}
+
+export interface SocialLinkClick {
+  id: string;
+  account_id: string;
+  clicked_at: string;
+  url: string | null;
+  referrer: string | null;
+  user_agent: string | null;
   created_at: string;
 }
 
