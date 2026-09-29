@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 import { leadsFromActions } from "@/lib/services/meta-ads";
 
 // Sync somente-leitura do Gerenciador de Anúncios da Meta (Marketing API)
-// para as tabelas meta_*. Não é uma rota de sessão de usuário — chamada
-// pelo Vercel Cron (ou manualmente para teste), autenticada com um shared
-// secret (META_SYNC_SECRET), e escreve com a service-role já que não há
-// usuário Supabase na requisição.
+// para as tabelas meta_*. Dois jeitos de disparar:
+//   GET  — pelo Vercel Cron (ver vercel.json), autenticado com CRON_SECRET.
+//   POST — pelo botão "Sincronizar agora" no Hub, autenticado pela sessão
+//          do usuário (só time interno, mesma regra de app/(app)/layout.tsx).
+// Os dois escrevem com a service-role (não há RLS de usuário aplicável a
+// upsert em massa) e chamam o mesmo runSync().
 //
 // Busca só campanhas com effective_status = ACTIVE; campanhas sincronizadas
 // antes que saíram desse filtro são marcadas active_in_meta = false (mantém
@@ -17,6 +21,10 @@ import { leadsFromActions } from "@/lib/services/meta-ads";
 // nas pontas) — só quando ainda não há vínculo manual. Anúncios casados têm
 // suas métricas de vida (impressions/clicks/spend/conversions) copiadas
 // para o criativo correspondente.
+//
+// Cada chamada cria uma linha em meta_sync_runs e vai atualizando
+// progress_message em português conforme avança — o botão do front lê isso
+// via Supabase Realtime pra mostrar o andamento em linguagem natural.
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -135,7 +143,9 @@ interface RawDailyInsight {
   date_start: string;
   spend: string;
   impressions: string;
-  clicks: string;
+  // inline_link_clicks (cliques no link) em vez de "clicks" (todo clique no
+  // anúncio, incluindo curtida/comentário/expandir foto/perfil da página).
+  inline_link_clicks: string;
   reach: string;
   frequency?: string;
   ctr?: string;
@@ -148,8 +158,334 @@ interface RawLifetimeInsight {
   ad_id: string;
   spend: string;
   impressions: string;
-  clicks: string;
+  inline_link_clicks: string;
   actions?: GraphAction[];
+}
+
+async function setProgress(admin: SupabaseClient, runId: string, message: string) {
+  await admin.from("meta_sync_runs").update({ progress_message: message }).eq("id", runId);
+}
+
+async function runSync(admin: SupabaseClient, runId: string, startedAt: string) {
+  const accountId = process.env.META_AD_ACCOUNT_ID;
+  if (!accountId) throw new Error("META_AD_ACCOUNT_ID não configurado");
+
+  const entities = { campaigns: 0, adsets: 0, ads: 0, insight_rows: 0, matched_creatives: 0 };
+
+  // 1. Conta de anúncios
+  await setProgress(admin, runId, "Conectando com a conta de anúncios da Meta...");
+  const accountInfo = await graphGetSingle<{
+    name: string;
+    currency: string;
+    timezone_name: string;
+    account_status: number;
+  }>(`/${accountId}`, { fields: "name,currency,timezone_name,account_status" });
+
+  const { data: accountRow, error: accountError } = await admin
+    .from("meta_ad_accounts")
+    .upsert(
+      {
+        meta_account_id: accountId,
+        name: accountInfo.name,
+        currency: accountInfo.currency,
+        timezone_name: accountInfo.timezone_name,
+        status: String(accountInfo.account_status),
+        last_synced_at: startedAt,
+      },
+      { onConflict: "meta_account_id" }
+    )
+    .select("id")
+    .single();
+  if (accountError || !accountRow) throw new Error(`Falha ao salvar meta_ad_accounts: ${accountError?.message}`);
+
+  // 2. Campanhas ativas
+  await setProgress(admin, runId, "Buscando campanhas ativas...");
+  const campaigns = await graphGetEdge<RawCampaign>(`/${accountId}/campaigns`, {
+    fields: "id,name,objective,status,effective_status,daily_budget,lifetime_budget,start_time,stop_time",
+    filtering: JSON.stringify([{ field: "effective_status", operator: "IN", value: ["ACTIVE"] }]),
+    limit: "200",
+  });
+  entities.campaigns = campaigns.length;
+  const activeCampaignMetaIds = campaigns.map((c) => c.id);
+  await setProgress(admin, runId, `${campaigns.length} campanhas ativas encontradas. Salvando...`);
+
+  const campaignIdByMetaId = new Map<string, string>();
+  for (const c of campaigns) {
+    const { data, error } = await admin
+      .from("meta_campaigns")
+      .upsert(
+        {
+          meta_campaign_id: c.id,
+          account_id: accountRow.id,
+          name: c.name,
+          objective: c.objective,
+          status: c.effective_status,
+          active_in_meta: true,
+          daily_budget: c.daily_budget ? Number(c.daily_budget) / 100 : null,
+          lifetime_budget: c.lifetime_budget ? Number(c.lifetime_budget) / 100 : null,
+          start_time: c.start_time ?? null,
+          stop_time: c.stop_time ?? null,
+          synced_at: startedAt,
+        },
+        { onConflict: "meta_campaign_id" }
+      )
+      .select("id")
+      .single();
+    if (error || !data) continue;
+    campaignIdByMetaId.set(c.id, data.id);
+  }
+
+  // Campanhas que sincronizamos antes e não vieram mais como ativas.
+  if (activeCampaignMetaIds.length > 0) {
+    await admin
+      .from("meta_campaigns")
+      .update({ active_in_meta: false })
+      .eq("account_id", accountRow.id)
+      .not("meta_campaign_id", "in", `(${activeCampaignMetaIds.join(",")})`);
+  } else {
+    await admin.from("meta_campaigns").update({ active_in_meta: false }).eq("account_id", accountRow.id);
+  }
+
+  // 3. Conjuntos de anúncios dentro das campanhas ativas
+  await setProgress(admin, runId, "Sincronizando conjuntos de anúncios...");
+  const adSets =
+    activeCampaignMetaIds.length === 0
+      ? []
+      : await graphGetEdge<RawAdSet>(`/${accountId}/adsets`, {
+          fields: "id,name,status,campaign_id,optimization_goal,billing_event,daily_budget,start_time,end_time",
+          filtering: JSON.stringify([{ field: "campaign.id", operator: "IN", value: activeCampaignMetaIds }]),
+          limit: "200",
+        });
+  entities.adsets = adSets.length;
+
+  const adSetIdByMetaId = new Map<string, string>();
+  for (const a of adSets) {
+    const campaignId = campaignIdByMetaId.get(a.campaign_id);
+    if (!campaignId) continue;
+    const { data, error } = await admin
+      .from("meta_ad_sets")
+      .upsert(
+        {
+          meta_adset_id: a.id,
+          campaign_id: campaignId,
+          name: a.name,
+          status: a.status,
+          optimization_goal: a.optimization_goal ?? "",
+          billing_event: a.billing_event ?? "",
+          daily_budget: a.daily_budget ? Number(a.daily_budget) / 100 : null,
+          start_time: a.start_time ?? null,
+          end_time: a.end_time ?? null,
+          synced_at: startedAt,
+        },
+        { onConflict: "meta_adset_id" }
+      )
+      .select("id")
+      .single();
+    if (error || !data) continue;
+    adSetIdByMetaId.set(a.id, data.id);
+  }
+
+  // 4. Anúncios dentro desses conjuntos
+  await setProgress(admin, runId, `${adSets.length} conjuntos sincronizados. Buscando os anúncios...`);
+  const activeAdSetMetaIds = adSets.map((a) => a.id);
+  const ads =
+    activeAdSetMetaIds.length === 0
+      ? []
+      : await graphGetEdge<RawAd>(`/${accountId}/ads`, {
+          fields: "id,name,status,effective_status,adset_id,creative{id,thumbnail_url}",
+          filtering: JSON.stringify([{ field: "adset.id", operator: "IN", value: activeAdSetMetaIds }]),
+          limit: "200",
+        });
+  entities.ads = ads.length;
+
+  const adIdByMetaId = new Map<string, string>();
+  for (const ad of ads) {
+    const adSetId = adSetIdByMetaId.get(ad.adset_id);
+    if (!adSetId) continue;
+    const { data, error } = await admin
+      .from("meta_ads")
+      .upsert(
+        {
+          meta_ad_id: ad.id,
+          adset_id: adSetId,
+          name: ad.name,
+          status: ad.status,
+          effective_status: ad.effective_status,
+          creative_meta_id: ad.creative?.id ?? "",
+          thumbnail_url: ad.creative?.thumbnail_url ?? "",
+          synced_at: startedAt,
+        },
+        { onConflict: "meta_ad_id" }
+      )
+      .select("id")
+      .single();
+    if (error || !data) continue;
+    adIdByMetaId.set(ad.id, data.id);
+  }
+
+  // 5. Casamento automático anúncio ↔ criativo, por conjunto de palavras
+  // (só quando ainda não há vínculo — nunca sobrescreve um vínculo
+  // definido manualmente). Os nomes dos anúncios seguem uma convenção de
+  // campanha bem mais longa que o nome do criativo (ex: "15.09 [006]
+  // [SUL/SUDESTE/CENTRO-OESTE] [CAPTACAO] [FRANQUIAS] [MODELO FRANQUIA]"
+  // para o criativo "Modelo de Franquia"), então nome idêntico não serve —
+  // consideramos match quando toda palavra significativa do criativo
+  // aparece entre as palavras do anúncio, ignorando acento/caixa e
+  // preposições. Em caso de mais de um criativo bater no mesmo anúncio,
+  // fica o de maior número de palavras (o mais específico).
+  await setProgress(admin, runId, `${ads.length} anúncios encontrados. Cruzando com os criativos cadastrados...`);
+  const { data: creativeRows } = await admin.from("creatives").select("id, name");
+  const creativeCandidates = (creativeRows ?? [])
+    .map((c) => ({ id: c.id as string, tokens: significantTokens(c.name) }))
+    // Exige pelo menos 2 palavras significativas — evita nome de criativo
+    // genérico/curto (1 palavra) casando com anúncios não relacionados.
+    .filter((c) => c.tokens.length >= 2);
+
+  let matchedCount = 0;
+  for (const ad of ads) {
+    const internalAdId = adIdByMetaId.get(ad.id);
+    if (!internalAdId) continue;
+    const adTokens = new Set(normalizeTokens(ad.name));
+
+    let best: { id: string; tokens: string[] } | null = null;
+    for (const candidate of creativeCandidates) {
+      if (candidate.tokens.every((t) => adTokens.has(t))) {
+        if (!best || candidate.tokens.length > best.tokens.length) best = candidate;
+      }
+    }
+    if (!best) continue;
+
+    const { data } = await admin
+      .from("meta_ads")
+      .update({ matched_creative_id: best.id, matched_by: "auto_tokens" })
+      .eq("id", internalAdId)
+      .is("matched_creative_id", null)
+      .select("id");
+    if (data && data.length > 0) matchedCount++;
+  }
+  entities.matched_creatives = matchedCount;
+
+  // 6. Métricas
+  const activeAdMetaIds = ads.map((a) => a.id);
+  if (activeAdMetaIds.length > 0) {
+    // 6a. Diárias (janela de INSIGHTS_SYNC_DAYS) — alimentam o seletor de
+    // datas livre na aba "Tráfego Pago". time_range em vez de date_preset
+    // porque precisamos de um intervalo maior que os presets padrão.
+    await setProgress(admin, runId, "Baixando métricas diárias dos últimos 90 dias...");
+    const until = new Date();
+    const since = new Date();
+    since.setDate(since.getDate() - INSIGHTS_SYNC_DAYS);
+    const dailyInsights = await graphGetEdge<RawDailyInsight>(`/${accountId}/insights`, {
+      level: "ad",
+      time_increment: "1",
+      time_range: JSON.stringify({ since: toDateOnly(since), until: toDateOnly(until) }),
+      fields: "ad_id,date_start,spend,impressions,inline_link_clicks,reach,frequency,ctr,cpc,cpm,actions",
+      filtering: JSON.stringify([{ field: "ad.id", operator: "IN", value: activeAdMetaIds }]),
+      limit: "500",
+    });
+
+    await setProgress(admin, runId, `Salvando ${dailyInsights.length} linhas de métricas diárias...`);
+    for (const row of dailyInsights) {
+      const internalAdId = adIdByMetaId.get(row.ad_id);
+      if (!internalAdId) continue;
+      const { error } = await admin.from("meta_ad_insights").upsert(
+        {
+          ad_id: internalAdId,
+          date: row.date_start,
+          spend: Number(row.spend ?? 0),
+          impressions: Number(row.impressions ?? 0),
+          clicks: Number(row.inline_link_clicks ?? 0),
+          reach: Number(row.reach ?? 0),
+          frequency: row.frequency ? Number(row.frequency) : null,
+          ctr: row.ctr ? Number(row.ctr) : null,
+          cpc: row.cpc ? Number(row.cpc) : null,
+          cpm: row.cpm ? Number(row.cpm) : null,
+          actions: row.actions ?? [],
+          synced_at: startedAt,
+        },
+        { onConflict: "ad_id,date" }
+      );
+      if (!error) entities.insight_rows++;
+    }
+
+    // 6b. Vitalícias (date_preset=maximum), só usadas para atualizar as
+    // colunas impressions/clicks/spend/conversions da tabela creatives
+    // nos anúncios que têm criativo casado.
+    await setProgress(admin, runId, "Atualizando métricas dos criativos vinculados...");
+    const lifetimeInsights = await graphGetEdge<RawLifetimeInsight>(`/${accountId}/insights`, {
+      level: "ad",
+      date_preset: "maximum",
+      fields: "ad_id,spend,impressions,inline_link_clicks,actions",
+      filtering: JSON.stringify([{ field: "ad.id", operator: "IN", value: activeAdMetaIds }]),
+      limit: "500",
+    });
+
+    const { data: matchedAds } = await admin
+      .from("meta_ads")
+      .select("meta_ad_id, matched_creative_id")
+      .in("meta_ad_id", activeAdMetaIds)
+      .not("matched_creative_id", "is", null);
+
+    const creativeIdByMetaAdId = new Map(
+      (matchedAds ?? []).map((r) => [r.meta_ad_id as string, r.matched_creative_id as string])
+    );
+
+    for (const row of lifetimeInsights) {
+      const creativeId = creativeIdByMetaAdId.get(row.ad_id);
+      if (!creativeId) continue;
+      const conversions = leadsFromActions(row.actions ?? null);
+
+      await admin
+        .from("creatives")
+        .update({
+          impressions: Number(row.impressions ?? 0),
+          clicks: Number(row.inline_link_clicks ?? 0),
+          spend: Number(row.spend ?? 0),
+          conversions,
+        })
+        .eq("id", creativeId);
+    }
+  }
+
+  return entities;
+}
+
+async function startRun(admin: SupabaseClient) {
+  const startedAt = new Date().toISOString();
+  const { data: run, error } = await admin
+    .from("meta_sync_runs")
+    .insert({ started_at: startedAt, status: "running", progress_message: "Iniciando sincronização..." })
+    .select("id")
+    .single();
+  if (error || !run) throw new Error(`Falha ao iniciar o sync: ${error?.message}`);
+  return { runId: run.id as string, startedAt };
+}
+
+async function finishRun(admin: SupabaseClient, runId: string, entities: Record<string, number> | null, err: unknown) {
+  if (err) {
+    const message = err instanceof Error ? err.message : "Erro desconhecido";
+    await admin
+      .from("meta_sync_runs")
+      .update({
+        finished_at: new Date().toISOString(),
+        status: "error",
+        entities_synced: entities ?? {},
+        error_message: message,
+        progress_message: `Falhou: ${message}`,
+      })
+      .eq("id", runId);
+    return NextResponse.json({ ok: false, error: message, runId }, { status: 500 });
+  }
+  await admin
+    .from("meta_sync_runs")
+    .update({
+      finished_at: new Date().toISOString(),
+      status: "success",
+      entities_synced: entities ?? {},
+      progress_message: "Sincronização concluída.",
+    })
+    .eq("id", runId);
+  return NextResponse.json({ ok: true, entities, runId });
 }
 
 export async function GET(request: Request) {
@@ -166,299 +502,34 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const accountId = process.env.META_AD_ACCOUNT_ID;
-  if (!accountId) {
-    return NextResponse.json({ error: "META_AD_ACCOUNT_ID não configurado" }, { status: 500 });
+  const admin = createAdminClient();
+  const { runId, startedAt } = await startRun(admin);
+  try {
+    const entities = await runSync(admin, runId, startedAt);
+    return await finishRun(admin, runId, entities, null);
+  } catch (err) {
+    return await finishRun(admin, runId, null, err);
+  }
+}
+
+// Disparado pelo botão "Sincronizar agora" no Hub — exige sessão de usuário
+// interno (mesma regra de app/(app)/layout.tsx: contas "expansao" nunca
+// alcançam essa página, mas a rota confere de novo aqui por segurança).
+export async function POST() {
+  const { user, profile } = await getCurrentUserAndProfile();
+  if (!user) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+  if (profile?.role === "expansao") {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   }
 
   const admin = createAdminClient();
-  const startedAt = new Date().toISOString();
-  const entities = { campaigns: 0, adsets: 0, ads: 0, insight_rows: 0, matched_creatives: 0 };
-
+  const { runId, startedAt } = await startRun(admin);
   try {
-    // 1. Conta de anúncios
-    const accountInfo = await graphGetSingle<{
-      name: string;
-      currency: string;
-      timezone_name: string;
-      account_status: number;
-    }>(`/${accountId}`, { fields: "name,currency,timezone_name,account_status" });
-
-    const { data: accountRow, error: accountError } = await admin
-      .from("meta_ad_accounts")
-      .upsert(
-        {
-          meta_account_id: accountId,
-          name: accountInfo.name,
-          currency: accountInfo.currency,
-          timezone_name: accountInfo.timezone_name,
-          status: String(accountInfo.account_status),
-          last_synced_at: startedAt,
-        },
-        { onConflict: "meta_account_id" }
-      )
-      .select("id")
-      .single();
-    if (accountError || !accountRow) throw new Error(`Falha ao salvar meta_ad_accounts: ${accountError?.message}`);
-
-    // 2. Campanhas ativas
-    const campaigns = await graphGetEdge<RawCampaign>(`/${accountId}/campaigns`, {
-      fields: "id,name,objective,status,effective_status,daily_budget,lifetime_budget,start_time,stop_time",
-      filtering: JSON.stringify([{ field: "effective_status", operator: "IN", value: ["ACTIVE"] }]),
-      limit: "200",
-    });
-    entities.campaigns = campaigns.length;
-    const activeCampaignMetaIds = campaigns.map((c) => c.id);
-
-    const campaignIdByMetaId = new Map<string, string>();
-    for (const c of campaigns) {
-      const { data, error } = await admin
-        .from("meta_campaigns")
-        .upsert(
-          {
-            meta_campaign_id: c.id,
-            account_id: accountRow.id,
-            name: c.name,
-            objective: c.objective,
-            status: c.effective_status,
-            active_in_meta: true,
-            daily_budget: c.daily_budget ? Number(c.daily_budget) / 100 : null,
-            lifetime_budget: c.lifetime_budget ? Number(c.lifetime_budget) / 100 : null,
-            start_time: c.start_time ?? null,
-            stop_time: c.stop_time ?? null,
-            synced_at: startedAt,
-          },
-          { onConflict: "meta_campaign_id" }
-        )
-        .select("id")
-        .single();
-      if (error || !data) continue;
-      campaignIdByMetaId.set(c.id, data.id);
-    }
-
-    // Campanhas que sincronizamos antes e não vieram mais como ativas.
-    if (activeCampaignMetaIds.length > 0) {
-      await admin
-        .from("meta_campaigns")
-        .update({ active_in_meta: false })
-        .eq("account_id", accountRow.id)
-        .not("meta_campaign_id", "in", `(${activeCampaignMetaIds.join(",")})`);
-    } else {
-      await admin.from("meta_campaigns").update({ active_in_meta: false }).eq("account_id", accountRow.id);
-    }
-
-    // 3. Conjuntos de anúncios dentro das campanhas ativas
-    const adSets =
-      activeCampaignMetaIds.length === 0
-        ? []
-        : await graphGetEdge<RawAdSet>(`/${accountId}/adsets`, {
-            fields: "id,name,status,campaign_id,optimization_goal,billing_event,daily_budget,start_time,end_time",
-            filtering: JSON.stringify([{ field: "campaign.id", operator: "IN", value: activeCampaignMetaIds }]),
-            limit: "200",
-          });
-    entities.adsets = adSets.length;
-
-    const adSetIdByMetaId = new Map<string, string>();
-    for (const a of adSets) {
-      const campaignId = campaignIdByMetaId.get(a.campaign_id);
-      if (!campaignId) continue;
-      const { data, error } = await admin
-        .from("meta_ad_sets")
-        .upsert(
-          {
-            meta_adset_id: a.id,
-            campaign_id: campaignId,
-            name: a.name,
-            status: a.status,
-            optimization_goal: a.optimization_goal ?? "",
-            billing_event: a.billing_event ?? "",
-            daily_budget: a.daily_budget ? Number(a.daily_budget) / 100 : null,
-            start_time: a.start_time ?? null,
-            end_time: a.end_time ?? null,
-            synced_at: startedAt,
-          },
-          { onConflict: "meta_adset_id" }
-        )
-        .select("id")
-        .single();
-      if (error || !data) continue;
-      adSetIdByMetaId.set(a.id, data.id);
-    }
-
-    // 4. Anúncios dentro desses conjuntos
-    const activeAdSetMetaIds = adSets.map((a) => a.id);
-    const ads =
-      activeAdSetMetaIds.length === 0
-        ? []
-        : await graphGetEdge<RawAd>(`/${accountId}/ads`, {
-            fields: "id,name,status,effective_status,adset_id,creative{id,thumbnail_url}",
-            filtering: JSON.stringify([{ field: "adset.id", operator: "IN", value: activeAdSetMetaIds }]),
-            limit: "200",
-          });
-    entities.ads = ads.length;
-
-    const adIdByMetaId = new Map<string, string>();
-    for (const ad of ads) {
-      const adSetId = adSetIdByMetaId.get(ad.adset_id);
-      if (!adSetId) continue;
-      const { data, error } = await admin
-        .from("meta_ads")
-        .upsert(
-          {
-            meta_ad_id: ad.id,
-            adset_id: adSetId,
-            name: ad.name,
-            status: ad.status,
-            effective_status: ad.effective_status,
-            creative_meta_id: ad.creative?.id ?? "",
-            thumbnail_url: ad.creative?.thumbnail_url ?? "",
-            synced_at: startedAt,
-          },
-          { onConflict: "meta_ad_id" }
-        )
-        .select("id")
-        .single();
-      if (error || !data) continue;
-      adIdByMetaId.set(ad.id, data.id);
-    }
-
-    // 5. Casamento automático anúncio ↔ criativo, por conjunto de palavras
-    // (só quando ainda não há vínculo — nunca sobrescreve um vínculo
-    // definido manualmente). Os nomes dos anúncios seguem uma convenção de
-    // campanha bem mais longa que o nome do criativo (ex: "15.09 [006]
-    // [SUL/SUDESTE/CENTRO-OESTE] [CAPTACAO] [FRANQUIAS] [MODELO FRANQUIA]"
-    // para o criativo "Modelo de Franquia"), então nome idêntico não serve —
-    // consideramos match quando toda palavra significativa do criativo
-    // aparece entre as palavras do anúncio, ignorando acento/caixa e
-    // preposições. Em caso de mais de um criativo bater no mesmo anúncio,
-    // fica o de maior número de palavras (o mais específico).
-    const { data: creativeRows } = await admin.from("creatives").select("id, name");
-    const creativeCandidates = (creativeRows ?? [])
-      .map((c) => ({ id: c.id as string, tokens: significantTokens(c.name) }))
-      // Exige pelo menos 2 palavras significativas — evita nome de criativo
-      // genérico/curto (1 palavra) casando com anúncios não relacionados.
-      .filter((c) => c.tokens.length >= 2);
-
-    let matchedCount = 0;
-    for (const ad of ads) {
-      const internalAdId = adIdByMetaId.get(ad.id);
-      if (!internalAdId) continue;
-      const adTokens = new Set(normalizeTokens(ad.name));
-
-      let best: { id: string; tokens: string[] } | null = null;
-      for (const candidate of creativeCandidates) {
-        if (candidate.tokens.every((t) => adTokens.has(t))) {
-          if (!best || candidate.tokens.length > best.tokens.length) best = candidate;
-        }
-      }
-      if (!best) continue;
-
-      const { data } = await admin
-        .from("meta_ads")
-        .update({ matched_creative_id: best.id, matched_by: "auto_tokens" })
-        .eq("id", internalAdId)
-        .is("matched_creative_id", null)
-        .select("id");
-      if (data && data.length > 0) matchedCount++;
-    }
-    entities.matched_creatives = matchedCount;
-
-    // 6. Métricas
-    const activeAdMetaIds = ads.map((a) => a.id);
-    if (activeAdMetaIds.length > 0) {
-      // 6a. Diárias (janela de INSIGHTS_SYNC_DAYS) — alimentam o seletor de
-      // datas livre na aba "Tráfego Pago". time_range em vez de date_preset
-      // porque precisamos de um intervalo maior que os presets padrão.
-      const until = new Date();
-      const since = new Date();
-      since.setDate(since.getDate() - INSIGHTS_SYNC_DAYS);
-      const dailyInsights = await graphGetEdge<RawDailyInsight>(`/${accountId}/insights`, {
-        level: "ad",
-        time_increment: "1",
-        time_range: JSON.stringify({ since: toDateOnly(since), until: toDateOnly(until) }),
-        fields: "ad_id,date_start,spend,impressions,clicks,reach,frequency,ctr,cpc,cpm,actions",
-        filtering: JSON.stringify([{ field: "ad.id", operator: "IN", value: activeAdMetaIds }]),
-        limit: "500",
-      });
-
-      for (const row of dailyInsights) {
-        const internalAdId = adIdByMetaId.get(row.ad_id);
-        if (!internalAdId) continue;
-        const { error } = await admin.from("meta_ad_insights").upsert(
-          {
-            ad_id: internalAdId,
-            date: row.date_start,
-            spend: Number(row.spend ?? 0),
-            impressions: Number(row.impressions ?? 0),
-            clicks: Number(row.clicks ?? 0),
-            reach: Number(row.reach ?? 0),
-            frequency: row.frequency ? Number(row.frequency) : null,
-            ctr: row.ctr ? Number(row.ctr) : null,
-            cpc: row.cpc ? Number(row.cpc) : null,
-            cpm: row.cpm ? Number(row.cpm) : null,
-            actions: row.actions ?? [],
-            synced_at: startedAt,
-          },
-          { onConflict: "ad_id,date" }
-        );
-        if (!error) entities.insight_rows++;
-      }
-
-      // 6b. Vitalícias (date_preset=maximum), só usadas para atualizar as
-      // colunas impressions/clicks/spend/conversions da tabela creatives
-      // nos anúncios que têm criativo casado.
-      const lifetimeInsights = await graphGetEdge<RawLifetimeInsight>(`/${accountId}/insights`, {
-        level: "ad",
-        date_preset: "maximum",
-        fields: "ad_id,spend,impressions,clicks,actions",
-        filtering: JSON.stringify([{ field: "ad.id", operator: "IN", value: activeAdMetaIds }]),
-        limit: "500",
-      });
-
-      const { data: matchedAds } = await admin
-        .from("meta_ads")
-        .select("meta_ad_id, matched_creative_id")
-        .in("meta_ad_id", activeAdMetaIds)
-        .not("matched_creative_id", "is", null);
-
-      const creativeIdByMetaAdId = new Map(
-        (matchedAds ?? []).map((r) => [r.meta_ad_id as string, r.matched_creative_id as string])
-      );
-
-      for (const row of lifetimeInsights) {
-        const creativeId = creativeIdByMetaAdId.get(row.ad_id);
-        if (!creativeId) continue;
-        const conversions = leadsFromActions(row.actions ?? null);
-
-        await admin
-          .from("creatives")
-          .update({
-            impressions: Number(row.impressions ?? 0),
-            clicks: Number(row.clicks ?? 0),
-            spend: Number(row.spend ?? 0),
-            conversions,
-          })
-          .eq("id", creativeId);
-      }
-    }
-
-    await admin.from("meta_sync_runs").insert({
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      status: "success",
-      entities_synced: entities,
-    });
-
-    return NextResponse.json({ ok: true, entities });
+    const entities = await runSync(admin, runId, startedAt);
+    return await finishRun(admin, runId, entities, null);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Erro desconhecido";
-    await admin.from("meta_sync_runs").insert({
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      status: "error",
-      entities_synced: entities,
-      error_message: message,
-    });
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return await finishRun(admin, runId, null, err);
   }
 }

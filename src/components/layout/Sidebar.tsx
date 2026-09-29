@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles, Mic, HandCoins, TrendingUp, Gauge,
+  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles, Mic, HandCoins, TrendingUp, Gauge, Contact,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -36,6 +36,7 @@ const TRAFFIC_NAV = [
   { href: "/trafego-pago/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/creatives", label: "Criativos", icon: ImageIcon },
   { href: "/trafego-pago", label: "Tráfego Pago", icon: TrendingUp },
+  { href: "/trafego-pago/leads", label: "Leads", icon: Contact },
 ];
 
 // Standalone dashboard (outside this shell) shared with the expansion team.

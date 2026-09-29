@@ -207,7 +207,7 @@ function CampaignsSection({
     { key: "ads", label: "Anúncios", widthClass: "w-24", sortValue: (r) => r.adsCount, render: (r) => numberFormatter.format(r.adsCount) },
     { key: "spend", label: "Investido", widthClass: "w-32", sortValue: (r) => r.metrics.spend, render: (r) => currencyFormatter.format(r.metrics.spend) },
     { key: "impressions", label: "Impressões", widthClass: "w-32", sortValue: (r) => r.metrics.impressions, render: (r) => numberFormatter.format(r.metrics.impressions) },
-    { key: "clicks", label: "Cliques", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
+    { key: "clicks", label: "Cliques no link", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
     { key: "ctr", label: "CTR", widthClass: "w-24", sortValue: (r) => ctrOf(r.metrics), render: (r) => `${ctrOf(r.metrics).toFixed(2)}%` },
     { key: "conversions", label: "Conversões", widthClass: "w-28", sortValue: (r) => r.metrics.conversions, render: (r) => numberFormatter.format(r.metrics.conversions) },
   ];
@@ -256,7 +256,7 @@ function AdSetsSection({
     { key: "ads", label: "Anúncios", widthClass: "w-24", sortValue: (r) => r.adsCount, render: (r) => numberFormatter.format(r.adsCount) },
     { key: "spend", label: "Investido", widthClass: "w-32", sortValue: (r) => r.metrics.spend, render: (r) => currencyFormatter.format(r.metrics.spend) },
     { key: "impressions", label: "Impressões", widthClass: "w-32", sortValue: (r) => r.metrics.impressions, render: (r) => numberFormatter.format(r.metrics.impressions) },
-    { key: "clicks", label: "Cliques", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
+    { key: "clicks", label: "Cliques no link", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
     { key: "ctr", label: "CTR", widthClass: "w-24", sortValue: (r) => ctrOf(r.metrics), render: (r) => `${ctrOf(r.metrics).toFixed(2)}%` },
     { key: "conversions", label: "Conversões", widthClass: "w-28", sortValue: (r) => r.metrics.conversions, render: (r) => numberFormatter.format(r.metrics.conversions) },
   ];
@@ -329,7 +329,7 @@ function AdsSection({
     },
     { key: "spend", label: "Investido", widthClass: "w-32", sortValue: (r) => r.metrics.spend, render: (r) => currencyFormatter.format(r.metrics.spend) },
     { key: "impressions", label: "Impressões", widthClass: "w-32", sortValue: (r) => r.metrics.impressions, render: (r) => numberFormatter.format(r.metrics.impressions) },
-    { key: "clicks", label: "Cliques", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
+    { key: "clicks", label: "Cliques no link", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
     { key: "ctr", label: "CTR", widthClass: "w-24", sortValue: (r) => ctrOf(r.metrics), render: (r) => `${ctrOf(r.metrics).toFixed(2)}%` },
     { key: "conversions", label: "Conversões", widthClass: "w-28", sortValue: (r) => r.metrics.conversions, render: (r) => numberFormatter.format(r.metrics.conversions) },
   ];

@@ -235,3 +235,169 @@ export function aggregateTraffic(structure: TrafficStructure, range: DateRange):
 
   return { campaigns, adSets, ads };
 }
+
+export interface LeadAdCount {
+  adId: string;
+  adName: string;
+  count: number;
+}
+
+export interface LeadStats {
+  topAds: LeadAdCount[];
+  unmatched: number;
+  total: number;
+}
+
+const LEADS_PAGE_SIZE = 1000;
+
+// Conta os leads da LP (landing_page_leads, ver app/api/leads) por anúncio
+// vinculado, dentro do período — base do ranking "anúncios campeões".
+// Paginado pelo mesmo motivo do fetchAllInsights acima: sem .range(), o
+// Supabase corta em 1000 linhas por chamada.
+export async function countLeadsByAd(supabase: SupabaseClient, range: DateRange): Promise<LeadStats> {
+  const rows: { matched_ad_id: string | null }[] = [];
+  for (let from = 0; ; from += LEADS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("landing_page_leads")
+      .select("matched_ad_id")
+      .gte("received_at", `${range.since}T00:00:00`)
+      .lte("received_at", `${range.until}T23:59:59`)
+      .range(from, from + LEADS_PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < LEADS_PAGE_SIZE) break;
+  }
+
+  const countByAd = new Map<string, number>();
+  let unmatched = 0;
+  for (const row of rows) {
+    if (!row.matched_ad_id) {
+      unmatched++;
+      continue;
+    }
+    countByAd.set(row.matched_ad_id, (countByAd.get(row.matched_ad_id) ?? 0) + 1);
+  }
+
+  const adIds = [...countByAd.keys()];
+  const names = new Map<string, string>();
+  if (adIds.length > 0) {
+    const { data: ads } = await supabase.from("meta_ads").select("id, name").in("id", adIds);
+    for (const a of ads ?? []) names.set(a.id, a.name);
+  }
+
+  const topAds = [...countByAd.entries()]
+    .map(([adId, count]) => ({ adId, adName: names.get(adId) ?? "—", count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  return { topAds, unmatched, total: rows.length };
+}
+
+export interface LeadRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  utm_content: string;
+  utm_term: string;
+  matched_ad_id: string | null;
+  matched_adset_id: string | null;
+  matched_campaign_id: string | null;
+  received_at: string;
+  matched_ad?: { id: string; name: string; adset?: { id: string; name: string; campaign?: { id: string; name: string } } } | null;
+}
+
+export interface LeadsPage {
+  rows: LeadRow[];
+  total: number;
+}
+
+export interface LeadsFilter {
+  range: DateRange;
+  search: string;
+  campaignId: string;
+  adId: string;
+  matchStatus: "" | "matched" | "unmatched";
+  page: number;
+  pageSize: number;
+}
+
+export async function fetchLeads(supabase: SupabaseClient, filter: LeadsFilter): Promise<LeadsPage> {
+  let query = supabase
+    .from("landing_page_leads")
+    .select(
+      "id, name, email, phone, city, state, utm_source, utm_medium, utm_campaign, utm_content, utm_term, matched_ad_id, matched_adset_id, matched_campaign_id, received_at, matched_ad:meta_ads(id, name, adset:meta_ad_sets(id, name, campaign:meta_campaigns(id, name)))",
+      { count: "exact" }
+    )
+    .gte("received_at", `${filter.range.since}T00:00:00`)
+    .lte("received_at", `${filter.range.until}T23:59:59`)
+    .order("received_at", { ascending: false });
+
+  if (filter.search) {
+    query = query.or(`name.ilike.%${filter.search}%,email.ilike.%${filter.search}%,phone.ilike.%${filter.search}%`);
+  }
+  if (filter.campaignId) {
+    query = query.eq("matched_campaign_id", filter.campaignId);
+  }
+  if (filter.adId) {
+    query = query.eq("matched_ad_id", filter.adId);
+  }
+  if (filter.matchStatus === "matched") {
+    query = query.not("matched_ad_id", "is", null);
+  } else if (filter.matchStatus === "unmatched") {
+    query = query.is("matched_ad_id", null);
+  }
+
+  const from = filter.page * filter.pageSize;
+  query = query.range(from, from + filter.pageSize - 1);
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+
+  return {
+    rows: (data ?? []) as unknown as LeadRow[],
+    total: count ?? 0,
+  };
+}
+
+export async function fetchLeadAdRanking(
+  supabase: SupabaseClient,
+  range: DateRange,
+  limit = 10
+): Promise<LeadAdCount[]> {
+  const rows: { matched_ad_id: string | null }[] = [];
+  for (let from = 0; ; from += LEADS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("landing_page_leads")
+      .select("matched_ad_id")
+      .gte("received_at", `${range.since}T00:00:00`)
+      .lte("received_at", `${range.until}T23:59:59`)
+      .not("matched_ad_id", "is", null)
+      .range(from, from + LEADS_PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < LEADS_PAGE_SIZE) break;
+  }
+
+  const countByAd = new Map<string, number>();
+  for (const row of rows) {
+    countByAd.set(row.matched_ad_id!, (countByAd.get(row.matched_ad_id!) ?? 0) + 1);
+  }
+
+  const adIds = [...countByAd.keys()];
+  const names = new Map<string, string>();
+  if (adIds.length > 0) {
+    const { data: ads } = await supabase.from("meta_ads").select("id, name").in("id", adIds);
+    for (const a of ads ?? []) names.set(a.id, a.name);
+  }
+
+  return [...countByAd.entries()]
+    .map(([adId, count]) => ({ adId, adName: names.get(adId) ?? "—", count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}

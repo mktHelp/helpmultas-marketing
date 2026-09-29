@@ -276,6 +276,33 @@ export interface MetaAdInsight {
   synced_at: string;
 }
 
+export interface LandingPageLead {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state: string;
+  capital: string;
+  capital_label: string;
+  fbp: string;
+  fbc: string;
+  fbclid: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  utm_content: string;
+  utm_term: string;
+  utm_id: string;
+  matched_campaign_id: string | null;
+  matched_adset_id: string | null;
+  matched_ad_id: string | null;
+  matched_by: string | null;
+  received_at: string;
+  created_at: string;
+  matched_ad?: Pick<MetaAd, "id" | "name"> & { adset?: Pick<MetaAdSet, "id" | "name"> & { campaign?: Pick<MetaCampaign, "id" | "name"> } };
+}
+
 export interface Tag {
   id: string;
   name: string;

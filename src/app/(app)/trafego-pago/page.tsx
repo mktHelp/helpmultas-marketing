@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/shared/PageHeader";
 import { TrafficAdsTable } from "@/components/ads/TrafficAdsTable";
+import { SyncButton } from "@/components/ads/SyncButton";
 
 export default function TrafficPage() {
   return (
@@ -7,6 +8,7 @@ export default function TrafficPage() {
       <PageHeader
         title="Tráfego Pago"
         description="Campanhas, conjuntos e anúncios sincronizados do Gerenciador de Anúncios da Meta. Somente leitura."
+        action={<SyncButton />}
       />
       <TrafficAdsTable />
     </div>

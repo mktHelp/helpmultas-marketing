@@ -7,10 +7,12 @@ import { Select } from "@/components/ui/Select";
 import { createClient } from "@/lib/supabase/client";
 import {
   aggregateTraffic,
+  countLeadsByAd,
   dailySeries,
   defaultDateRange,
   loadTrafficStructure,
   type DateRange,
+  type LeadStats,
   type Metrics,
   type TrafficStructure,
 } from "@/lib/services/meta-ads";
@@ -74,7 +76,7 @@ type LineMetricKey = "spend" | "impressions" | "clicks" | "conversions" | "ctr";
 const LINE_METRIC_OPTIONS: { key: LineMetricKey; label: string }[] = [
   { key: "spend", label: "Investido" },
   { key: "impressions", label: "Impressões" },
-  { key: "clicks", label: "Cliques" },
+  { key: "clicks", label: "Cliques no link" },
   { key: "conversions", label: "Conversões" },
   { key: "ctr", label: "CTR" },
 ];
@@ -135,6 +137,7 @@ export function TrafficDashboard() {
   const [structure, setStructure] = useState<TrafficStructure>(EMPTY_STRUCTURE);
   const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange);
   const [topCreatives, setTopCreatives] = useState<CreativeStat[]>([]);
+  const [leadStats, setLeadStats] = useState<LeadStats>({ topAds: [], unmatched: 0, total: 0 });
   const [loading, setLoading] = useState(true);
 
   const [campaignId, setCampaignId] = useState("");
@@ -163,6 +166,18 @@ export function TrafficDashboard() {
   }, []);
 
   useRealtimeChanges(["meta_campaigns", "meta_ad_sets", "meta_ads", "meta_ad_insights", "creatives"], load);
+
+  async function loadLeadStats() {
+    const stats = await countLeadsByAd(supabase, dateRange);
+    setLeadStats(stats);
+  }
+
+  useEffect(() => {
+    loadLeadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
+
+  useRealtimeChanges(["landing_page_leads"], loadLeadStats);
 
   const data = useMemo(() => aggregateTraffic(structure, dateRange), [structure, dateRange]);
 
@@ -305,7 +320,7 @@ export function TrafficDashboard() {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiCard label="Investido" value={loading ? "—" : currencyFormatter.format(totals.spend)} />
         <KpiCard label="Impressões" value={loading ? "—" : numberFormatter.format(totals.impressions)} />
-        <KpiCard label="Cliques" value={loading ? "—" : numberFormatter.format(totals.clicks)} />
+        <KpiCard label="Cliques no link" value={loading ? "—" : numberFormatter.format(totals.clicks)} />
         <KpiCard label="CTR" value={loading ? "—" : `${ctrOf(totals).toFixed(2)}%`} />
         <KpiCard label="Conversões" value={loading ? "—" : numberFormatter.format(totals.conversions)} />
         <KpiCard label="CPC" value={loading ? "—" : currencyFormatter.format(cpcOf(totals))} />
@@ -405,6 +420,39 @@ export function TrafficDashboard() {
                 </p>
               </div>
             ))}
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 3 anúncios campeões (leads da LP)</CardTitle>
+            <span className="text-xs text-gray-400">no período selecionado</span>
+          </CardHeader>
+          <CardBody>
+            {leadStats.topAds.length === 0 ? (
+              <p className="text-sm text-gray-400">Nenhum lead da landing page casado com anúncio nesse período.</p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-3">
+                {leadStats.topAds.map((a, i) => (
+                  <div key={a.adId} className="rounded-2xl border border-gray-200 p-4">
+                    <span className="text-2xl">{["🥇", "🥈", "🥉"][i]}</span>
+                    <p className="mt-1 truncate text-sm font-semibold text-blue-900" title={a.adName}>
+                      {a.adName}
+                    </p>
+                    <p className="text-xs text-gray-500">{numberFormatter.format(a.count)} leads</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-4 text-xs text-gray-400">
+              {numberFormatter.format(leadStats.total)} leads recebidos no período
+              {leadStats.unmatched > 0 && (
+                <> · {numberFormatter.format(leadStats.unmatched)} sem anúncio identificado pela UTM</>
+              )}
+              .
+            </p>
           </CardBody>
         </Card>
       </div>

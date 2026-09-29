@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
+import { MetaSyncProvider } from "@/lib/meta-sync-context";
+import { SyncStatusWidgets } from "@/components/ads/SyncStatusWidgets";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,7 +26,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className="h-full antialiased">
       <body className="min-h-full" suppressHydrationWarning>
-        {children}
+        <MetaSyncProvider>
+          {children}
+          <SyncStatusWidgets />
+        </MetaSyncProvider>
         <Toaster position="top-right" richColors />
       </body>
     </html>
