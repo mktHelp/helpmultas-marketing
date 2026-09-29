@@ -7,6 +7,7 @@ import { ExpansionCreativesTable } from "@/components/expansion/ExpansionCreativ
 import { TrafficAdsTable } from "@/components/ads/TrafficAdsTable";
 import { TrafficDashboard } from "@/components/ads/TrafficDashboard";
 import { TrafficLeads } from "@/components/ads/TrafficLeads";
+import { SyncButton } from "@/components/ads/SyncButton";
 
 const SECTIONS = {
   dashboard: {
@@ -46,7 +47,7 @@ export function ExpansionTabs() {
         tabs={Object.entries(SECTIONS).map(([key, value]) => ({ key, label: value.label }))}
       />
 
-      <PageHeader title={current.title} description={current.description} />
+      <PageHeader title={current.title} description={current.description} action={section !== "creatives" ? <SyncButton /> : undefined} />
 
       {section === "creatives" && <ExpansionCreativesTable />}
       {section === "traffic" && <TrafficAdsTable />}

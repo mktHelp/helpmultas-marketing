@@ -513,15 +513,11 @@ export async function GET(request: Request) {
 }
 
 // Disparado pelo botão "Sincronizar agora" no Hub — exige sessão de usuário
-// interno (mesma regra de app/(app)/layout.tsx: contas "expansao" nunca
-// alcançam essa página, mas a rota confere de novo aqui por segurança).
+// autenticado (qualquer role interna, incluindo expansão).
 export async function POST() {
   const { user, profile } = await getCurrentUserAndProfile();
   if (!user) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  }
-  if (profile?.role === "expansao") {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   }
 
   const admin = createAdminClient();
