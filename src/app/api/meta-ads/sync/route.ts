@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { leadsFromActions } from "@/lib/services/meta-ads";
 
 // Sync somente-leitura do Gerenciador de Anúncios da Meta (Marketing API)
 // para as tabelas meta_*. Não é uma rota de sessão de usuário — chamada
@@ -427,9 +428,7 @@ export async function GET(request: Request) {
       for (const row of lifetimeInsights) {
         const creativeId = creativeIdByMetaAdId.get(row.ad_id);
         if (!creativeId) continue;
-        const conversions = (row.actions ?? [])
-          .filter((a) => a.action_type.includes("lead"))
-          .reduce((sum, a) => sum + Number(a.value || 0), 0);
+        const conversions = leadsFromActions(row.actions ?? null);
 
         await admin
           .from("creatives")

@@ -22,11 +22,22 @@ function addMetrics(a: Metrics, b: Metrics): Metrics {
 }
 
 // Mesmo critério usado no sync (app/api/meta-ads/sync) pra alimentar
-// creatives.conversions: soma as actions cujo tipo contém "lead".
-function leadsFromActions(actions: { action_type: string; value: string }[] | null): number {
-  return (actions ?? [])
-    .filter((a) => a.action_type.includes("lead"))
-    .reduce((sum, a) => sum + Number(a.value || 0), 0);
+// creatives.conversions. A Meta manda VÁRIOS action_types pro mesmo lead
+// (ex: "lead", "onsite_conversion.lead_grouped",
+// "offsite_complete_registration_add_meta_leads" — todos com o mesmo valor
+// pro mesmo evento), então somar tudo que contém "lead" multiplica a
+// contagem. Usamos só o tipo "agrupado" que a própria Meta recomenda pra
+// relatório, com "lead" como fallback pra campanhas antigas que só tenham
+// esse.
+const LEAD_ACTION_TYPES = ["onsite_conversion.lead_grouped", "lead"];
+
+export function leadsFromActions(actions: { action_type: string; value: string }[] | null): number {
+  if (!actions) return 0;
+  for (const type of LEAD_ACTION_TYPES) {
+    const match = actions.find((a) => a.action_type === type);
+    if (match) return Number(match.value || 0);
+  }
+  return 0;
 }
 
 interface RawInsightRow {
