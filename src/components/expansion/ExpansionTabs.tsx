@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ExpansionCreativesTable } from "@/components/expansion/ExpansionCreativesTable";
 import { TrafficAdsTable } from "@/components/ads/TrafficAdsTable";
 import { TrafficDashboard } from "@/components/ads/TrafficDashboard";
+import { TrafficLeads } from "@/components/ads/TrafficLeads";
 
 const SECTIONS = {
   dashboard: {
@@ -22,6 +23,11 @@ const SECTIONS = {
     label: "Tráfego Pago",
     title: "Tráfego Pago",
     description: "Campanhas, conjuntos e anúncios sincronizados do Gerenciador de Anúncios da Meta. Somente leitura.",
+  },
+  leads: {
+    label: "Leads",
+    title: "Leads",
+    description: "Leads recebidos da Landing Page com rastreamento de anúncio de origem via UTM.",
   },
 } as const;
 
@@ -45,6 +51,7 @@ export function ExpansionTabs() {
       {section === "creatives" && <ExpansionCreativesTable />}
       {section === "traffic" && <TrafficAdsTable />}
       {section === "dashboard" && <TrafficDashboard />}
+      {section === "leads" && <TrafficLeads />}
     </div>
   );
 }
