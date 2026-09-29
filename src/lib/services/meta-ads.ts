@@ -87,6 +87,35 @@ export interface DateRange {
   until: string; // "YYYY-MM-DD"
 }
 
+// O PostgREST (Supabase) devolve no máximo 1000 linhas por chamada, mesmo
+// sem informar limit — com meses de histórico diário por anúncio, a tabela
+// de insights passa disso rápido. Sem paginar aqui, a consulta trunca
+// silenciosamente e os totais do dashboard ficam menores que o real.
+const INSIGHTS_PAGE_SIZE = 1000;
+
+interface RawInsightsRow {
+  ad_id: string;
+  date: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  actions: { action_type: string; value: string }[] | null;
+}
+
+async function fetchAllInsights(supabase: SupabaseClient): Promise<RawInsightsRow[]> {
+  const rows: RawInsightsRow[] = [];
+  for (let from = 0; ; from += INSIGHTS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("meta_ad_insights")
+      .select("ad_id, date, spend, impressions, clicks, actions")
+      .range(from, from + INSIGHTS_PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...((data ?? []) as RawInsightsRow[]));
+    if (!data || data.length < INSIGHTS_PAGE_SIZE) break;
+  }
+  return rows;
+}
+
 // Busca toda a estrutura (campanha → conjunto → anúncio) e todas as métricas
 // diárias que o sync guardou (ver INSIGHTS_SYNC_DAYS em app/api/meta-ads/sync)
 // de uma vez só, sem filtrar por data — o filtro de período é aplicado depois,
@@ -94,21 +123,20 @@ export interface DateRange {
 // datas não faz uma nova viagem ao banco, só reprocessa o que já está em
 // memória (volume pequeno: dezenas de campanhas, centenas de anúncios).
 export async function loadTrafficStructure(supabase: SupabaseClient): Promise<TrafficStructure> {
-  const [campaignsRes, adSetsRes, adsRes, insightsRes] = await Promise.all([
+  const [campaignsRes, adSetsRes, adsRes, rawInsights] = await Promise.all([
     supabase.from("meta_campaigns").select("*").order("name"),
     supabase.from("meta_ad_sets").select("*, campaign:meta_campaigns(id, name)").order("name"),
     supabase
       .from("meta_ads")
       .select("*, adset:meta_ad_sets(id, name, campaign:meta_campaigns(id, name)), matched_creative:creatives(id, name)")
       .order("name"),
-    supabase.from("meta_ad_insights").select("ad_id, date, spend, impressions, clicks, actions"),
+    fetchAllInsights(supabase),
   ]);
   if (campaignsRes.error) throw campaignsRes.error;
   if (adSetsRes.error) throw adSetsRes.error;
   if (adsRes.error) throw adsRes.error;
-  if (insightsRes.error) throw insightsRes.error;
 
-  const insights = (insightsRes.data ?? []).map((row) => ({
+  const insights = rawInsights.map((row) => ({
     ad_id: row.ad_id,
     date: row.date,
     spend: Number(row.spend),
