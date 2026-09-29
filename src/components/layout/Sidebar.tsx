@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles, Mic, HandCoins,
+  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles, Mic, HandCoins, TrendingUp, Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -25,10 +25,17 @@ const NAV = [
   { href: "/projects", label: "Projetos", icon: FolderKanban },
   { href: "/campaigns", label: "Campanhas", icon: Megaphone },
   { href: "/content", label: "Conteúdos", icon: FileText },
-  { href: "/creatives", label: "Criativos", icon: ImageIcon },
   { href: "/team", label: "Equipe", icon: Users },
   { href: "/birthdays", label: "Aniversários", icon: Cake },
   { href: "/reports", label: "Relatórios", icon: BarChart3 },
+];
+
+// Criativos + Gerenciador de Anúncios da Meta (somente leitura), agrupados
+// à parte porque formam a mesma área de trabalho (Tráfego Pago).
+const TRAFFIC_NAV = [
+  { href: "/trafego-pago/dashboard", label: "Dashboard", icon: Gauge },
+  { href: "/creatives", label: "Criativos", icon: ImageIcon },
+  { href: "/trafego-pago", label: "Tráfego Pago", icon: TrendingUp },
 ];
 
 // Standalone dashboard (outside this shell) shared with the expansion team.
@@ -112,6 +119,30 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
         {NAV_SECONDARY.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                active ? "bg-yellow-500 text-blue-900" : "text-blue-100 hover:bg-white/10"
+              )}
+            >
+              <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+              {item.label}
+            </Link>
+          );
+        })}
+
+        <div className="my-2 border-t border-white/10" />
+
+        <p className="px-3.5 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-blue-200/70">
+          Tráfego Pago
+        </p>
+        {TRAFFIC_NAV.map((item) => {
+          const active = pathname === item.href;
           const Icon = item.icon;
           return (
             <Link

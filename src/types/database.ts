@@ -195,6 +195,87 @@ export interface Creative {
   deliverer?: Pick<Profile, "id" | "full_name" | "avatar_url"> | null;
 }
 
+export interface MetaAdAccount {
+  id: string;
+  meta_account_id: string;
+  name: string;
+  currency: string;
+  timezone_name: string;
+  status: string;
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MetaCampaign {
+  id: string;
+  meta_campaign_id: string;
+  account_id: string;
+  name: string;
+  objective: string;
+  status: string;
+  active_in_meta: boolean;
+  daily_budget: number | null;
+  lifetime_budget: number | null;
+  start_time: string | null;
+  stop_time: string | null;
+  synced_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MetaAdSet {
+  id: string;
+  meta_adset_id: string;
+  campaign_id: string;
+  name: string;
+  status: string;
+  optimization_goal: string;
+  billing_event: string;
+  daily_budget: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  synced_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MetaAd {
+  id: string;
+  meta_ad_id: string;
+  adset_id: string;
+  name: string;
+  status: string;
+  effective_status: string;
+  creative_meta_id: string;
+  preview_link: string;
+  thumbnail_url: string;
+  matched_creative_id: string | null;
+  matched_by: string | null;
+  synced_at: string;
+  created_at: string;
+  updated_at: string;
+  adset?: Pick<MetaAdSet, "id" | "name"> & { campaign?: Pick<MetaCampaign, "id" | "name"> };
+  matched_creative?: Pick<Creative, "id" | "name"> | null;
+  insights?: MetaAdInsight[];
+}
+
+export interface MetaAdInsight {
+  id: string;
+  ad_id: string;
+  date: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  reach: number;
+  frequency: number | null;
+  ctr: number | null;
+  cpc: number | null;
+  cpm: number | null;
+  actions: { action_type: string; value: string }[];
+  synced_at: string;
+}
+
 export interface Tag {
   id: string;
   name: string;
@@ -296,6 +377,7 @@ export interface SocialLinkClick {
   url: string | null;
   referrer: string | null;
   user_agent: string | null;
+  ip: string | null;
   created_at: string;
 }
 
