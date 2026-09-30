@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
+import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { createClient } from "@/lib/supabase/client";
 import {
   defaultDateRange,
@@ -80,26 +81,127 @@ function AdNameCell({ lead }: { lead: LeadRow }) {
   );
 }
 
-function UtmsCell({ lead }: { lead: LeadRow }) {
-  const items: [string, string][] = [
-    ["utm_source", lead.utm_source],
-    ["utm_medium", lead.utm_medium],
-    ["utm_campaign", lead.utm_campaign],
-    ["utm_content", lead.utm_content],
-    ["utm_term", lead.utm_term],
-    ["utm_id", lead.utm_id],
-  ];
-  const filled = items.filter(([, v]) => v);
-  if (filled.length === 0) return <span className="text-gray-400">Sem UTMs</span>;
+const UTM_COLUMNS: { key: "utm_source" | "utm_medium" | "utm_campaign" | "utm_content" | "utm_term" | "utm_id"; width: string }[] = [
+  { key: "utm_source", width: "min-w-28" },
+  { key: "utm_medium", width: "min-w-28" },
+  { key: "utm_campaign", width: "min-w-44" },
+  { key: "utm_content", width: "min-w-44" },
+  { key: "utm_term", width: "min-w-44" },
+  { key: "utm_id", width: "min-w-44" },
+];
+
+function DetailField({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
   return (
-    <dl className="space-y-0.5 text-xs">
-      {filled.map(([key, value]) => (
-        <div key={key} className="flex gap-1.5">
-          <dt className="shrink-0 font-semibold text-gray-500">{key}</dt>
-          <dd className="break-all font-mono text-blue-900" title={value}>{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="min-w-0">
+      <p className="text-[11px] font-bold uppercase text-gray-500">{label}</p>
+      <p className={cn("break-all text-sm text-blue-900", mono && "font-mono text-xs")}>
+        {value ? value : <span className="text-gray-300">—</span>}
+      </p>
+    </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h3 className="mb-2 border-b border-gray-100 pb-1 text-xs font-bold uppercase tracking-wide text-gray-400">{title}</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
+
+interface LeadPreviewState {
+  url: string | null;
+  loading: boolean;
+  error: string | null;
+}
+
+function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => void }) {
+  const [preview, setPreview] = useState<LeadPreviewState>({ url: null, loading: false, error: null });
+
+  const ad = one(lead?.matched_ad);
+  const adset = one(ad?.adset) ?? one(lead?.matched_adset);
+  const campaign = one(one(ad?.adset)?.campaign) ?? one(lead?.matched_campaign);
+  const metaAdId = ad?.meta_ad_id;
+
+  useEffect(() => {
+    if (!metaAdId) {
+      setPreview({ url: null, loading: false, error: null });
+      return;
+    }
+    let cancelled = false;
+    setPreview({ url: null, loading: true, error: null });
+    fetch(`/api/meta-ads/preview?metaAdId=${encodeURIComponent(metaAdId)}`)
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Erro ao gerar preview");
+        if (!cancelled) setPreview({ url: json.previewUrl, loading: false, error: null });
+      })
+      .catch((err) => {
+        if (!cancelled) setPreview({ url: null, loading: false, error: err instanceof Error ? err.message : "Erro desconhecido" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [metaAdId]);
+
+  return (
+    <Dialog open={!!lead} onClose={onClose} size="xl">
+      <DialogHeader title={lead?.name || "Lead"} subtitle={lead ? `Recebido em ${formatDateTime(lead.received_at)}` : undefined} onClose={onClose} />
+      <DialogBody>
+        {lead && (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto]">
+            <div className="space-y-5">
+              <DetailSection title="Contato">
+                <DetailField label="Nome" value={lead.name} />
+                <DetailField label="E-mail" value={lead.email} />
+                <DetailField label="Telefone" value={lead.phone} />
+                <DetailField label="Cidade / UF" value={lead.city && lead.state ? `${lead.city}/${lead.state}` : lead.city || lead.state} />
+                <DetailField label="Capital para investir" value={lead.capital_label} />
+                <DetailField label="Valor (capital)" value={lead.capital} />
+              </DetailSection>
+
+              <DetailSection title="Origem do anúncio">
+                <DetailField label="Campanha" value={campaign?.name} />
+                <DetailField label="Conjunto" value={adset?.name} />
+                <DetailField label="Anúncio" value={ad?.name} />
+                <DetailField label="Como foi vinculado" value={lead.matched_by ? MATCHED_BY_LABEL[lead.matched_by] ?? lead.matched_by : "Sem vínculo"} />
+              </DetailSection>
+
+              <DetailSection title="UTMs (como vieram na URL)">
+                {UTM_COLUMNS.map((c) => (
+                  <DetailField key={c.key} label={c.key} value={lead[c.key]} mono />
+                ))}
+              </DetailSection>
+
+              <DetailSection title="Rastreamento Meta">
+                <DetailField label="fbclid" value={lead.fbclid} mono />
+                <DetailField label="fbc" value={lead.fbc} mono />
+                <DetailField label="fbp" value={lead.fbp} mono />
+              </DetailSection>
+            </div>
+
+            <div className="lg:w-[340px]">
+              <h3 className="mb-2 border-b border-gray-100 pb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Preview do anúncio</h3>
+              {!metaAdId && (
+                <p className="rounded-xl bg-gray-050 px-4 py-10 text-center text-sm text-gray-400">
+                  Este lead não está vinculado a um anúncio específico, então não há preview.
+                </p>
+              )}
+              {preview.loading && <p className="py-10 text-center text-sm text-gray-500">Carregando preview...</p>}
+              {preview.error && <p className="py-10 text-center text-sm text-[color:var(--color-danger)]">{preview.error}</p>}
+              {preview.url && (
+                <iframe
+                  src={preview.url}
+                  className="h-[600px] w-full rounded-xl border border-gray-200"
+                  title={`Preview — ${ad?.name ?? "anúncio"}`}
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </DialogBody>
+    </Dialog>
   );
 }
 
@@ -208,6 +310,7 @@ export function TrafficLeads() {
   const [rankingLoading, setRankingLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
   const [ads, setAds] = useState<{ id: string; name: string }[]>([]);
+  const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
 
   const matched = useMemo(() => rows.filter((r) => r.matched_ad_id).length, [rows]);
 
@@ -365,20 +468,28 @@ export function TrafficLeads() {
           </div>
 
           <div className="max-h-[65vh] overflow-auto rounded-2xl border border-gray-200 bg-white">
-            <table className="w-full min-w-[1000px] border-collapse text-sm">
+            <table className="w-full min-w-[2000px] border-collapse text-sm">
               <thead>
                 <tr className="text-left text-xs font-bold uppercase text-gray-500">
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-40">Nome</th>
-                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-44">Contato</th>
-                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] w-28">Cidade/UF</th>
-                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-64">Anúncio vinculado</th>
-                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-64">UTMs (como vieram na URL)</th>
-                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] w-36">Recebido em</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-52">Contato</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-36">Cidade/UF</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-72">Anúncio vinculado</th>
+                  {UTM_COLUMNS.map((c) => (
+                    <th key={c.key} className={cn("sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] normal-case", c.width)}>
+                      {c.key}
+                    </th>
+                  ))}
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-36">Recebido em</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((lead) => (
-                  <tr key={lead.id} className="border-b border-gray-100 last:border-0">
+                  <tr
+                    key={lead.id}
+                    onClick={() => setSelectedLead(lead)}
+                    className="cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-050"
+                  >
                     <td className="px-4 py-3 font-semibold text-blue-900">{lead.name || "—"}</td>
                     <td className="px-4 py-3">
                       <div className="text-sm">{lead.email}</div>
@@ -390,15 +501,21 @@ export function TrafficLeads() {
                     <td className="px-4 py-3">
                       <AdNameCell lead={lead} />
                     </td>
-                    <td className="px-4 py-3">
-                      <UtmsCell lead={lead} />
-                    </td>
+                    {UTM_COLUMNS.map((c) => (
+                      <td key={c.key} className="px-4 py-3 align-top">
+                        {lead[c.key] ? (
+                          <span className="break-all font-mono text-xs text-blue-900">{lead[c.key]}</span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                    ))}
                     <td className="px-4 py-3 text-xs text-gray-500">{formatDateTime(lead.received_at)}</td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={5 + UTM_COLUMNS.length} className="px-4 py-10 text-center text-sm text-gray-400">
                       {loading ? "Carregando..." : "Nenhum lead encontrado no período."}
                     </td>
                   </tr>
@@ -432,6 +549,8 @@ export function TrafficLeads() {
           )}
         </CardBody>
       </Card>
+
+      <LeadDialog lead={selectedLead} onClose={() => setSelectedLead(null)} />
     </div>
   );
 }
