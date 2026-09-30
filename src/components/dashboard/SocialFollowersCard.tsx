@@ -19,15 +19,38 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+interface ProfileInfo {
+  username?: string;
+  name?: string;
+  profile_picture_url?: string;
+}
+
+// Foto do perfil do Instagram (a URL expira; sem foto ou com erro, mostra as iniciais).
+function AccountAvatar({ url, label }: { url?: string; label: string }) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-900 text-sm font-bold text-white ring-2 ring-yellow-500">
+      {url && !broken ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={label} referrerPolicy="no-referrer" onError={() => setBroken(true)} className="h-full w-full object-cover" />
+      ) : (
+        label.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()
+      )}
+    </div>
+  );
+}
+
 export function SocialFollowersCard({
   accounts,
   snapshots,
   linkClicks,
+  profiles = {},
   canManage,
 }: {
   accounts: SocialAccount[];
   snapshots: SocialFollowerSnapshot[];
   linkClicks: SocialLinkClick[];
+  profiles?: Record<string, ProfileInfo>;
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -85,9 +108,15 @@ export function SocialFollowersCard({
               )}
             >
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <AtSign className="h-4 w-4 text-gray-400" />
-                  <p className="text-sm font-semibold text-blue-900">{account.label}</p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <AccountAvatar url={profiles[account.id]?.profile_picture_url} label={account.label} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-blue-900">{account.label}</p>
+                    <p className="flex items-center gap-1 text-xs text-gray-500">
+                      <AtSign className="h-3 w-3" />
+                      {profiles[account.id]?.username ?? account.ig_username ?? "—"}
+                    </p>
+                  </div>
                 </div>
                 {canManage && editingId !== account.id && (
                   <button
@@ -141,18 +170,22 @@ export function SocialFollowersCard({
                         </span>
                       )}
                     </div>
-                    {account.link_slug && (
-                      <div
-                        className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#25d366] px-2.5 py-1"
-                        title={`${clicksByAccount.get(account.id)?.total ?? 0} cliques nos últimos dias`}
-                      >
-                        <MousePointerClick className="h-3.5 w-3.5 text-white" />
-                        <span className="text-sm font-bold text-white">{clicksByAccount.get(account.id)?.today ?? 0}</span>
-                        <span className="text-[10px] font-semibold text-white/80">hoje</span>
-                      </div>
-                    )}
                   </div>
-                  <p className="mt-1 text-[11px] text-gray-400">
+                  {account.link_slug && (
+                    <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-white/70 px-2.5 py-2" title="Cliques no link da bio rastreados pela landing page">
+                      <MousePointerClick className="h-4 w-4 shrink-0 text-[#25d366]" />
+                      <span className="text-xs font-semibold text-gray-600">Cliques na LP</span>
+                      <span className="ml-auto flex items-center gap-1.5 text-xs">
+                        <span className="rounded-full bg-[#25d366] px-2 py-0.5 font-bold text-white">
+                          {clicksByAccount.get(account.id)?.today ?? 0} hoje
+                        </span>
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 font-bold text-blue-900">
+                          {clicksByAccount.get(account.id)?.total ?? 0} em 30 dias
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                  <p className="mt-1.5 text-[11px] text-gray-400">
                     Atualizado às {formatTime(latest.captured_at)}
                     {latest.source !== "manual" && " · automático"}
                   </p>

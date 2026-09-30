@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
+import {
+  GRAPH_BASE, getAccountToken, graph, recordFollowerSnapshot, type Admin,
+} from "@/lib/instagram-api";
 
 // Sync somente-leitura do Instagram para as tabelas instagram_*. Dois
 // gatilhos, mesmo padrão de api/meta-ads/sync:
@@ -23,22 +26,12 @@ import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const GRAPH_BASE = "https://graph.instagram.com/v21.0";
-const REFRESH_URL = "https://graph.instagram.com/refresh_access_token";
-const REFRESH_WHEN_DAYS_LEFT = 15;
 const CONCURRENCY = 8;
 const BRT_OFFSET_SECONDS = 3 * 3600;
-
-type Admin = ReturnType<typeof createAdminClient>;
 
 interface Account {
   id: string;
   label: string;
-}
-
-interface TokenRow {
-  access_token: string;
-  expires_at: string;
 }
 
 interface BreakdownResult {
@@ -57,50 +50,19 @@ interface InsightMetric {
 
 type Insights = { data: InsightMetric[] };
 
-class GraphApiError extends Error {}
-
-async function graph<T>(token: string, path: string, params: Record<string, string> = {}): Promise<T> {
-  const qs = new URLSearchParams({ ...params, access_token: token });
-  const res = await fetch(`${GRAPH_BASE}/${path}?${qs}`, { cache: "no-store" });
-  const json = await res.json();
-  if (!res.ok || json.error) {
-    throw new GraphApiError(json.error?.message || `Graph API ${res.status}`);
-  }
-  return json as T;
-}
-
-// Renova o token se estiver perto de expirar; devolve o token em uso.
-async function ensureFreshToken(admin: Admin, accountId: string, row: TokenRow): Promise<string> {
-  const daysLeft = (Date.parse(row.expires_at) - Date.now()) / 86400000;
-  if (daysLeft > REFRESH_WHEN_DAYS_LEFT) return row.access_token;
-  if (daysLeft <= 0) throw new GraphApiError("Token expirado — gere um novo e rode npm run ig-token");
-
-  const qs = new URLSearchParams({ grant_type: "ig_refresh_token", access_token: row.access_token });
-  const res = await fetch(`${REFRESH_URL}?${qs}`, { cache: "no-store" });
-  const json = await res.json();
-  if (!res.ok || !json.access_token) return row.access_token; // tenta com o atual
-  await admin
-    .from("instagram_tokens")
-    .update({
-      access_token: json.access_token,
-      expires_at: new Date(Date.now() + (json.expires_in ?? 5184000) * 1000).toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("account_id", accountId);
-  return json.access_token;
-}
-
 function dayRange(date: string): { since: string; until: string } {
   const start = Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000) + BRT_OFFSET_SECONDS;
-  return { since: String(start), until: String(start + 86400) };
+  // Hoje ainda não terminou: a janela vai só até agora (dado parcial).
+  const until = Math.min(start + 86400, Math.floor(Date.now() / 1000));
+  return { since: String(start), until: String(until) };
 }
 
-// Datas fechadas (YYYY-MM-DD, horário de SP), da mais antiga a ontem — o dia
-// corrente ainda está incompleto.
+// `days` dias fechados (YYYY-MM-DD, horário de SP) mais o dia corrente, que
+// entra parcial — é o que permite o filtro "Hoje" da aba Instagram.
 function lastDates(days: number): string[] {
   const out: string[] = [];
   const now = new Date(Date.now() - BRT_OFFSET_SECONDS * 1000);
-  for (let i = days; i >= 1; i--) {
+  for (let i = days; i >= 0; i--) {
     const d = new Date(now);
     d.setUTCDate(d.getUTCDate() - i);
     out.push(d.toISOString().slice(0, 10));
@@ -336,6 +298,9 @@ async function syncAudience(admin: Admin, token: string, accountId: string) {
     fields: "username,name,biography,followers_count,follows_count,media_count,profile_picture_url,website",
   });
   rows.push({ account_id: accountId, kind: "profile", data: profile, synced_at: now });
+  if (typeof profile.followers_count === "number") {
+    await recordFollowerSnapshot(admin, accountId, profile.followers_count, (profile.media_count as number) ?? null);
+  }
 
   // A Meta só libera público com 100+ seguidores; o que falhar é ignorado.
   for (const kind of ["age", "gender", "city", "country"]) {
@@ -375,14 +340,9 @@ type Progress = (message: string) => Promise<void>;
 
 async function syncAccount(admin: Admin, account: Account, days: number, progress: Progress): Promise<AccountResult> {
   try {
-    const { data: tokenRow } = await admin
-      .from("instagram_tokens")
-      .select("access_token, expires_at")
-      .eq("account_id", account.id)
-      .maybeSingle();
-    if (!tokenRow) return { account: account.label, ok: false, error: "Sem token cadastrado — rode npm run ig-token" };
     await progress(`${account.label}: conectando com o Instagram...`);
-    const token = await ensureFreshToken(admin, account.id, tokenRow as TokenRow);
+    const token = await getAccountToken(admin, account.id);
+    if (!token) return { account: account.label, ok: false, error: "Sem token cadastrado — rode npm run ig-token" };
 
     const warnings: string[] = [];
     const soft = async <T,>(label: string, fn: () => Promise<T>) => {

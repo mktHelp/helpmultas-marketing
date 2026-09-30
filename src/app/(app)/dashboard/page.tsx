@@ -1,55 +1,73 @@
-import { ListTodo, CheckCircle2, AlertTriangle, CalendarClock, Video, Percent } from "lucide-react";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { refreshFollowerSnapshotsIfStale } from "@/lib/instagram-api";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 import { listTasks } from "@/lib/services/tasks";
 import { listAreas, listTaskStatuses } from "@/lib/services/reference";
 import { listProfiles } from "@/lib/services/profiles";
-import { computeKpis, byArea, byStatus, productivityByDay, teamRanking, bottlenecks, timeByContentType } from "@/lib/stats";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { ChartCard } from "@/components/dashboard/ChartCard";
-import { AreaDonutChart, StatusBarChart, ProductivityLineChart } from "@/components/dashboard/DashboardCharts";
-import { TeamRanking } from "@/components/dashboard/TeamRanking";
+import { timeByContentType, socialFollowerDeltas } from "@/lib/stats";
 import { GoalsPanel } from "@/components/dashboard/GoalsPanel";
 import { TimeManagementCard } from "@/components/dashboard/TimeManagementCard";
 import { SocialFollowersCard } from "@/components/dashboard/SocialFollowersCard";
+import { HomeDashboard } from "@/components/dashboard/HomeDashboard";
 import { listGoals } from "@/lib/services/goals";
 import { listSocialAccounts, listRecentFollowerSnapshots, listRecentLinkClicks } from "@/lib/services/social";
+import { listInstagramAudience, listInstagramInsights } from "@/lib/services/instagram";
+import { loadTrafficDaily } from "@/lib/services/meta-ads";
 import { TaskListItem } from "@/components/tasks/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Card } from "@/components/ui/Card";
 import { RealtimeRefresher } from "@/components/shared/RealtimeRefresher";
-import { TodayAnniversaries } from "@/components/shared/TodayAnniversaries";
-
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Bom dia";
-  if (h < 18) return "Boa tarde";
-  return "Boa noite";
-}
+import { toDateKey } from "@/lib/utils";
+import type { SlimTask } from "@/lib/home-analytics";
 
 export default async function DashboardPage() {
+  // Mantém o card de seguidores fresco direto da API do Instagram (antes era
+  // o n8n): roda depois da resposta e só se o último registro tiver >15 min.
+  after(() => refreshFollowerSnapshotsIfStale());
+
   const supabase = await createClient();
   const { profile } = await getCurrentUserAndProfile();
 
-  const [tasks, areas, profiles, statuses, goals, socialAccounts, socialSnapshots, socialLinkClicks] = await Promise.all([
-    listTasks(supabase, {}),
-    listAreas(supabase),
-    listProfiles(supabase),
-    listTaskStatuses(supabase),
-    listGoals(supabase),
-    listSocialAccounts(supabase),
-    listRecentFollowerSnapshots(supabase),
-    listRecentLinkClicks(supabase),
-  ]);
+  const [tasks, areas, profiles, statuses, goals, socialAccounts, socialSnapshots, socialLinkClicks, instagramAudience, instagramInsights, traffic] =
+    await Promise.all([
+      listTasks(supabase, { light: true }),
+      listAreas(supabase),
+      listProfiles(supabase),
+      listTaskStatuses(supabase),
+      listGoals(supabase),
+      listSocialAccounts(supabase),
+      listRecentFollowerSnapshots(supabase),
+      listRecentLinkClicks(supabase, 30),
+      listInstagramAudience(supabase).catch(() => []),
+      listInstagramInsights(supabase).catch(() => []),
+      loadTrafficDaily(supabase).catch(() => []),
+    ]);
 
-  const kpis = computeKpis(tasks, statuses);
-  const areaData = byArea(tasks, areas);
-  const statusData = byStatus(tasks, statuses);
-  const productivity = productivityByDay(tasks, 14);
-  const ranking = teamRanking(tasks, profiles, statuses);
-  const problems = bottlenecks(tasks, statuses);
-  const timeRows = timeByContentType(tasks);
   const canManageGoals = profile?.role === "master" || profile?.role === "gestor";
+  const timeRows = timeByContentType(tasks);
+
+  // Só o que a dashboard usa, com as datas já no dia de São Paulo — o cliente
+  // só compara strings e não precisa receber briefing/legenda/checklists.
+  const slimTasks: SlimTask[] = tasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    areaId: t.area_id,
+    contentType: t.content_type,
+    createdDay: toDateKey(t.created_at),
+    completedDay: t.completed_at ? toDateKey(t.completed_at) : null,
+    dueDay: t.due_date ? toDateKey(t.due_date) : null,
+    dueAt: t.due_date,
+    publishDay: t.publish_at ? toDateKey(t.publish_at) : null,
+    updatedAt: Date.parse(t.updated_at),
+    assigneeIds: (t.assignees || []).map((a) => a.id),
+  }));
+
+  const igAccounts = socialAccounts.filter((a) => a.platform === "instagram");
+  const followerRows = socialFollowerDeltas(igAccounts, socialSnapshots);
+  const latest = followerRows.map((r) => r.latest).filter(Boolean);
+  const deltas = followerRows.map((r) => r.delta).filter((d): d is number => d !== null);
 
   const doneOrCancelled = new Set(statuses.filter((s) => s.is_done || s.is_cancelled).map((s) => s.key));
   const priorityTasks = tasks
@@ -61,106 +79,58 @@ export default async function DashboardPage() {
     .slice(0, 6);
 
   return (
-    <div className="space-y-6">
+    <>
       <RealtimeRefresher tables={["tasks", "task_assignees"]} />
-      <div>
-        <h1 className="font-display text-2xl font-bold text-blue-900">
-          {greeting()}, {profile?.full_name?.split(" ")[0] || "time"} 👋
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">Veja o que está acontecendo no Marketing hoje.</p>
-      </div>
-
-      <TodayAnniversaries />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <GoalsPanel
-          goals={goals}
-          tasks={tasks}
-          statuses={statuses}
-          areas={areas}
-          profiles={profiles}
-          canManage={canManageGoals}
-        />
-        <TimeManagementCard rows={timeRows} />
-        <SocialFollowersCard
-          accounts={socialAccounts}
-          snapshots={socialSnapshots}
-          linkClicks={socialLinkClicks}
-          canManage={canManageGoals}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        <StatCard icon={ListTodo} label="Tarefas abertas" value={kpis.open} tone="neutral" />
-        <StatCard icon={CheckCircle2} label="Concluídas" value={kpis.completed} tone="success" />
-        <StatCard icon={AlertTriangle} label="Em atraso" value={kpis.overdue} tone="danger" />
-        <StatCard icon={CalendarClock} label="Para hoje" value={kpis.dueToday} tone="accent" />
-        <StatCard icon={Video} label="Em produção" value={kpis.inProduction} tone="neutral" />
-        <StatCard icon={Percent} label="Taxa de conclusão" value={`${kpis.completionRate}%`} tone="success" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ChartCard title="Distribuição por área" className="lg:col-span-1">
-          <AreaDonutChart data={areaData} />
-          <div className="mt-2 space-y-1.5">
-            {areaData.slice(0, 5).map((a) => (
-              <div key={a.name} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2 text-gray-700">
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: a.color }} />
-                  {a.name}
-                </span>
-                <span className="font-semibold text-blue-900">{a.count} ({a.percent}%)</span>
-              </div>
-            ))}
-          </div>
-        </ChartCard>
-
-        <ChartCard title="Tarefas por status" className="lg:col-span-1">
-          <StatusBarChart data={statusData} />
-        </ChartCard>
-
-        <ChartCard title="Produtividade (14 dias)" className="lg:col-span-1">
-          <ProductivityLineChart data={productivity} />
-        </ChartCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ChartCard title="Tarefas prioritárias" className="lg:col-span-2">
-          {priorityTasks.length === 0 ? (
-            <EmptyState title="Você está em dia!" description="Nenhuma tarefa prioritária pendente." />
-          ) : (
-            <div className="space-y-2">
-              {priorityTasks.map((t) => <TaskListItem key={t.id} task={t} />)}
+      <HomeDashboard
+        firstName={profile?.full_name?.split(" ")[0] || ""}
+        tasks={slimTasks}
+        statuses={statuses.map((s) => ({ key: s.key, label: s.label, color: s.color, is_done: s.is_done, is_cancelled: s.is_cancelled }))}
+        areas={areas.map((a) => ({ id: a.id, name: a.name, color: a.color }))}
+        people={profiles.filter((p) => p.is_active !== false).map((p) => ({ id: p.id, name: p.full_name, avatarUrl: p.avatar_url }))}
+        instagram={{
+          insights: instagramInsights.map((r) => ({
+            account_id: r.account_id,
+            date: r.date,
+            views: r.views,
+            reach: r.reach,
+            total_interactions: r.total_interactions,
+            net_followers: r.net_followers,
+          })),
+          accounts: igAccounts.map((a) => ({ id: a.id, label: a.label })),
+          followersNow: latest.length ? latest.reduce((s, l) => s + (l?.followers_count ?? 0), 0) : null,
+          followersDelta: deltas.length ? deltas.reduce((s, d) => s + d, 0) : null,
+        }}
+        traffic={traffic}
+        slots={{
+          panels: (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <GoalsPanel goals={goals} tasks={tasks} statuses={statuses} areas={areas} profiles={profiles} canManage={canManageGoals} />
+              <TimeManagementCard rows={timeRows} />
+              <SocialFollowersCard
+                accounts={socialAccounts}
+                snapshots={socialSnapshots}
+                linkClicks={socialLinkClicks}
+                profiles={Object.fromEntries(
+                  instagramAudience
+                    .filter((a) => a.kind === "profile")
+                    .map((a) => [a.account_id, a.data as { username?: string; name?: string; profile_picture_url?: string }])
+                )}
+                canManage={canManageGoals}
+              />
             </div>
-          )}
-        </ChartCard>
-
-        <Card className="p-5">
-          <h3 className="font-display text-[17px] font-semibold text-blue-900">Gargalos</h3>
-          <div className="mt-3 space-y-2.5 text-sm">
-            <BottleneckRow label="Atrasadas" count={problems.overdue.length} />
-            <BottleneckRow label="Sem responsável" count={problems.unassigned.length} />
-            <BottleneckRow label="Paradas há +5 dias" count={problems.stuck.length} />
-            <BottleneckRow label="Aguardando aprovação" count={problems.awaitingApproval.length} />
-            <BottleneckRow label="Vencendo em 48h" count={problems.dueSoon.length} />
-          </div>
-        </Card>
-      </div>
-
-      <ChartCard title="Ranking da equipe">
-        <TeamRanking ranking={ranking} />
-      </ChartCard>
-    </div>
-  );
-}
-
-function BottleneckRow({ label, count }: { label: string; count: number }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-gray-100/60 px-3 py-2">
-      <span className="text-gray-700">{label}</span>
-      <span className={count > 0 ? "font-bold text-[color:var(--color-danger)]" : "font-bold text-gray-400"}>
-        {count}
-      </span>
-    </div>
+          ),
+          priority:
+            priorityTasks.length === 0 ? (
+              <EmptyState title="Você está em dia!" description="Nenhuma tarefa prioritária pendente." />
+            ) : (
+              <div className="space-y-2">
+                {priorityTasks.map((t) => (
+                  <TaskListItem key={t.id} task={t} />
+                ))}
+              </div>
+            ),
+        }}
+      />
+    </>
   );
 }

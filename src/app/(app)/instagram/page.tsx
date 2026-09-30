@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { refreshFollowerSnapshotsIfStale } from "@/lib/instagram-api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { InstagramInsights } from "@/components/instagram/InstagramInsights";
 import { InstagramSyncButton } from "@/components/instagram/InstagramSyncButton";
@@ -6,6 +8,7 @@ import { listSocialAccounts, listRecentFollowerSnapshots, listRecentLinkClicks }
 import { listInstagramAudience, listInstagramInsights, listInstagramMedia } from "@/lib/services/instagram";
 
 export default async function InstagramPage() {
+  after(() => refreshFollowerSnapshotsIfStale());
   const supabase = await createClient();
   const [accounts, insights, media, audience, snapshots, linkClicks] = await Promise.all([
     listSocialAccounts(supabase),

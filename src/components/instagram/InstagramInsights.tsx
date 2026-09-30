@@ -1,33 +1,54 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AtSign, ExternalLink } from "lucide-react";
+import { AtSign, ExternalLink, FileDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Tabs } from "@/components/ui/Tabs";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { OverviewTab } from "@/components/instagram/OverviewTab";
 import { ContentTab } from "@/components/instagram/ContentTab";
 import { AudienceTab } from "@/components/instagram/AudienceTab";
-import { fmt, signed } from "@/components/instagram/parts";
-import { sliceByPeriod, sumInsights } from "@/lib/services/instagram";
+import { fmt, signed } from "@/components/shared/dash-parts";
+import {
+  PERIOD_OPTIONS, mediaInRange, periodLabel, rangeForPreset, shiftDate, sliceByRange, sumInsights, todayBRT,
+  type DateRange, type PeriodKey,
+} from "@/lib/services/instagram";
 import { socialFollowerDeltas, socialLinkClickCounts } from "@/lib/stats";
 import type {
   InstagramAudienceRow, InstagramDailyInsight, InstagramMedia, InstagramProfileInfo, SocialAccount,
   SocialFollowerSnapshot, SocialLinkClick,
 } from "@/types/database";
 
-const PERIODS = [
-  { key: "7", label: "7 dias" },
-  { key: "14", label: "14 dias" },
-  { key: "30", label: "30 dias" },
-  { key: "60", label: "60 dias" },
-];
-
 const SECTIONS = [
   { key: "overview", label: "Visão geral" },
   { key: "content", label: "Conteúdo" },
   { key: "audience", label: "Público" },
 ];
+
+function DateField({
+  label, value, min, max, onChange,
+}: {
+  label: string;
+  value: string;
+  min?: string;
+  max?: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 font-semibold text-gray-700">
+      {label}
+      <input
+        type="date"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(e) => e.target.value && onChange(e.target.value)}
+        className="h-9 rounded-[14px] border border-gray-200 bg-white px-3 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+      />
+    </label>
+  );
+}
 
 function initials(name: string) {
   return name.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -49,27 +70,22 @@ export function InstagramInsights({
   linkClicks: SocialLinkClick[];
 }) {
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
-  const [period, setPeriod] = useState("30");
+  const [period, setPeriod] = useState<PeriodKey>("30");
+  const today = useMemo(() => todayBRT(), []);
+  const [custom, setCustom] = useState<DateRange>(() => ({ from: shiftDate(todayBRT(), -7), to: shiftDate(todayBRT(), -1) }));
   const [section, setSection] = useState("overview");
-  const days = Number(period);
+  const range = useMemo(() => rangeForPreset(period, custom, today), [period, custom, today]);
+  const label = periodLabel(period, range);
 
   const account = accounts.find((a) => a.id === accountId);
   const accountInsights = useMemo(() => insights.filter((i) => i.account_id === accountId), [insights, accountId]);
   const accountMedia = useMemo(() => media.filter((m) => m.account_id === accountId), [media, accountId]);
   const accountAudience = useMemo(() => audience.filter((a) => a.account_id === accountId), [audience, accountId]);
 
-  const slices = useMemo(() => sliceByPeriod(accountInsights, days), [accountInsights, days]);
-  const periodMedia = useMemo(
-    () => (slices.since ? accountMedia.filter((m) => m.post_date >= slices.since) : []),
-    [accountMedia, slices.since]
-  );
-  const prevMedia = useMemo(() => {
-    if (!slices.since) return [];
-    const prevSince = new Date(`${slices.since}T12:00:00Z`);
-    prevSince.setUTCDate(prevSince.getUTCDate() - days);
-    const prevKey = prevSince.toISOString().slice(0, 10);
-    return accountMedia.filter((m) => m.post_date >= prevKey && m.post_date < slices.since);
-  }, [accountMedia, slices.since, days]);
+  const slices = useMemo(() => sliceByRange(accountInsights, range), [accountInsights, range]);
+  const periodMedia = useMemo(() => mediaInRange(accountMedia, range), [accountMedia, range]);
+  const prevMedia = useMemo(() => mediaInRange(accountMedia, slices.prevRange), [accountMedia, slices.prevRange]);
+  const earliest = accountInsights[0]?.date ?? "";
 
   const followerRow = useMemo(
     () => socialFollowerDeltas(accounts, snapshots).find((r) => r.account.id === accountId) ?? null,
@@ -91,13 +107,13 @@ export function InstagramInsights({
   const comparison = useMemo(
     () =>
       accounts.map((a) => {
-        const s = sliceByPeriod(insights.filter((i) => i.account_id === a.id), days);
+        const s = sliceByRange(insights.filter((i) => i.account_id === a.id), range);
         const t = sumInsights(s.current);
-        const pubs = media.filter((m) => m.account_id === a.id && m.post_date >= s.since && m.product_type !== "STORY").length;
+        const pubs = mediaInRange(media.filter((m) => m.account_id === a.id && m.product_type !== "STORY"), range).length;
         const info = (audience.find((r) => r.account_id === a.id && r.kind === "profile")?.data ?? {}) as InstagramProfileInfo;
         return { account: a, t, pubs, followers: info.followers_count ?? null, has: s.current.length > 0 };
       }),
-    [accounts, insights, media, audience, days]
+    [accounts, insights, media, audience, range]
   );
 
   if (accounts.length === 0) {
@@ -153,10 +169,59 @@ export function InstagramInsights({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs tabs={accounts.map((a) => ({ key: a.id, label: a.label }))} active={accountId} onChange={setAccountId} />
         <div className="flex flex-wrap items-center gap-3">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              window.open(
+                `/relatorio/instagram?account=${accountId}&period=${period}&from=${range.from}&to=${range.to}&print=1`,
+                "_blank"
+              )
+            }
+            disabled={!hasData}
+          >
+            <FileDown className="h-4 w-4" />
+            Exportar PDF
+          </Button>
           <Tabs tabs={SECTIONS} active={section} onChange={setSection} />
-          {section !== "audience" && <Tabs tabs={PERIODS} active={period} onChange={setPeriod} />}
+          {section !== "audience" && (
+            <div className="max-w-full overflow-x-auto">
+              <Tabs tabs={PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as PeriodKey)} />
+            </div>
+          )}
         </div>
       </div>
+
+      {section !== "audience" && (
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+          {period === "custom" && (
+            <div className="flex items-center gap-2">
+              <DateField
+                label="De"
+                value={custom.from}
+                min={earliest || undefined}
+                max={today}
+                onChange={(v) => setCustom((c) => ({ ...c, from: v }))}
+              />
+              <DateField
+                label="Até"
+                value={custom.to}
+                min={earliest || undefined}
+                max={today}
+                onChange={(v) => setCustom((c) => ({ ...c, to: v }))}
+              />
+            </div>
+          )}
+          <span className="font-semibold text-blue-900">
+            {label}
+            {period !== "custom" && range.from !== range.to ? ` · ${range.from.slice(8)}/${range.from.slice(5, 7)} a ${range.to.slice(8)}/${range.to.slice(5, 7)}` : ""}
+          </span>
+          {range.to === today && <span>· o dia de hoje é parcial (atualiza a cada sincronização)</span>}
+          {earliest && range.from < earliest && (
+            <span>· dados disponíveis a partir de {earliest.slice(8)}/{earliest.slice(5, 7)}/{earliest.slice(0, 4)}</span>
+          )}
+        </div>
+      )}
 
       {!hasData && section !== "audience" ? (
         <EmptyState
@@ -167,7 +232,7 @@ export function InstagramInsights({
         <>
           {section === "overview" && (
             <OverviewTab
-              days={days}
+              periodLabel={label}
               rows={slices.current}
               prevRows={slices.previous}
               hasPrevious={slices.hasPrevious}
@@ -188,7 +253,7 @@ export function InstagramInsights({
       {section === "overview" && comparison.length > 1 && (
         <Card className="overflow-x-auto p-5">
           <h3 className="font-display text-[17px] font-semibold text-blue-900">Comparativo dos perfis</h3>
-          <p className="mt-0.5 text-xs text-gray-500">Últimos {days} dias</p>
+          <p className="mt-0.5 text-xs text-gray-500">{label}</p>
           <table className="mt-3 w-full min-w-[560px] text-sm">
             <thead>
               <tr className="text-left text-xs font-semibold text-gray-500">

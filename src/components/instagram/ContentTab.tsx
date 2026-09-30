@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import {
   Chip, ChartTooltip, GRID_COLOR, Kpi, Panel, RTooltip, TICK_STYLE, compact, fmt, shortDate,
-} from "@/components/instagram/parts";
+} from "@/components/shared/dash-parts";
 import {
   CATEGORY_COLOR, CATEGORY_LABEL, CATEGORY_ORDER, categoryFromMedia, engagementRate, type ContentCategory,
 } from "@/lib/services/instagram";
@@ -203,7 +203,7 @@ export function ContentTab({ media }: { media: InstagramMedia[] }) {
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
                 <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
                 <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-                <Bar dataKey="views" name="Views por publicação" radius={[6, 6, 0, 0]}>
+                <Bar isAnimationActive={false} dataKey="views" name="Views por publicação" radius={[6, 6, 0, 0]}>
                   {byCategory.map((c) => <Cell key={c.label} fill={c.color} />)}
                 </Bar>
               </BarChart>
@@ -216,7 +216,7 @@ export function ContentTab({ media }: { media: InstagramMedia[] }) {
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
                 <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} unit="%" />
                 <RTooltip content={<ChartTooltip format={(n) => `${n.toFixed(2).replace(".", ",")}%`} />} cursor={{ fill: "#f4f6f8" }} />
-                <Bar dataKey="er" name="Engajamento" radius={[6, 6, 0, 0]}>
+                <Bar isAnimationActive={false} dataKey="er" name="Engajamento" radius={[6, 6, 0, 0]}>
                   {byCategory.map((c) => <Cell key={c.label} fill={c.color} />)}
                 </Bar>
               </BarChart>

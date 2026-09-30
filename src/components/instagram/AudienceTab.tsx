@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, XAxis, YAxis }
 import { Card } from "@/components/ui/Card";
 import {
   BRAND, BarList, ChartTooltip, Donut, GRID_COLOR, Insight, Kpi, Panel, RTooltip, TICK_STYLE, compact, fmt, percent,
-} from "@/components/instagram/parts";
+} from "@/components/shared/dash-parts";
 import { Globe2, MapPin, Users, VenetianMask } from "lucide-react";
 import type { InstagramAudienceRow } from "@/types/database";
 
@@ -96,7 +96,7 @@ export function AudienceTab({ audience, followersNow }: { audience: InstagramAud
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar dataKey="value" name="Seguidores" radius={[6, 6, 0, 0]}>
+              <Bar isAnimationActive={false} dataKey="value" name="Seguidores" radius={[6, 6, 0, 0]}>
                 {age.map((a) => (
                   <Cell key={a.label} fill={a.label === topAge?.label ? BRAND.yellow : BRAND.blue} />
                 ))}

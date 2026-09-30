@@ -4,8 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { Tabs } from "@/components/ui/Tabs";
-import { TaskTable } from "@/components/tasks/TaskTable";
+import { MyTasksDashboard } from "@/components/tasks/MyTasksDashboard";
 import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 import { createClient } from "@/lib/supabase/client";
 import { listTasks } from "@/lib/services/tasks";
@@ -20,20 +19,21 @@ export default function MyTasksPage() {
   const [tab, setTab] = useState("assigned");
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Só a primeira carga mostra "Carregando": ao trocar de aba o painel continua
+  // montado, preservando filtros e a visão escolhida.
+  const [ready, setReady] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(
-    async (silent = false) => {
+    async () => {
       if (!profile) return;
-      if (!silent) setLoading(true);
       const [t, p] = await Promise.all([
         listTasks(supabase, tab === "assigned" ? { assignedTo: [profile.id] } : {}),
         listProfiles(supabase),
       ]);
       setTasks(tab === "created" ? t.filter((x) => x.created_by === profile.id) : t);
       setProfiles(p);
-      setLoading(false);
+      setReady(true);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tab, profile?.id]
@@ -44,13 +44,13 @@ export default function MyTasksPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, profile?.id]);
 
-  useRealtimeChanges(["tasks", "task_assignees"], () => load(true));
+  useRealtimeChanges(["tasks", "task_assignees"], () => load());
 
   return (
     <div>
       <PageHeader
         title="Minhas Tarefas"
-        description="Acompanhe as tarefas atribuídas e criadas por você."
+        description="Sua central pessoal: o que fazer agora, o que está atrasado e o que você já entregou."
         action={
           <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
             <Plus className="h-4 w-4" /> Nova tarefa
@@ -58,24 +58,20 @@ export default function MyTasksPage() {
         }
       />
 
-      <div className="mb-4">
-        <Tabs
-          tabs={[
-            { key: "assigned", label: "Atribuídas a mim" },
-            { key: "created", label: "Criadas por mim" },
-          ]}
-          active={tab}
-          onChange={setTab}
-        />
-      </div>
-
-      {loading ? (
+      {!ready ? (
         <div className="py-16 text-center text-sm text-gray-400">Carregando...</div>
       ) : (
-        <TaskTable tasks={tasks} profiles={profiles} onRefresh={() => load(true)} canDelete={isManager} />
+        <MyTasksDashboard
+          tasks={tasks}
+          profiles={profiles}
+          tab={tab}
+          onTabChange={setTab}
+          onRefresh={() => load()}
+          canDelete={isManager}
+        />
       )}
 
-      <CreateTaskModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => load(true)} />
+      <CreateTaskModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => load()} />
     </div>
   );
 }

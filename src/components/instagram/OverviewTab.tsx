@@ -11,11 +11,12 @@ import {
 import {
   BRAND, BarList, Chip, ChartTooltip, Donut, GRID_COLOR, Insight, Kpi, Panel, RTooltip, TICK_STYLE, compact, fmt,
   shortDate, signed, tipDate,
-} from "@/components/instagram/parts";
+} from "@/components/shared/dash-parts";
 import {
   CATEGORY_COLOR, CATEGORY_LABEL, CATEGORY_ORDER, WEEKDAY_LONG, WEEKDAY_SHORT, categoryFromMedia, engagementRate,
   sumInsights, weekdayOf, type ContentCategory,
 } from "@/lib/services/instagram";
+import { buildHighlights, type HighlightKey } from "@/lib/instagram-highlights";
 import type { InstagramDailyInsight, InstagramMedia } from "@/types/database";
 
 interface Metric {
@@ -41,14 +42,25 @@ const METRICS: Metric[] = [
   { key: "net_followers", label: "Seguidores líquidos", color: BRAND.yellow, get: (r) => r.net_followers },
 ];
 
+const HIGHLIGHT_ICONS: Record<HighlightKey, typeof Lightbulb> = {
+  weekday: CalendarDays,
+  reach: Users,
+  format: Film,
+  engagement: Activity,
+  topPost: Trophy,
+  record: Flame,
+  consistency: Clock,
+  followers: UserPlus,
+};
+
 function avg(values: number[]) {
   return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
 }
 
 export function OverviewTab({
-  days, rows, prevRows, hasPrevious, media, prevMedia, followersNow, dailyDelta, clicksToday, clicksTotal,
+  periodLabel, rows, prevRows, hasPrevious, media, prevMedia, followersNow, dailyDelta, clicksToday, clicksTotal,
 }: {
-  days: number;
+  periodLabel: string;
   rows: InstagramDailyInsight[];
   prevRows: InstagramDailyInsight[];
   hasPrevious: boolean;
@@ -110,9 +122,6 @@ export function OverviewTab({
     });
   }, [rows, media]);
   const presentCats = CATEGORY_ORDER.filter((c) => media.some((m) => categoryFromMedia(m) === c));
-  const daysWithoutPosts = postsByDay.filter((d) =>
-    CATEGORY_ORDER.every((c) => c === "story" || (d[c] as number) === 0)
-  ).length;
 
   // ── Seguidores ──
   const netRows = rows.slice(-Math.min(rows.length, 30));
@@ -148,84 +157,7 @@ export function OverviewTab({
   }, [rows, postsByDay]);
 
   // ── Insights automáticos ──
-  const insights = useMemo(() => {
-    const list: { icon: typeof Lightbulb; title: string; text: React.ReactNode }[] = [];
-    const bestWd = weekday.filter((w) => w.samples > 0).sort((a, b) => b.views - a.views)[0];
-    if (bestWd && bestWd.views > 0) {
-      list.push({
-        icon: CalendarDays,
-        title: `Melhor dia: ${bestWd.tip}`,
-        text: `Média de ${fmt(bestWd.views)} visualizações por dia nesse dia da semana, a maior do período.`,
-      });
-    }
-    if (t.views > 0) {
-      const nonShare = (t.viewsNonFollowers / t.views) * 100;
-      list.push({
-        icon: Users,
-        title: `${nonShare.toFixed(0)}% das views vêm de quem não te segue`,
-        text:
-          nonShare >= 50
-            ? "Seu conteúdo está sendo descoberto organicamente — bom sinal de alcance fora da base."
-            : "Seu conteúdo é mais consumido pela própria base. Reels e colabs ajudam a alcançar novos públicos.",
-      });
-    }
-    const perPost = CATEGORY_ORDER.map((c) => {
-      const items = media.filter((m) => categoryFromMedia(m) === c && m.views > 0);
-      return { c, n: items.length, avg: avg(items.map((m) => m.views)) };
-    })
-      .filter((x) => x.n > 0)
-      .sort((a, b) => b.avg - a.avg);
-    if (perPost[0]) {
-      list.push({
-        icon: Film,
-        title: `${CATEGORY_LABEL[perPost[0].c]} têm a melhor média`,
-        text: `${fmt(perPost[0].avg)} visualizações por publicação (${perPost[0].n} no período).`,
-      });
-    }
-    if (t.reach > 0) {
-      list.push({
-        icon: Activity,
-        title: `Taxa de engajamento de ${er.toFixed(1).replace(".", ",")}%`,
-        text: `${fmt(t.interactions)} interações sobre ${fmt(t.reach)} contas alcançadas (soma diária).`,
-      });
-    }
-    const topPost = [...media].filter((m) => categoryFromMedia(m) !== "story").sort((a, b) => b.views - a.views)[0];
-    if (topPost && topPost.views > 0) {
-      list.push({
-        icon: Trophy,
-        title: "Publicação mais vista do período",
-        text: (
-          <>
-            {fmt(topPost.views)} visualizações
-            {topPost.caption ? ` — “${topPost.caption.replace(/\s+/g, " ").slice(0, 60)}${topPost.caption.length > 60 ? "…" : ""}”` : ""}
-          </>
-        ),
-      });
-    }
-    if (best && best.value > 0 && metric.key === "views") {
-      list.push({
-        icon: Flame,
-        title: `Recorde: ${best.tip}`,
-        text: `${fmt(best.value)} visualizações em um único dia.`,
-      });
-    }
-    if (media.length > 0 && daysWithoutPosts > 0) {
-      list.push({
-        icon: Clock,
-        title: `${daysWithoutPosts} dia${daysWithoutPosts > 1 ? "s" : ""} sem feed/reels`,
-        text: "Consistência de publicação costuma puxar alcance — confira o gráfico de publicações por dia.",
-      });
-    }
-    if (hasNet) {
-      const net = netRows.reduce((s, r) => s + r.net_followers, 0);
-      list.push({
-        icon: UserPlus,
-        title: `${signed(net)} seguidores em ${netRows.length} dias`,
-        text: `Média de ${signed(Math.round(net / Math.max(netRows.length, 1)))} por dia.`,
-      });
-    }
-    return list;
-  }, [weekday, t, media, er, best, metric.key, daysWithoutPosts, hasNet, netRows]);
+  const insights = useMemo(() => buildHighlights(rows, media), [rows, media]);
 
   const interactionBars = [
     { label: "Curtidas", value: t.likes, color: "#e0556b" },
@@ -342,11 +274,11 @@ export function OverviewTab({
             )}
             {showSplit ? (
               <>
-                <Area type="monotone" dataKey="a" name={metric.split!.a} stackId="s" stroke={BRAND.blue} fill={BRAND.blue} fillOpacity={0.85} />
-                <Area type="monotone" dataKey="b" name={metric.split!.b} stackId="s" stroke={BRAND.yellow} fill={BRAND.yellow} fillOpacity={0.85} />
+                <Area isAnimationActive={false} type="monotone" dataKey="a" name={metric.split!.a} stackId="s" stroke={BRAND.blue} fill={BRAND.blue} fillOpacity={0.85} />
+                <Area isAnimationActive={false} type="monotone" dataKey="b" name={metric.split!.b} stackId="s" stroke={BRAND.yellow} fill={BRAND.yellow} fillOpacity={0.85} />
               </>
             ) : (
-              <Area
+              <Area isAnimationActive={false}
                 type="monotone" dataKey="value" name={metric.label} stroke={metric.color} strokeWidth={2.5} fill="url(#mainFill)"
                 dot={{ r: 2.5, fill: metric.color }} activeDot={{ r: 5 }}
               />
@@ -397,7 +329,7 @@ export function OverviewTab({
                   <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
                   <RTooltip content={<ChartTooltip total />} cursor={{ fill: "#f4f6f8" }} />
                   {presentCats.filter((c) => !hiddenCats.has(c)).map((c) => (
-                    <Bar key={c} dataKey={c} name={CATEGORY_LABEL[c]} stackId="posts" fill={CATEGORY_COLOR[c]} radius={[2, 2, 0, 0]} />
+                    <Bar isAnimationActive={false} key={c} dataKey={c} name={CATEGORY_LABEL[c]} stackId="posts" fill={CATEGORY_COLOR[c]} radius={[2, 2, 0, 0]} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -425,7 +357,7 @@ export function OverviewTab({
                     <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
                     <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} domain={["dataMin - 20", "dataMax + 20"]} tickFormatter={compact} />
                     <RTooltip content={<ChartTooltip />} />
-                    <Line type="monotone" dataKey="followers" name="Seguidores" stroke={BRAND.blue} strokeWidth={2.5} dot={false} />
+                    <Line isAnimationActive={false} type="monotone" dataKey="followers" name="Seguidores" stroke={BRAND.blue} strokeWidth={2.5} dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               )}
@@ -436,7 +368,7 @@ export function OverviewTab({
                   <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} />
                   <RTooltip content={<ChartTooltip format={signed} />} cursor={{ fill: "#f4f6f8" }} />
                   <ReferenceLine y={0} stroke="#9aa7af" />
-                  <Bar dataKey="v" name="Ganho líquido" radius={[3, 3, 0, 0]}>
+                  <Bar isAnimationActive={false} dataKey="v" name="Ganho líquido" radius={[3, 3, 0, 0]}>
                     {netRows.map((r) => (
                       <Cell key={r.date} fill={r.net_followers >= 0 ? BRAND.green : BRAND.red} />
                     ))}
@@ -486,18 +418,18 @@ export function OverviewTab({
             <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
             <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals />
             <RTooltip content={<ChartTooltip format={(n) => (Number.isInteger(n) ? fmt(n) : n.toFixed(1).replace(".", ","))} />} cursor={{ fill: "#f4f6f8" }} />
-            <Bar yAxisId="l" dataKey="views" name="Views (média)" fill={BRAND.blue} radius={[6, 6, 0, 0]} />
-            <Line yAxisId="r" type="monotone" dataKey="posts" name="Publicações (média)" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} />
+            <Bar isAnimationActive={false} yAxisId="l" dataKey="views" name="Views (média)" fill={BRAND.blue} radius={[6, 6, 0, 0]} />
+            <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="posts" name="Publicações (média)" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} />
           </ComposedChart>
         </ResponsiveContainer>
       </Panel>
 
       {/* Destaques */}
       {insights.length > 0 && (
-        <Panel title="Destaques do período" subtitle={`Leitura automática dos últimos ${days} dias`}>
+        <Panel title="Destaques do período" subtitle={`Leitura automática · ${periodLabel}`}>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {insights.map((i) => (
-              <Insight key={i.title} icon={i.icon} title={i.title}>
+              <Insight key={i.title} icon={HIGHLIGHT_ICONS[i.key]} title={i.title}>
                 {i.text}
               </Insight>
             ))}

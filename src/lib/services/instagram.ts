@@ -150,29 +150,32 @@ export function sumInsights(rows: InstagramDailyInsight[]): InstagramTotals {
   return t;
 }
 
+// ── Períodos ───────────────────────────────────────────────────────────────
+// Helpers de período moram em lib/period.ts (compartilhados com o Tráfego Pago).
+export * from "@/lib/period";
+import { rangeLength, shiftDate, todayBRT, type DateRange } from "@/lib/period";
+
 export interface PeriodSlices {
   current: InstagramDailyInsight[];
   previous: InstagramDailyInsight[];
-  // Primeiro dia (YYYY-MM-DD) do período atual — usado pra filtrar posts.
-  since: string;
+  range: DateRange;
+  // Mesmo tamanho do período, imediatamente antes dele.
+  prevRange: DateRange;
   hasPrevious: boolean;
 }
 
-function shiftDate(date: string, delta: number) {
-  const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + delta);
-  return d.toISOString().slice(0, 10);
+export function sliceByRange(rows: InstagramDailyInsight[], range: DateRange): PeriodSlices {
+  const length = rangeLength(range);
+  const prevRange = { from: shiftDate(range.from, -length), to: shiftDate(range.from, -1) };
+  const current = rows.filter((r) => r.date >= range.from && r.date <= range.to);
+  const previous = rows.filter((r) => r.date >= prevRange.from && r.date <= prevRange.to);
+  // Período que inclui hoje é parcial: compará-lo com dias fechados engana.
+  const closed = range.to < todayBRT();
+  return { current, previous, range, prevRange, hasPrevious: closed && previous.length >= Math.ceil(length / 2) };
 }
 
-// Período = últimos N dias sincronizados; anterior = os N dias antes disso.
-export function sliceByPeriod(rows: InstagramDailyInsight[], days: number): PeriodSlices {
-  if (rows.length === 0) return { current: [], previous: [], since: "", hasPrevious: false };
-  const last = rows[rows.length - 1].date;
-  const since = shiftDate(last, -(days - 1));
-  const prevSince = shiftDate(since, -days);
-  const current = rows.filter((r) => r.date >= since);
-  const previous = rows.filter((r) => r.date >= prevSince && r.date < since);
-  return { current, previous, since, hasPrevious: previous.length >= Math.ceil(days / 2) };
+export function mediaInRange<T extends { post_date: string }>(media: T[], range: DateRange): T[] {
+  return media.filter((m) => m.post_date >= range.from && m.post_date <= range.to);
 }
 
 export function weekdayOf(date: string) {

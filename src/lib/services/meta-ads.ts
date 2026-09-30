@@ -31,6 +31,11 @@ function addMetrics(a: Metrics, b: Metrics): Metrics {
 // esse.
 const LEAD_ACTION_TYPES = ["onsite_conversion.lead_grouped", "lead"];
 
+export function actionValue(actions: { action_type: string; value: string }[] | null, type: string): number {
+  const match = actions?.find((a) => a.action_type === type);
+  return match ? Number(match.value || 0) : 0;
+}
+
 export function leadsFromActions(actions: { action_type: string; value: string }[] | null): number {
   if (!actions) return 0;
   for (const type of LEAD_ACTION_TYPES) {
@@ -47,6 +52,10 @@ interface RawInsightRow {
   impressions: number;
   clicks: number;
   conversions: number;
+  reach: number;
+  // Visitas à landing page (landing_page_view) — meio do funil entre o
+  // clique no anúncio e o lead.
+  lpViews: number;
 }
 
 export function toDateOnly(date: Date): string {
@@ -110,6 +119,7 @@ interface RawInsightsRow {
   spend: number;
   impressions: number;
   clicks: number;
+  reach: number | null;
   actions: { action_type: string; value: string }[] | null;
 }
 
@@ -118,7 +128,7 @@ async function fetchAllInsights(supabase: SupabaseClient): Promise<RawInsightsRo
   for (let from = 0; ; from += INSIGHTS_PAGE_SIZE) {
     const { data, error } = await supabase
       .from("meta_ad_insights")
-      .select("ad_id, date, spend, impressions, clicks, actions")
+      .select("ad_id, date, spend, impressions, clicks, reach, actions")
       .range(from, from + INSIGHTS_PAGE_SIZE - 1);
     if (error) throw error;
     rows.push(...((data ?? []) as RawInsightsRow[]));
@@ -154,6 +164,8 @@ export async function loadTrafficStructure(supabase: SupabaseClient): Promise<Tr
     impressions: Number(row.impressions),
     clicks: Number(row.clicks),
     conversions: leadsFromActions(row.actions),
+    reach: Number(row.reach ?? 0),
+    lpViews: actionValue(row.actions, "landing_page_view"),
   }));
 
   let minDate: string | null = null;
@@ -487,4 +499,56 @@ export async function fetchLeadAdRanking(
   });
 
   return { items, totalLeads: rows.length, matchedLeads };
+}
+
+export interface LandingLead {
+  received_at: string;
+  state: string;
+  matched_campaign_id: string | null;
+  matched_adset_id: string | null;
+  matched_ad_id: string | null;
+}
+
+// Leads da LP recebidos entre duas datas (YYYY-MM-DD, horário de São Paulo),
+// com paginação pelo mesmo motivo de fetchAllInsights.
+export async function loadLandingLeads(supabase: SupabaseClient, from: string, to: string): Promise<LandingLead[]> {
+  const startIso = `${from}T03:00:00Z`;
+  const endIso = new Date(Date.parse(`${to}T03:00:00Z`) + 86400000).toISOString();
+  const rows: LandingLead[] = [];
+  for (let offset = 0; ; offset += LEADS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("landing_page_leads")
+      .select("received_at, state, matched_campaign_id, matched_adset_id, matched_ad_id")
+      .gte("received_at", startIso)
+      .lt("received_at", endIso)
+      .range(offset, offset + LEADS_PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...((data ?? []) as LandingLead[]));
+    if (!data || data.length < LEADS_PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+export interface TrafficDayTotals {
+  date: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  leads: number;
+}
+
+// Totais por dia (todas as campanhas) — resumo leve pra dashboard principal,
+// sem carregar campanhas/conjuntos/anúncios.
+export async function loadTrafficDaily(supabase: SupabaseClient): Promise<TrafficDayTotals[]> {
+  const rows = await fetchAllInsights(supabase);
+  const byDate = new Map<string, TrafficDayTotals>();
+  for (const r of rows) {
+    const cur = byDate.get(r.date) ?? { date: r.date, spend: 0, impressions: 0, clicks: 0, leads: 0 };
+    cur.spend += Number(r.spend);
+    cur.impressions += Number(r.impressions);
+    cur.clicks += Number(r.clicks);
+    cur.leads += leadsFromActions(r.actions);
+    byDate.set(r.date, cur);
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }

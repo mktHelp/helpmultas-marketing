@@ -25,7 +25,6 @@ const NAV = [
   { href: "/projects", label: "Projetos", icon: FolderKanban },
   { href: "/campaigns", label: "Campanhas", icon: Megaphone },
   { href: "/content", label: "Conteúdos", icon: FileText },
-  { href: "/instagram", label: "Instagram", icon: AtSign },
   { href: "/team", label: "Equipe", icon: Users },
   { href: "/birthdays", label: "Aniversários", icon: Cake },
   { href: "/reports", label: "Relatórios", icon: BarChart3 },
@@ -39,6 +38,10 @@ const TRAFFIC_NAV = [
   { href: "/trafego-pago", label: "Tráfego Pago", icon: TrendingUp },
   { href: "/trafego-pago/leads", label: "Leads", icon: Contact },
 ];
+
+// Insights dos perfis do Instagram (dashboard + relatório em PDF), em seção
+// própria como o Tráfego Pago.
+const INSTAGRAM_NAV = [{ href: "/instagram", label: "Insights", icon: AtSign }];
 
 // Standalone dashboard (outside this shell) shared with the expansion team.
 const EXPANSION_ITEM = { href: "/expansao", label: "Expansão", icon: HandCoins };
@@ -145,6 +148,30 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </p>
         {TRAFFIC_NAV.map((item) => {
           const active = pathname === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                active ? "bg-yellow-500 text-blue-900" : "text-blue-100 hover:bg-white/10"
+              )}
+            >
+              <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+              {item.label}
+            </Link>
+          );
+        })}
+
+        <div className="my-2 border-t border-white/10" />
+
+        <p className="px-3.5 pb-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-blue-200/70">
+          Instagram
+        </p>
+        {INSTAGRAM_NAV.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           return (
             <Link

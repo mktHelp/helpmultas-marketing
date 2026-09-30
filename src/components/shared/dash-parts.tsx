@@ -85,20 +85,22 @@ export function Chip({
   );
 }
 
-export function DeltaBadge({ current, previous }: { current: number; previous: number | null }) {
+// invert: pra custos (CPL, CPC...) subir é ruim — inverte as cores.
+export function DeltaBadge({ current, previous, invert }: { current: number; previous: number | null; invert?: boolean }) {
   if (previous == null) return null;
   if (previous === 0 && current === 0) return null;
   const change = previous === 0 ? 100 : ((current - previous) / Math.abs(previous)) * 100;
   const flat = Math.abs(change) < 0.5;
   const up = change > 0;
+  const good = invert ? !up : up;
   const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
   return (
     <span
       className={cn(
         "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold",
         flat && "bg-gray-100 text-gray-500",
-        !flat && up && "bg-[color:var(--color-success-bg)] text-[color:var(--color-success)]",
-        !flat && !up && "bg-[color:var(--color-danger-bg)] text-[color:var(--color-danger)]"
+        !flat && good && "bg-[color:var(--color-success-bg)] text-[color:var(--color-success)]",
+        !flat && !good && "bg-[color:var(--color-danger-bg)] text-[color:var(--color-danger)]"
       )}
       title="Variação em relação ao período anterior"
     >
@@ -119,6 +121,7 @@ export function Kpi({
   icon: Icon,
   onClick,
   active,
+  invert,
 }: {
   label: string;
   value: string;
@@ -130,6 +133,7 @@ export function Kpi({
   icon?: React.ComponentType<{ className?: string }>;
   onClick?: () => void;
   active?: boolean;
+  invert?: boolean;
 }) {
   const gradientId = `spark-${label.replace(/\W/g, "")}`;
   return (
@@ -146,7 +150,7 @@ export function Kpi({
           {Icon && <Icon className="h-3.5 w-3.5" />}
           {label}
         </p>
-        {current != null && <DeltaBadge current={current} previous={previous ?? null} />}
+        {current != null && <DeltaBadge current={current} previous={previous ?? null} invert={invert} />}
       </div>
       <p className="mt-1 font-display text-2xl font-bold text-blue-900">{value}</p>
       {hint && <p className="mt-0.5 text-[11px] text-gray-400">{hint}</p>}
