@@ -502,7 +502,7 @@ export function TrafficLeads() {
                       <AdNameCell lead={lead} />
                     </td>
                     {UTM_COLUMNS.map((c) => (
-                      <td key={c.key} className="px-4 py-3 align-top">
+                      <td key={c.key} className="px-4 py-3 align-middle">
                         {lead[c.key] ? (
                           <span className="break-all font-mono text-xs text-blue-900">{lead[c.key]}</span>
                         ) : (
