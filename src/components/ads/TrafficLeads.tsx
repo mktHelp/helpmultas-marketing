@@ -55,41 +55,29 @@ function one<T>(v: T | T[] | null | undefined): T | null {
   return (Array.isArray(v) ? v[0] : v) ?? null;
 }
 
-function AdNameCell({ lead }: { lead: LeadRow }) {
+function linkedEntities(lead: LeadRow) {
   const ad = one(lead.matched_ad);
   const adset = one(ad?.adset) ?? one(lead.matched_adset);
   const campaign = one(one(ad?.adset)?.campaign) ?? one(lead.matched_campaign);
-  if (!ad && !adset && !campaign) return <span className="text-gray-400">Sem vínculo</span>;
+  return { ad, adset, campaign };
+}
 
-  const level = ad ? "Anúncio" : adset ? "Conjunto" : "Campanha";
-  const title = ad?.name ?? adset?.name ?? campaign?.name ?? "";
+// Uma linha só, cortada com reticências (nome completo no tooltip): as
+// colunas separadas dispensam o empilhamento que deixava a linha alta.
+function NameCell({ name }: { name?: string | null }) {
+  if (!name) return <span className="text-gray-300">—</span>;
   return (
-    <div className="w-80 space-y-1">
-      <div className="flex items-center gap-2">
-        <Badge tone="neutral">{level}</Badge>
-        {lead.matched_by && (
-          <span className="text-[11px] font-semibold text-[color:var(--color-success)]">
-            {MATCHED_BY_LABEL[lead.matched_by] ?? lead.matched_by}
-          </span>
-        )}
-      </div>
-      <p className="line-clamp-2 text-sm font-semibold leading-snug text-blue-900" title={title}>
-        {title}
-      </p>
-      {campaign && level !== "Campanha" && (
-        <p className="truncate text-xs text-gray-500" title={campaign.name}>
-          <span className="font-semibold text-gray-400">Campanha: </span>
-          {campaign.name}
-        </p>
-      )}
-      {adset && level === "Anúncio" && (
-        <p className="truncate text-xs text-gray-500" title={adset.name}>
-          <span className="font-semibold text-gray-400">Conjunto: </span>
-          {adset.name}
-        </p>
-      )}
+    <div className="w-56 truncate text-sm text-blue-900" title={name}>
+      {name}
     </div>
   );
+}
+
+function MatchCell({ lead }: { lead: LeadRow }) {
+  const { ad, adset, campaign } = linkedEntities(lead);
+  if (!ad && !adset && !campaign) return <Badge tone="danger">Sem vínculo</Badge>;
+  const label = lead.matched_by ? MATCHED_BY_LABEL[lead.matched_by] ?? lead.matched_by : "Vinculado";
+  return <Badge tone="success">{label}</Badge>;
 }
 
 // Página da LP onde o formulário foi preenchido — NÃO é utm_source (origem do tráfego).
@@ -504,14 +492,17 @@ export function TrafficLeads() {
           </div>
 
           <div className="max-h-[65vh] overflow-auto rounded-2xl border border-gray-200 bg-white">
-            <table className="w-full min-w-[2000px] border-collapse text-sm">
+            <table className="w-full min-w-[2700px] border-collapse text-sm">
               <thead>
                 <tr className="text-left text-xs font-bold uppercase text-gray-500">
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-40">Nome</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-52">Contato</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-36">Cidade/UF</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-36">Página de origem</th>
-                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-72">Anúncio vinculado</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-56">Campanha</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-56">Conjunto</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-56">Anúncio</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-40">Vínculo</th>
                   {UTM_COLUMNS.map((c) => (
                     <th key={c.key} className={cn("sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] normal-case", c.width)}>
                       {c.key}
@@ -538,9 +529,17 @@ export function TrafficLeads() {
                     <td className="px-4 py-3">
                       <Badge tone="neutral">{pageOriginLabel(lead.page_origin)}</Badge>
                     </td>
-                    <td className="px-4 py-3">
-                      <AdNameCell lead={lead} />
-                    </td>
+                    {(() => {
+                      const { ad, adset, campaign } = linkedEntities(lead);
+                      return (
+                        <>
+                          <td className="px-4 py-3"><NameCell name={campaign?.name} /></td>
+                          <td className="px-4 py-3"><NameCell name={adset?.name} /></td>
+                          <td className="px-4 py-3"><NameCell name={ad?.name} /></td>
+                          <td className="px-4 py-3"><MatchCell lead={lead} /></td>
+                        </>
+                      );
+                    })()}
                     {UTM_COLUMNS.map((c) => (
                       <td key={c.key} className="px-4 py-3 align-middle">
                         {lead[c.key] ? (
@@ -555,7 +554,7 @@ export function TrafficLeads() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6 + UTM_COLUMNS.length} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={9 + UTM_COLUMNS.length} className="px-4 py-10 text-center text-sm text-gray-400">
                       {loading ? "Carregando..." : "Nenhum lead encontrado no período."}
                     </td>
                   </tr>
