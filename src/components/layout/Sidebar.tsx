@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  LogOut, X, Cake, Image as ImageIcon, Bot, Sparkles, Mic, HandCoins, TrendingUp, Gauge, Contact,
+  LogOut, X, Cake, AtSign, Image as ImageIcon, Bot, Sparkles, Mic, HandCoins, TrendingUp, Gauge, Contact,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
@@ -25,6 +25,7 @@ const NAV = [
   { href: "/projects", label: "Projetos", icon: FolderKanban },
   { href: "/campaigns", label: "Campanhas", icon: Megaphone },
   { href: "/content", label: "Conteúdos", icon: FileText },
+  { href: "/instagram", label: "Instagram", icon: AtSign },
   { href: "/team", label: "Equipe", icon: Users },
   { href: "/birthdays", label: "Aniversários", icon: Cake },
   { href: "/reports", label: "Relatórios", icon: BarChart3 },

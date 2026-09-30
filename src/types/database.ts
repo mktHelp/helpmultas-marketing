@@ -381,6 +381,7 @@ export interface SocialAccount {
   platform: string;
   handle: string | null;
   ig_username: string | null;
+  ig_user_id: string | null;
   link_slug: string | null;
   sort_order: number;
   created_at: string;
@@ -480,3 +481,23 @@ export interface ActivityLog {
 // Minimal Database generic so createBrowserClient/createServerClient type-check.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Database = any;
+
+export interface InstagramDailyInsight {
+  account_id: string;
+  date: string;
+  views: number;
+  views_followers: number;
+  views_non_followers: number;
+  views_by_type: Record<string, number>;
+  reach: number;
+  accounts_engaged: number;
+  total_interactions: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  profile_views: number;
+  website_clicks: number;
+  net_followers: number;
+  synced_at: string;
+}
