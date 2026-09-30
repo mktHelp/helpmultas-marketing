@@ -221,73 +221,93 @@ function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => vo
 function RankingCard({ ranking, loading }: { ranking: LeadAdRanking; loading: boolean }) {
   const { items, totalLeads, matchedLeads } = ranking;
   const max = items[0]?.leads ?? 1;
+  const th = "px-4 py-2.5 text-[11px] font-bold uppercase text-gray-500";
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-yellow-500" />
-          Top anúncios por leads recebidos
-        </CardTitle>
-        {!loading && totalLeads > 0 && (
-          <p className="mt-0.5 text-xs text-gray-500">
-            {numberFormatter.format(matchedLeads)} de {numberFormatter.format(totalLeads)}{" "}
-            {totalLeads === 1 ? "lead" : "leads"} no período com anúncio identificado
-          </p>
-        )}
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-yellow-500" />
+            Top anúncios por leads recebidos
+          </CardTitle>
+          {!loading && totalLeads > 0 && (
+            <p className="mt-1 text-xs text-gray-500">
+              {numberFormatter.format(matchedLeads)} de {numberFormatter.format(totalLeads)}{" "}
+              {totalLeads === 1 ? "lead" : "leads"} no período com anúncio identificado
+            </p>
+          )}
+        </div>
       </CardHeader>
       <CardBody>
-        {loading && <p className="py-4 text-center text-sm text-gray-400">Carregando...</p>}
+        {loading && <p className="py-6 text-center text-sm text-gray-400">Carregando...</p>}
         {!loading && items.length === 0 && (
-          <p className="py-4 text-center text-sm text-gray-400">Nenhum lead vinculado a anúncio no período.</p>
+          <p className="py-6 text-center text-sm text-gray-400">Nenhum lead vinculado a anúncio no período.</p>
         )}
-        <div className="space-y-4">
-          {items.map((item, i) => (
-            <div key={item.adId} className="flex gap-3">
-              <span
-                className={cn(
-                  "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                  i === 0 ? "bg-yellow-400 text-blue-900" : "bg-gray-100 text-gray-600"
-                )}
-              >
-                {i + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="line-clamp-2 text-sm font-semibold leading-snug text-blue-900" title={item.adName}>
-                    {item.adName}
-                  </p>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold text-blue-900">
-                      {numberFormatter.format(item.leads)} {item.leads === 1 ? "lead" : "leads"}
-                    </p>
-                    <p className="text-[11px] text-gray-400">{item.share.toFixed(1)}% do total</p>
-                  </div>
-                </div>
-                {item.campaignName && (
-                  <p className="mt-0.5 truncate text-xs text-gray-500" title={`${item.campaignName} › ${item.adsetName ?? ""}`}>
-                    {item.campaignName}
-                    {item.adsetName ? ` › ${item.adsetName}` : ""}
-                  </p>
-                )}
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                  <div
-                    className={cn("h-full rounded-full", i === 0 ? "bg-yellow-400" : "bg-blue-200")}
-                    style={{ width: `${(item.leads / max) * 100}%` }}
-                  />
-                </div>
-                <div className="mt-1.5 flex gap-4 text-xs text-gray-500">
-                  <span>
-                    Investido: <strong className="text-gray-700">{currencyFormatter.format(item.spend)}</strong>
-                  </span>
-                  <span>
-                    Custo por lead:{" "}
-                    <strong className="text-gray-700">{item.cpl !== null ? currencyFormatter.format(item.cpl) : "—"}</strong>
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {items.length > 0 && (
+          <div className="overflow-x-auto rounded-2xl border border-gray-200">
+            <table className="w-full min-w-[760px] border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-050 text-left">
+                  <th className={cn(th, "w-14 text-center")}>#</th>
+                  <th className={th}>Anúncio</th>
+                  <th className={cn(th, "w-64")}>Leads</th>
+                  <th className={cn(th, "w-32 text-right")}>Investido</th>
+                  <th className={cn(th, "w-36 text-right")}>Custo por lead</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, i) => (
+                  <tr key={item.adId} className="border-t border-gray-100">
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={cn(
+                          "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold",
+                          i === 0 ? "bg-yellow-400 text-blue-900" : "bg-gray-100 text-gray-600"
+                        )}
+                      >
+                        {i + 1}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="line-clamp-2 font-semibold leading-snug text-blue-900" title={item.adName}>
+                        {item.adName}
+                      </p>
+                      {item.campaignName && (
+                        <p className="mt-0.5 truncate text-xs text-gray-500" title={`${item.campaignName} › ${item.adsetName ?? ""}`}>
+                          {item.campaignName}
+                          {item.adsetName ? ` › ${item.adsetName}` : ""}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                          <div
+                            className={cn("h-full rounded-full", i === 0 ? "bg-yellow-400" : "bg-blue-200")}
+                            style={{ width: `${(item.leads / max) * 100}%` }}
+                          />
+                        </div>
+                        <div className="w-24 shrink-0 text-right leading-tight">
+                          <p className="font-bold text-blue-900">
+                            {numberFormatter.format(item.leads)} {item.leads === 1 ? "lead" : "leads"}
+                          </p>
+                          <p className="text-[11px] text-gray-400">{item.share.toFixed(1)}% do total</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-700">
+                      {currencyFormatter.format(item.spend)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-blue-900">
+                      {item.cpl !== null ? currencyFormatter.format(item.cpl) : <span className="font-normal text-gray-300">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </CardBody>
     </Card>
   );
@@ -425,16 +445,12 @@ export function TrafficLeads() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <StatsCards
-            total={total}
-            matched={matchedTotal ?? rows.filter((r) => r.matched_ad_id).length}
-            unmatched={unmatchedTotal ?? rows.filter((r) => !r.matched_ad_id).length}
-          />
-        </div>
-        <RankingCard ranking={ranking} loading={rankingLoading} />
-      </div>
+      <StatsCards
+        total={total}
+        matched={matchedTotal ?? rows.filter((r) => r.matched_ad_id).length}
+        unmatched={unmatchedTotal ?? rows.filter((r) => !r.matched_ad_id).length}
+      />
+      <RankingCard ranking={ranking} loading={rankingLoading} />
 
       <Card>
         <CardHeader>
