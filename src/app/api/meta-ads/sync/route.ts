@@ -36,6 +36,7 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 // Quantos dias de métricas diárias manter sincronizados — define até onde
 // o seletor de datas livre da aba "Tráfego Pago" consegue voltar.
 const INSIGHTS_SYNC_DAYS = 90;
+const INSIGHTS_UPSERT_BATCH = 500;
 
 function toDateOnly(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -300,28 +301,29 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
   entities.ads = ads.length;
 
   const adIdByMetaId = new Map<string, string>();
-  for (const ad of ads) {
+  const adRows = ads.flatMap((ad) => {
     const adSetId = adSetIdByMetaId.get(ad.adset_id);
-    if (!adSetId) continue;
+    if (!adSetId) return [];
+    return [
+      {
+        meta_ad_id: ad.id,
+        adset_id: adSetId,
+        name: ad.name,
+        status: ad.status,
+        effective_status: ad.effective_status,
+        creative_meta_id: ad.creative?.id ?? "",
+        thumbnail_url: ad.creative?.thumbnail_url ?? "",
+        synced_at: startedAt,
+      },
+    ];
+  });
+  for (let i = 0; i < adRows.length; i += INSIGHTS_UPSERT_BATCH) {
     const { data, error } = await admin
       .from("meta_ads")
-      .upsert(
-        {
-          meta_ad_id: ad.id,
-          adset_id: adSetId,
-          name: ad.name,
-          status: ad.status,
-          effective_status: ad.effective_status,
-          creative_meta_id: ad.creative?.id ?? "",
-          thumbnail_url: ad.creative?.thumbnail_url ?? "",
-          synced_at: startedAt,
-        },
-        { onConflict: "meta_ad_id" }
-      )
-      .select("id")
-      .single();
-    if (error || !data) continue;
-    adIdByMetaId.set(ad.id, data.id);
+      .upsert(adRows.slice(i, i + INSIGHTS_UPSERT_BATCH), { onConflict: "meta_ad_id" })
+      .select("id, meta_ad_id");
+    if (error) throw new Error(`Falha ao salvar anúncios: ${error.message}`);
+    for (const row of data ?? []) adIdByMetaId.set(row.meta_ad_id as string, row.id as string);
   }
 
   // 5. Casamento automático anúncio ↔ criativo, por conjunto de palavras
@@ -394,27 +396,34 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
     });
 
     await setProgress(admin, runId, `Salvando ${dailyInsights.length} linhas de métricas diárias...`);
+    // Em lotes: um upsert por linha (~2.000+ idas ao banco em série) estourava
+    // o maxDuration da função na Vercel. Dedup por (ad_id, date) porque o
+    // Postgres recusa um mesmo lote atingir a mesma linha duas vezes.
+    const insightRowsByKey = new Map<string, Record<string, unknown>>();
     for (const row of dailyInsights) {
       const internalAdId = adIdByMetaId.get(row.ad_id);
       if (!internalAdId) continue;
-      const { error } = await admin.from("meta_ad_insights").upsert(
-        {
-          ad_id: internalAdId,
-          date: row.date_start,
-          spend: Number(row.spend ?? 0),
-          impressions: Number(row.impressions ?? 0),
-          clicks: Number(row.inline_link_clicks ?? 0),
-          reach: Number(row.reach ?? 0),
-          frequency: row.frequency ? Number(row.frequency) : null,
-          ctr: row.ctr ? Number(row.ctr) : null,
-          cpc: row.cpc ? Number(row.cpc) : null,
-          cpm: row.cpm ? Number(row.cpm) : null,
-          actions: row.actions ?? [],
-          synced_at: startedAt,
-        },
-        { onConflict: "ad_id,date" }
-      );
-      if (!error) entities.insight_rows++;
+      insightRowsByKey.set(`${internalAdId}|${row.date_start}`, {
+        ad_id: internalAdId,
+        date: row.date_start,
+        spend: Number(row.spend ?? 0),
+        impressions: Number(row.impressions ?? 0),
+        clicks: Number(row.inline_link_clicks ?? 0),
+        reach: Number(row.reach ?? 0),
+        frequency: row.frequency ? Number(row.frequency) : null,
+        ctr: row.ctr ? Number(row.ctr) : null,
+        cpc: row.cpc ? Number(row.cpc) : null,
+        cpm: row.cpm ? Number(row.cpm) : null,
+        actions: row.actions ?? [],
+        synced_at: startedAt,
+      });
+    }
+    const insightRows = [...insightRowsByKey.values()];
+    for (let i = 0; i < insightRows.length; i += INSIGHTS_UPSERT_BATCH) {
+      const batch = insightRows.slice(i, i + INSIGHTS_UPSERT_BATCH);
+      const { error } = await admin.from("meta_ad_insights").upsert(batch, { onConflict: "ad_id,date" });
+      if (error) throw new Error(`Falha ao salvar métricas diárias: ${error.message}`);
+      entities.insight_rows += batch.length;
     }
 
     // 6b. Vitalícias (date_preset=maximum), só usadas para atualizar as
