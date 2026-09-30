@@ -41,16 +41,65 @@ function formatDateTime(iso: string) {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
+const MATCHED_BY_LABEL: Record<string, string> = {
+  ad_id: "por ID do anúncio",
+  ad_name: "por nome do anúncio",
+  adset_id: "por ID do conjunto",
+  adset_name: "por nome do conjunto",
+  campaign_id: "por ID da campanha",
+  campaign_name: "por nome da campanha",
+};
+
+function one<T>(v: T | T[] | null | undefined): T | null {
+  return (Array.isArray(v) ? v[0] : v) ?? null;
+}
+
 function AdNameCell({ lead }: { lead: LeadRow }) {
-  const ad = Array.isArray(lead.matched_ad) ? lead.matched_ad[0] : lead.matched_ad;
-  if (!ad) return <span className="text-gray-400">Sem vínculo</span>;
-  const adset = Array.isArray(ad.adset) ? ad.adset[0] : ad.adset;
-  const campaign = adset ? (Array.isArray(adset.campaign) ? adset.campaign[0] : adset.campaign) : null;
+  const ad = one(lead.matched_ad);
+  const adset = one(ad?.adset) ?? one(lead.matched_adset);
+  const campaign = one(one(ad?.adset)?.campaign) ?? one(lead.matched_campaign);
+  if (!ad && !adset && !campaign) return <span className="text-gray-400">Sem vínculo</span>;
+
+  const level = ad ? "Anúncio" : adset ? "Conjunto" : "Campanha";
+  const title = ad?.name ?? adset?.name ?? campaign?.name;
   return (
     <div className="min-w-0">
-      <div className="truncate font-medium text-blue-900">{ad.name}</div>
-      {adset && <div className="truncate text-xs text-gray-400">{campaign?.name ?? ""} › {adset.name}</div>}
+      <div className="text-[10px] font-bold uppercase text-gray-400">{level}</div>
+      <div className="font-medium text-blue-900">{title}</div>
+      {(ad || (adset && campaign)) && (
+        <div className="text-xs text-gray-400">
+          {[campaign?.name, ad ? adset?.name : null].filter(Boolean).join(" › ")}
+        </div>
+      )}
+      {lead.matched_by && (
+        <div className="mt-1">
+          <Badge tone="success">{MATCHED_BY_LABEL[lead.matched_by] ?? lead.matched_by}</Badge>
+        </div>
+      )}
     </div>
+  );
+}
+
+function UtmsCell({ lead }: { lead: LeadRow }) {
+  const items: [string, string][] = [
+    ["utm_source", lead.utm_source],
+    ["utm_medium", lead.utm_medium],
+    ["utm_campaign", lead.utm_campaign],
+    ["utm_content", lead.utm_content],
+    ["utm_term", lead.utm_term],
+    ["utm_id", lead.utm_id],
+  ];
+  const filled = items.filter(([, v]) => v);
+  if (filled.length === 0) return <span className="text-gray-400">Sem UTMs</span>;
+  return (
+    <dl className="space-y-0.5 text-xs">
+      {filled.map(([key, value]) => (
+        <div key={key} className="flex gap-1.5">
+          <dt className="shrink-0 font-semibold text-gray-500">{key}</dt>
+          <dd className="break-all font-mono text-blue-900" title={value}>{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -274,7 +323,7 @@ export function TrafficLeads() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  placeholder="Nome, e-mail ou telefone..."
+                  placeholder="Nome, contato ou UTM..."
                 />
                 <button
                   onClick={handleSearch}
@@ -323,7 +372,7 @@ export function TrafficLeads() {
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-44">Contato</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] w-28">Cidade/UF</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-64">Anúncio vinculado</th>
-                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] w-32">UTM Source</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-64">UTMs (como vieram na URL)</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] w-36">Recebido em</th>
                 </tr>
               </thead>
@@ -342,11 +391,7 @@ export function TrafficLeads() {
                       <AdNameCell lead={lead} />
                     </td>
                     <td className="px-4 py-3">
-                      {lead.utm_source ? (
-                        <Badge tone="accent">{lead.utm_source}</Badge>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      <UtmsCell lead={lead} />
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{formatDateTime(lead.received_at)}</td>
                   </tr>

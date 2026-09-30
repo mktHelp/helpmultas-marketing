@@ -1,20 +1,12 @@
 import { NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { matchLead } from "@/lib/lead-matching";
 
 // Ingestão de leads da LP — chamada em paralelo ao envio pro CRM (mesmo
 // payload de sendToTestCrm), autenticada com um shared secret
 // (LEADS_INGEST_TOKEN) já que não há sessão de usuário Supabase na LP.
-//
-// Casa a UTM do lead com a campanha/conjunto/anúncio da Meta que gerou o
-// clique, do nível mais específico pro mais genérico:
-//   utm_content → anúncio (convenção usual: {{ad.name}} ou {{ad.id}})
-//   utm_term    → conjunto de anúncios ({{adset.name}} ou {{adset.id}})
-//   utm_campaign → campanha ({{campaign.name}} ou {{campaign.id}})
-// Sempre tenta o id exato primeiro (caso a LP use os macros {{*.id}} da
-// Meta) e cai pro nome (case-insensitive) se não achar — sem usar filtros
-// .or() com a UTM interpolada direto na string, que viria de input público
-// da internet e quebraria (ou seria injetável) se tivesse vírgula/parênteses.
+// O casamento das UTMs com campanha/conjunto/anúncio mora em
+// lib/lead-matching.ts (também reaplicado a cada sync da Meta).
 
 interface LeadPayload {
   name?: string;
@@ -33,45 +25,6 @@ interface LeadPayload {
   utm_content?: string;
   utm_term?: string;
   utm_id?: string;
-}
-
-async function matchAd(admin: SupabaseClient, utmContent: string) {
-  if (!utmContent) return null;
-  const byId = await admin
-    .from("meta_ads")
-    .select("id, adset_id, adset:meta_ad_sets(campaign_id)")
-    .eq("meta_ad_id", utmContent)
-    .maybeSingle();
-  if (byId.data) return { ...byId.data, matchedBy: "ad_id" as const };
-
-  const byName = await admin
-    .from("meta_ads")
-    .select("id, adset_id, adset:meta_ad_sets(campaign_id)")
-    .ilike("name", utmContent)
-    .limit(1)
-    .maybeSingle();
-  if (byName.data) return { ...byName.data, matchedBy: "ad_name" as const };
-  return null;
-}
-
-async function matchAdSet(admin: SupabaseClient, utmTerm: string) {
-  if (!utmTerm) return null;
-  const byId = await admin.from("meta_ad_sets").select("id, campaign_id").eq("meta_adset_id", utmTerm).maybeSingle();
-  if (byId.data) return { ...byId.data, matchedBy: "adset_id" as const };
-
-  const byName = await admin.from("meta_ad_sets").select("id, campaign_id").ilike("name", utmTerm).limit(1).maybeSingle();
-  if (byName.data) return { ...byName.data, matchedBy: "adset_name" as const };
-  return null;
-}
-
-async function matchCampaign(admin: SupabaseClient, utmCampaign: string) {
-  if (!utmCampaign) return null;
-  const byId = await admin.from("meta_campaigns").select("id").eq("meta_campaign_id", utmCampaign).maybeSingle();
-  if (byId.data) return { ...byId.data, matchedBy: "campaign_id" as const };
-
-  const byName = await admin.from("meta_campaigns").select("id").ilike("name", utmCampaign).limit(1).maybeSingle();
-  if (byName.data) return { ...byName.data, matchedBy: "campaign_name" as const };
-  return null;
 }
 
 // A LP chama esta rota direto do navegador (outro domínio) com header
@@ -109,35 +62,7 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  const utmContent = (body.utm_content ?? "").trim();
-  const utmTerm = (body.utm_term ?? "").trim();
-  const utmCampaign = (body.utm_campaign ?? "").trim();
-
-  let matchedAdId: string | null = null;
-  let matchedAdSetId: string | null = null;
-  let matchedCampaignId: string | null = null;
-  let matchedBy: string | null = null;
-
-  const ad = await matchAd(admin, utmContent);
-  if (ad) {
-    matchedAdId = ad.id;
-    matchedAdSetId = ad.adset_id;
-    matchedCampaignId = (ad.adset as unknown as { campaign_id: string } | null)?.campaign_id ?? null;
-    matchedBy = ad.matchedBy;
-  } else {
-    const adSet = await matchAdSet(admin, utmTerm);
-    if (adSet) {
-      matchedAdSetId = adSet.id;
-      matchedCampaignId = adSet.campaign_id;
-      matchedBy = adSet.matchedBy;
-    } else {
-      const campaign = await matchCampaign(admin, utmCampaign);
-      if (campaign) {
-        matchedCampaignId = campaign.id;
-        matchedBy = campaign.matchedBy;
-      }
-    }
-  }
+  const match = await matchLead(admin, body);
 
   const { data, error } = await admin
     .from("landing_page_leads")
@@ -158,10 +83,10 @@ export async function POST(request: Request) {
       utm_content: body.utm_content ?? "",
       utm_term: body.utm_term ?? "",
       utm_id: body.utm_id ?? "",
-      matched_campaign_id: matchedCampaignId,
-      matched_adset_id: matchedAdSetId,
-      matched_ad_id: matchedAdId,
-      matched_by: matchedBy,
+      matched_campaign_id: match.campaignId,
+      matched_adset_id: match.adSetId,
+      matched_ad_id: match.adId,
+      matched_by: match.matchedBy,
       raw_payload: body,
     })
     .select("id")
@@ -174,6 +99,6 @@ export async function POST(request: Request) {
   return json({
     ok: true,
     id: data.id,
-    matched: { campaign: matchedCampaignId, adset: matchedAdSetId, ad: matchedAdId },
+    matched: { campaign: match.campaignId, adset: match.adSetId, ad: match.adId },
   });
 }

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 import { leadsFromActions } from "@/lib/services/meta-ads";
+import { rematchUnmatchedLeads } from "@/lib/lead-matching";
 
 // Sync somente-leitura do Gerenciador de Anúncios da Meta (Marketing API)
 // para as tabelas meta_*. Dois jeitos de disparar:
@@ -170,7 +171,7 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
   const accountId = process.env.META_AD_ACCOUNT_ID;
   if (!accountId) throw new Error("META_AD_ACCOUNT_ID não configurado");
 
-  const entities = { campaigns: 0, adsets: 0, ads: 0, insight_rows: 0, matched_creatives: 0 };
+  const entities = { campaigns: 0, adsets: 0, ads: 0, insight_rows: 0, matched_creatives: 0, rematched_leads: 0 };
 
   // 1. Conta de anúncios
   await setProgress(admin, runId, "Conectando com a conta de anúncios da Meta...");
@@ -364,6 +365,14 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
     if (data && data.length > 0) matchedCount++;
   }
   entities.matched_creatives = matchedCount;
+
+  // Revincula leads da LP que chegaram antes do anúncio/campanha existir aqui.
+  try {
+    await setProgress(admin, runId, "Vinculando leads pendentes aos anúncios...");
+    entities.rematched_leads = await rematchUnmatchedLeads(admin);
+  } catch (err) {
+    console.error("Erro ao revincular leads:", err);
+  }
 
   // 6. Métricas
   const activeAdMetaIds = ads.map((a) => a.id);

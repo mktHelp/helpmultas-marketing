@@ -305,11 +305,17 @@ export interface LeadRow {
   utm_campaign: string;
   utm_content: string;
   utm_term: string;
+  utm_id: string;
+  fbclid: string;
+  capital_label: string;
+  matched_by: string | null;
   matched_ad_id: string | null;
   matched_adset_id: string | null;
   matched_campaign_id: string | null;
   received_at: string;
   matched_ad?: { id: string; name: string; adset?: { id: string; name: string; campaign?: { id: string; name: string } } } | null;
+  matched_adset?: { id: string; name: string } | null;
+  matched_campaign?: { id: string; name: string } | null;
 }
 
 export interface LeadsPage {
@@ -331,15 +337,18 @@ export async function fetchLeads(supabase: SupabaseClient, filter: LeadsFilter):
   let query = supabase
     .from("landing_page_leads")
     .select(
-      "id, name, email, phone, city, state, utm_source, utm_medium, utm_campaign, utm_content, utm_term, matched_ad_id, matched_adset_id, matched_campaign_id, received_at, matched_ad:meta_ads(id, name, adset:meta_ad_sets(id, name, campaign:meta_campaigns(id, name)))",
+      "id, name, email, phone, city, state, capital_label, utm_source, utm_medium, utm_campaign, utm_content, utm_term, utm_id, fbclid, matched_by, matched_ad_id, matched_adset_id, matched_campaign_id, received_at, matched_ad:meta_ads(id, name, adset:meta_ad_sets(id, name, campaign:meta_campaigns(id, name))), matched_adset:meta_ad_sets!matched_adset_id(id, name), matched_campaign:meta_campaigns!matched_campaign_id(id, name)",
       { count: "exact" }
     )
     .gte("received_at", `${filter.range.since}T00:00:00`)
     .lte("received_at", `${filter.range.until}T23:59:59`)
     .order("received_at", { ascending: false });
 
-  if (filter.search) {
-    query = query.or(`name.ilike.%${filter.search}%,email.ilike.%${filter.search}%,phone.ilike.%${filter.search}%`);
+  // Vírgula, parênteses e curingas quebrariam a sintaxe do .or() do PostgREST.
+  const term = filter.search.replace(/[,()%*\\]/g, " ").trim();
+  if (term) {
+    const cols = ["name", "email", "phone", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_id"];
+    query = query.or(cols.map((c) => `${c}.ilike.%${term}%`).join(","));
   }
   if (filter.campaignId) {
     query = query.eq("matched_campaign_id", filter.campaignId);
