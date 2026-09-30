@@ -384,6 +384,8 @@ export async function fetchLeads(supabase: SupabaseClient, filter: LeadsFilter):
 
 export interface LeadAdRankItem {
   adId: string;
+  // ID do anúncio na Meta — usado pra gerar o preview.
+  metaAdId: string | null;
   adName: string;
   adsetName: string | null;
   campaignName: string | null;
@@ -437,11 +439,12 @@ export async function fetchLeadAdRanking(
 
   const { data: ads } = await supabase
     .from("meta_ads")
-    .select("id, name, adset:meta_ad_sets(name, campaign:meta_campaigns(name))")
+    .select("id, meta_ad_id, name, adset:meta_ad_sets(name, campaign:meta_campaigns(name))")
     .in("id", topIds);
-  const infoById = new Map<string, { name: string; adsetName: string | null; campaignName: string | null }>();
+  const infoById = new Map<string, { name: string; metaAdId: string | null; adsetName: string | null; campaignName: string | null }>();
   for (const a of (ads ?? []) as unknown as {
     id: string;
+    meta_ad_id: string | null;
     name: string;
     adset: { name: string; campaign: { name: string } | { name: string }[] | null } | { name: string; campaign: unknown }[] | null;
   }[]) {
@@ -449,7 +452,7 @@ export async function fetchLeadAdRanking(
       | { name: string; campaign: { name: string } | { name: string }[] | null }
       | undefined;
     const campaign = adset ? (Array.isArray(adset.campaign) ? adset.campaign[0] : adset.campaign) : null;
-    infoById.set(a.id, { name: a.name, adsetName: adset?.name ?? null, campaignName: campaign?.name ?? null });
+    infoById.set(a.id, { name: a.name, metaAdId: a.meta_ad_id, adsetName: adset?.name ?? null, campaignName: campaign?.name ?? null });
   }
 
   const spendById = new Map<string, number>();
@@ -473,6 +476,7 @@ export async function fetchLeadAdRanking(
     return {
       adId,
       adName: info?.name ?? "—",
+      metaAdId: info?.metaAdId ?? null,
       adsetName: info?.adsetName ?? null,
       campaignName: info?.campaignName ?? null,
       leads,

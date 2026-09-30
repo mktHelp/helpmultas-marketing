@@ -119,19 +119,16 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-interface LeadPreviewState {
+interface AdPreviewState {
   url: string | null;
   loading: boolean;
   error: string | null;
 }
 
-function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => void }) {
-  const [preview, setPreview] = useState<LeadPreviewState>({ url: null, loading: false, error: null });
-
-  const ad = one(lead?.matched_ad);
-  const adset = one(ad?.adset) ?? one(lead?.matched_adset);
-  const campaign = one(one(ad?.adset)?.campaign) ?? one(lead?.matched_campaign);
-  const metaAdId = ad?.meta_ad_id;
+// Preview oficial da Meta (iframe) pelo ID do anúncio na Meta, via
+// /api/meta-ads/preview — o token da Meta fica só no servidor.
+function useAdPreview(metaAdId: string | null | undefined): AdPreviewState {
+  const [preview, setPreview] = useState<AdPreviewState>({ url: null, loading: false, error: null });
 
   useEffect(() => {
     if (!metaAdId) {
@@ -153,6 +150,36 @@ function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => vo
       cancelled = true;
     };
   }, [metaAdId]);
+
+  return preview;
+}
+
+function AdPreviewDialog({ ad, onClose }: { ad: { name: string; metaAdId: string } | null; onClose: () => void }) {
+  const preview = useAdPreview(ad?.metaAdId);
+  return (
+    <Dialog open={!!ad} onClose={onClose} size="lg">
+      <DialogHeader title="Preview do anúncio" subtitle={ad?.name} onClose={onClose} />
+      <DialogBody className="flex justify-center">
+        {preview.loading && <p className="py-10 text-sm text-gray-500">Carregando preview...</p>}
+        {preview.error && <p className="py-10 text-sm text-[color:var(--color-danger)]">{preview.error}</p>}
+        {preview.url && (
+          <iframe
+            src={preview.url}
+            className="h-[600px] w-full max-w-sm rounded-xl border border-gray-200"
+            title={`Preview — ${ad?.name ?? "anúncio"}`}
+          />
+        )}
+      </DialogBody>
+    </Dialog>
+  );
+}
+
+function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => void }) {
+  const ad = one(lead?.matched_ad);
+  const adset = one(ad?.adset) ?? one(lead?.matched_adset);
+  const campaign = one(one(ad?.adset)?.campaign) ?? one(lead?.matched_campaign);
+  const metaAdId = ad?.meta_ad_id;
+  const preview = useAdPreview(metaAdId);
 
   return (
     <Dialog open={!!lead} onClose={onClose} size="xl">
@@ -218,7 +245,15 @@ function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => vo
   );
 }
 
-function RankingCard({ ranking, loading }: { ranking: LeadAdRanking; loading: boolean }) {
+function RankingCard({
+  ranking,
+  loading,
+  onSelect,
+}: {
+  ranking: LeadAdRanking;
+  loading: boolean;
+  onSelect: (ad: { name: string; metaAdId: string }) => void;
+}) {
   const { items, totalLeads, matchedLeads } = ranking;
   const max = items[0]?.leads ?? 1;
   const th = "px-4 py-2.5 text-[11px] font-bold uppercase text-gray-500";
@@ -258,7 +293,12 @@ function RankingCard({ ranking, loading }: { ranking: LeadAdRanking; loading: bo
               </thead>
               <tbody>
                 {items.map((item, i) => (
-                  <tr key={item.adId} className="border-t border-gray-100">
+                  <tr
+                    key={item.adId}
+                    onClick={item.metaAdId ? () => onSelect({ name: item.adName, metaAdId: item.metaAdId! }) : undefined}
+                    className={cn("border-t border-gray-100", item.metaAdId && "cursor-pointer hover:bg-gray-050")}
+                    title={item.metaAdId ? "Clique para ver o preview do anúncio" : undefined}
+                  >
                     <td className="px-4 py-3 text-center">
                       <span
                         className={cn(
@@ -372,6 +412,7 @@ export function TrafficLeads() {
   const [ads, setAds] = useState<{ id: string; name: string }[]>([]);
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
   const [pageOrigin, setPageOrigin] = useState("");
+  const [previewAd, setPreviewAd] = useState<{ name: string; metaAdId: string } | null>(null);
 
   const matched = useMemo(() => rows.filter((r) => r.matched_ad_id).length, [rows]);
 
@@ -450,7 +491,7 @@ export function TrafficLeads() {
         matched={matchedTotal ?? rows.filter((r) => r.matched_ad_id).length}
         unmatched={unmatchedTotal ?? rows.filter((r) => !r.matched_ad_id).length}
       />
-      <RankingCard ranking={ranking} loading={rankingLoading} />
+      <RankingCard ranking={ranking} loading={rankingLoading} onSelect={setPreviewAd} />
 
       <Card>
         <CardHeader>
@@ -633,6 +674,7 @@ export function TrafficLeads() {
       </Card>
 
       <LeadDialog lead={selectedLead} onClose={() => setSelectedLead(null)} />
+      <AdPreviewDialog ad={previewAd} onClose={() => setPreviewAd(null)} />
     </div>
   );
 }
