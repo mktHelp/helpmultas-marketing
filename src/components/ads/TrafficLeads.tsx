@@ -13,12 +13,12 @@ import {
   fetchLeadAdRanking,
   fetchLeads,
   type DateRange,
-  type LeadAdCount,
+  type LeadAdRanking,
   type LeadRow,
   type LeadsFilter,
 } from "@/lib/services/meta-ads";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
-import { formatDay, numberFormatter } from "@/lib/format";
+import { currencyFormatter, formatDay, numberFormatter } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
@@ -218,8 +218,9 @@ function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => vo
   );
 }
 
-function RankingCard({ ranking, loading }: { ranking: LeadAdCount[]; loading: boolean }) {
-  const max = ranking[0]?.count ?? 1;
+function RankingCard({ ranking, loading }: { ranking: LeadAdRanking; loading: boolean }) {
+  const { items, totalLeads, matchedLeads } = ranking;
+  const max = items[0]?.leads ?? 1;
   return (
     <Card>
       <CardHeader>
@@ -227,36 +228,62 @@ function RankingCard({ ranking, loading }: { ranking: LeadAdCount[]; loading: bo
           <Trophy className="h-4 w-4 text-yellow-500" />
           Top anúncios por leads recebidos
         </CardTitle>
+        {!loading && totalLeads > 0 && (
+          <p className="mt-0.5 text-xs text-gray-500">
+            {numberFormatter.format(matchedLeads)} de {numberFormatter.format(totalLeads)}{" "}
+            {totalLeads === 1 ? "lead" : "leads"} no período com anúncio identificado
+          </p>
+        )}
       </CardHeader>
       <CardBody>
         {loading && <p className="py-4 text-center text-sm text-gray-400">Carregando...</p>}
-        {!loading && ranking.length === 0 && (
-          <p className="py-4 text-center text-sm text-gray-400">Nenhum lead vinculado no período.</p>
+        {!loading && items.length === 0 && (
+          <p className="py-4 text-center text-sm text-gray-400">Nenhum lead vinculado a anúncio no período.</p>
         )}
-        <div className="space-y-3">
-          {ranking.map((item, i) => (
-            <div key={item.adId}>
-              <div className="mb-1 flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 truncate font-medium text-blue-900">
-                  <span
-                    className={cn(
-                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-                      i === 0 ? "bg-yellow-400 text-blue-900" : "bg-gray-100 text-gray-600"
-                    )}
-                  >
-                    {i + 1}
+        <div className="space-y-4">
+          {items.map((item, i) => (
+            <div key={item.adId} className="flex gap-3">
+              <span
+                className={cn(
+                  "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                  i === 0 ? "bg-yellow-400 text-blue-900" : "bg-gray-100 text-gray-600"
+                )}
+              >
+                {i + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="line-clamp-2 text-sm font-semibold leading-snug text-blue-900" title={item.adName}>
+                    {item.adName}
+                  </p>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-blue-900">
+                      {numberFormatter.format(item.leads)} {item.leads === 1 ? "lead" : "leads"}
+                    </p>
+                    <p className="text-[11px] text-gray-400">{item.share.toFixed(1)}% do total</p>
+                  </div>
+                </div>
+                {item.campaignName && (
+                  <p className="mt-0.5 truncate text-xs text-gray-500" title={`${item.campaignName} › ${item.adsetName ?? ""}`}>
+                    {item.campaignName}
+                    {item.adsetName ? ` › ${item.adsetName}` : ""}
+                  </p>
+                )}
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className={cn("h-full rounded-full", i === 0 ? "bg-yellow-400" : "bg-blue-200")}
+                    style={{ width: `${(item.leads / max) * 100}%` }}
+                  />
+                </div>
+                <div className="mt-1.5 flex gap-4 text-xs text-gray-500">
+                  <span>
+                    Investido: <strong className="text-gray-700">{currencyFormatter.format(item.spend)}</strong>
                   </span>
-                  <span className="truncate">{item.adName}</span>
-                </span>
-                <span className="ml-2 shrink-0 font-bold text-blue-900">
-                  {numberFormatter.format(item.count)} {item.count === 1 ? "lead" : "leads"}
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className={cn("h-full rounded-full", i === 0 ? "bg-yellow-400" : "bg-blue-200")}
-                  style={{ width: `${(item.count / max) * 100}%` }}
-                />
+                  <span>
+                    Custo por lead:{" "}
+                    <strong className="text-gray-700">{item.cpl !== null ? currencyFormatter.format(item.cpl) : "—"}</strong>
+                  </span>
+                </div>
               </div>
             </div>
           ))}
@@ -319,7 +346,7 @@ export function TrafficLeads() {
   const [rows, setRows] = useState<LeadRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [ranking, setRanking] = useState<LeadAdCount[]>([]);
+  const [ranking, setRanking] = useState<LeadAdRanking>({ items: [], totalLeads: 0, matchedLeads: 0 });
   const [rankingLoading, setRankingLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
   const [ads, setAds] = useState<{ id: string; name: string }[]>([]);

@@ -382,11 +382,31 @@ export async function fetchLeads(supabase: SupabaseClient, filter: LeadsFilter):
   };
 }
 
+export interface LeadAdRankItem {
+  adId: string;
+  adName: string;
+  adsetName: string | null;
+  campaignName: string | null;
+  leads: number;
+  // % sobre TODOS os leads do período (inclusive os sem vínculo).
+  share: number;
+  // Investimento da Meta no mesmo período, e custo por lead da LP
+  // (investimento ÷ leads recebidos). null quando não há investimento.
+  spend: number;
+  cpl: number | null;
+}
+
+export interface LeadAdRanking {
+  items: LeadAdRankItem[];
+  totalLeads: number;
+  matchedLeads: number;
+}
+
 export async function fetchLeadAdRanking(
   supabase: SupabaseClient,
   range: DateRange,
-  limit = 10
-): Promise<LeadAdCount[]> {
+  limit = 5
+): Promise<LeadAdRanking> {
   const rows: { matched_ad_id: string | null }[] = [];
   for (let from = 0; ; from += LEADS_PAGE_SIZE) {
     const { data, error } = await supabase
@@ -394,7 +414,6 @@ export async function fetchLeadAdRanking(
       .select("matched_ad_id")
       .gte("received_at", `${range.since}T00:00:00`)
       .lte("received_at", `${range.until}T23:59:59`)
-      .not("matched_ad_id", "is", null)
       .range(from, from + LEADS_PAGE_SIZE - 1);
     if (error) throw error;
     rows.push(...(data ?? []));
@@ -402,19 +421,66 @@ export async function fetchLeadAdRanking(
   }
 
   const countByAd = new Map<string, number>();
+  let matchedLeads = 0;
   for (const row of rows) {
-    countByAd.set(row.matched_ad_id!, (countByAd.get(row.matched_ad_id!) ?? 0) + 1);
+    if (!row.matched_ad_id) continue;
+    matchedLeads++;
+    countByAd.set(row.matched_ad_id, (countByAd.get(row.matched_ad_id) ?? 0) + 1);
   }
 
-  const adIds = [...countByAd.keys()];
-  const names = new Map<string, string>();
-  if (adIds.length > 0) {
-    const { data: ads } = await supabase.from("meta_ads").select("id, name").in("id", adIds);
-    for (const a of ads ?? []) names.set(a.id, a.name);
+  const topIds = [...countByAd.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id);
+
+  if (topIds.length === 0) return { items: [], totalLeads: rows.length, matchedLeads };
+
+  const { data: ads } = await supabase
+    .from("meta_ads")
+    .select("id, name, adset:meta_ad_sets(name, campaign:meta_campaigns(name))")
+    .in("id", topIds);
+  const infoById = new Map<string, { name: string; adsetName: string | null; campaignName: string | null }>();
+  for (const a of (ads ?? []) as unknown as {
+    id: string;
+    name: string;
+    adset: { name: string; campaign: { name: string } | { name: string }[] | null } | { name: string; campaign: unknown }[] | null;
+  }[]) {
+    const adset = (Array.isArray(a.adset) ? a.adset[0] : a.adset) as
+      | { name: string; campaign: { name: string } | { name: string }[] | null }
+      | undefined;
+    const campaign = adset ? (Array.isArray(adset.campaign) ? adset.campaign[0] : adset.campaign) : null;
+    infoById.set(a.id, { name: a.name, adsetName: adset?.name ?? null, campaignName: campaign?.name ?? null });
   }
 
-  return [...countByAd.entries()]
-    .map(([adId, count]) => ({ adId, adName: names.get(adId) ?? "—", count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, limit);
+  const spendById = new Map<string, number>();
+  for (let from = 0; ; from += INSIGHTS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("meta_ad_insights")
+      .select("ad_id, spend")
+      .in("ad_id", topIds)
+      .gte("date", range.since)
+      .lte("date", range.until)
+      .range(from, from + INSIGHTS_PAGE_SIZE - 1);
+    if (error) throw error;
+    for (const r of data ?? []) spendById.set(r.ad_id, (spendById.get(r.ad_id) ?? 0) + Number(r.spend));
+    if (!data || data.length < INSIGHTS_PAGE_SIZE) break;
+  }
+
+  const items = topIds.map((adId) => {
+    const leads = countByAd.get(adId) ?? 0;
+    const spend = spendById.get(adId) ?? 0;
+    const info = infoById.get(adId);
+    return {
+      adId,
+      adName: info?.name ?? "—",
+      adsetName: info?.adsetName ?? null,
+      campaignName: info?.campaignName ?? null,
+      leads,
+      share: rows.length > 0 ? (leads / rows.length) * 100 : 0,
+      spend,
+      cpl: spend > 0 && leads > 0 ? spend / leads : null,
+    };
+  });
+
+  return { items, totalLeads: rows.length, matchedLeads };
 }
