@@ -62,20 +62,31 @@ function AdNameCell({ lead }: { lead: LeadRow }) {
   if (!ad && !adset && !campaign) return <span className="text-gray-400">Sem vínculo</span>;
 
   const level = ad ? "Anúncio" : adset ? "Conjunto" : "Campanha";
-  const title = ad?.name ?? adset?.name ?? campaign?.name;
+  const title = ad?.name ?? adset?.name ?? campaign?.name ?? "";
   return (
-    <div className="min-w-0">
-      <div className="text-[10px] font-bold uppercase text-gray-400">{level}</div>
-      <div className="font-medium text-blue-900">{title}</div>
-      {(ad || (adset && campaign)) && (
-        <div className="text-xs text-gray-400">
-          {[campaign?.name, ad ? adset?.name : null].filter(Boolean).join(" › ")}
-        </div>
+    <div className="w-80 space-y-1">
+      <div className="flex items-center gap-2">
+        <Badge tone="neutral">{level}</Badge>
+        {lead.matched_by && (
+          <span className="text-[11px] font-semibold text-[color:var(--color-success)]">
+            {MATCHED_BY_LABEL[lead.matched_by] ?? lead.matched_by}
+          </span>
+        )}
+      </div>
+      <p className="line-clamp-2 text-sm font-semibold leading-snug text-blue-900" title={title}>
+        {title}
+      </p>
+      {campaign && level !== "Campanha" && (
+        <p className="truncate text-xs text-gray-500" title={campaign.name}>
+          <span className="font-semibold text-gray-400">Campanha: </span>
+          {campaign.name}
+        </p>
       )}
-      {lead.matched_by && (
-        <div className="mt-1">
-          <Badge tone="success">{MATCHED_BY_LABEL[lead.matched_by] ?? lead.matched_by}</Badge>
-        </div>
+      {adset && level === "Anúncio" && (
+        <p className="truncate text-xs text-gray-500" title={adset.name}>
+          <span className="font-semibold text-gray-400">Conjunto: </span>
+          {adset.name}
+        </p>
       )}
     </div>
   );
