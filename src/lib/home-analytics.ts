@@ -1,4 +1,6 @@
 import { shiftDate, type DateRange } from "@/lib/period";
+import { toDateKey } from "@/lib/utils";
+import type { TaskWithRelations } from "@/types/database";
 
 // Análises da dashboard principal (tarefas do Marketing). Funções puras sobre
 // SlimTask: o servidor já converte as datas pra "YYYY-MM-DD" no fuso de São
@@ -224,4 +226,24 @@ export function buildHomeHighlights(input: {
     out.push({ key: "top", title: `${topPerson.name} lidera as entregas`, text: `${topPerson.completed} tarefas concluídas no período.`, tone: "good" });
   }
   return out;
+}
+
+// Converte a tarefa completa pro formato leve usado nas análises (datas já no
+// dia de São Paulo).
+export function toSlimTask(t: TaskWithRelations): SlimTask {
+  return {
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    areaId: t.area_id,
+    contentType: t.content_type,
+    createdDay: toDateKey(t.created_at),
+    completedDay: t.completed_at ? toDateKey(t.completed_at) : null,
+    dueDay: t.due_date ? toDateKey(t.due_date) : null,
+    dueAt: t.due_date,
+    publishDay: t.publish_at ? toDateKey(t.publish_at) : null,
+    updatedAt: Date.parse(t.updated_at),
+    assigneeIds: (t.assignees || []).map((a) => a.id),
+  };
 }
