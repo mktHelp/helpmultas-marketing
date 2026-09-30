@@ -285,6 +285,7 @@ export interface LandingPageLead {
   state: string;
   capital: string;
   capital_label: string;
+  page_origin: string;
   fbp: string;
   fbc: string;
   fbclid: string;

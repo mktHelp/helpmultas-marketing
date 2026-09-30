@@ -311,6 +311,7 @@ export interface LeadRow {
   fbc: string;
   capital: string;
   capital_label: string;
+  page_origin: string;
   matched_by: string | null;
   matched_ad_id: string | null;
   matched_adset_id: string | null;
@@ -332,6 +333,7 @@ export interface LeadsFilter {
   campaignId: string;
   adId: string;
   matchStatus: "" | "matched" | "unmatched";
+  pageOrigin: string;
   page: number;
   pageSize: number;
 }
@@ -340,7 +342,7 @@ export async function fetchLeads(supabase: SupabaseClient, filter: LeadsFilter):
   let query = supabase
     .from("landing_page_leads")
     .select(
-      "id, name, email, phone, city, state, capital, capital_label, utm_source, utm_medium, utm_campaign, utm_content, utm_term, utm_id, fbclid, fbp, fbc, matched_by, matched_ad_id, matched_adset_id, matched_campaign_id, received_at, matched_ad:meta_ads(id, meta_ad_id, name, adset:meta_ad_sets(id, name, campaign:meta_campaigns(id, name))), matched_adset:meta_ad_sets!matched_adset_id(id, name), matched_campaign:meta_campaigns!matched_campaign_id(id, name)",
+      "id, name, email, phone, city, state, capital, capital_label, page_origin, utm_source, utm_medium, utm_campaign, utm_content, utm_term, utm_id, fbclid, fbp, fbc, matched_by, matched_ad_id, matched_adset_id, matched_campaign_id, received_at, matched_ad:meta_ads(id, meta_ad_id, name, adset:meta_ad_sets(id, name, campaign:meta_campaigns(id, name))), matched_adset:meta_ad_sets!matched_adset_id(id, name), matched_campaign:meta_campaigns!matched_campaign_id(id, name)",
       { count: "exact" }
     )
     .gte("received_at", `${filter.range.since}T00:00:00`)
@@ -358,6 +360,9 @@ export async function fetchLeads(supabase: SupabaseClient, filter: LeadsFilter):
   }
   if (filter.adId) {
     query = query.eq("matched_ad_id", filter.adId);
+  }
+  if (filter.pageOrigin) {
+    query = query.eq("page_origin", filter.pageOrigin);
   }
   if (filter.matchStatus === "matched") {
     query = query.not("matched_ad_id", "is", null);

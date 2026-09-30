@@ -16,6 +16,7 @@ interface LeadPayload {
   state?: string;
   capital?: string | number | boolean;
   capitalLabel?: string;
+  page_origin?: string;
   fbp?: string;
   fbc?: string;
   fbclid?: string;
@@ -64,9 +65,13 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const match = await matchLead(admin, body);
 
-  const { data, error } = await admin
-    .from("landing_page_leads")
-    .insert({
+  // Página da LP onde o formulário foi preenchido — conceito à parte de
+  // utm_source (origem do tráfego). Leads de builds antigos da LP, que não
+  // mandam o campo, só existiam na home.
+  const pageOrigin = (body.page_origin ?? "").toString().trim().toLowerCase().slice(0, 40) || "home";
+
+  const row = {
+      page_origin: pageOrigin,
       name: (body.name ?? "").trim(),
       email: (body.email ?? "").trim(),
       phone: body.phone ?? "",
@@ -88,12 +93,20 @@ export async function POST(request: Request) {
       matched_ad_id: match.adId,
       matched_by: match.matchedBy,
       raw_payload: body,
-    })
-    .select("id")
-    .single();
+  };
 
-  if (error) {
-    return json({ error: error.message }, 500);
+  let { data, error } = await admin.from("landing_page_leads").insert(row).select("id").single();
+
+  // Se o deploy sair antes da migration 0052, a coluna ainda não existe:
+  // salva o lead sem ela em vez de perdê-lo (page_origin segue no raw_payload).
+  if (error && /page_origin/.test(error.message)) {
+    const { page_origin: _omit, ...withoutOrigin } = row;
+    void _omit;
+    ({ data, error } = await admin.from("landing_page_leads").insert(withoutOrigin).select("id").single());
+  }
+
+  if (error || !data) {
+    return json({ error: error?.message ?? "Falha ao salvar o lead" }, 500);
   }
 
   return json({

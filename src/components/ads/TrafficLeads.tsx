@@ -81,6 +81,16 @@ function AdNameCell({ lead }: { lead: LeadRow }) {
   );
 }
 
+// Página da LP onde o formulário foi preenchido — NÃO é utm_source (origem do tráfego).
+const PAGE_ORIGIN_LABEL: Record<string, string> = {
+  home: "Home",
+  evento: "Evento",
+};
+
+function pageOriginLabel(value: string) {
+  return PAGE_ORIGIN_LABEL[value] ?? (value ? value.charAt(0).toUpperCase() + value.slice(1) : "—");
+}
+
 const UTM_COLUMNS: { key: "utm_source" | "utm_medium" | "utm_campaign" | "utm_content" | "utm_term" | "utm_id"; width: string }[] = [
   { key: "utm_source", width: "min-w-28" },
   { key: "utm_medium", width: "min-w-28" },
@@ -152,6 +162,10 @@ function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => vo
         {lead && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto]">
             <div className="space-y-5">
+              <DetailSection title="Origem do lead">
+                <DetailField label="Página de origem (onde preencheu)" value={pageOriginLabel(lead.page_origin)} />
+              </DetailSection>
+
               <DetailSection title="Contato">
                 <DetailField label="Nome" value={lead.name} />
                 <DetailField label="E-mail" value={lead.email} />
@@ -311,6 +325,7 @@ export function TrafficLeads() {
   const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
   const [ads, setAds] = useState<{ id: string; name: string }[]>([]);
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
+  const [pageOrigin, setPageOrigin] = useState("");
 
   const matched = useMemo(() => rows.filter((r) => r.matched_ad_id).length, [rows]);
 
@@ -326,8 +341,8 @@ export function TrafficLeads() {
   }, []);
 
   const filter: LeadsFilter = useMemo(
-    () => ({ range: dateRange, search, campaignId, adId, matchStatus, page, pageSize: PAGE_SIZE }),
-    [dateRange, search, campaignId, adId, matchStatus, page]
+    () => ({ range: dateRange, search, campaignId, adId, matchStatus, pageOrigin, page, pageSize: PAGE_SIZE }),
+    [dateRange, search, campaignId, adId, matchStatus, pageOrigin, page]
   );
 
   const loadLeads = useCallback(async () => {
@@ -372,7 +387,7 @@ export function TrafficLeads() {
 
   useEffect(() => {
     setPage(0);
-  }, [dateRange, search, campaignId, adId, matchStatus]);
+  }, [dateRange, search, campaignId, adId, matchStatus, pageOrigin]);
 
   function handleSearch() {
     setSearch(searchInput);
@@ -456,6 +471,16 @@ export function TrafficLeads() {
                 </Select>
               </div>
             </FilterField>
+            <FilterField label="Página de origem">
+              <div className="w-40">
+                <Select className="h-9" value={pageOrigin} onChange={(e) => setPageOrigin(e.target.value)}>
+                  <option value="">Todas</option>
+                  {Object.entries(PAGE_ORIGIN_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </Select>
+              </div>
+            </FilterField>
             <FilterField label="Vínculo">
               <div className="w-36">
                 <Select className="h-9" value={matchStatus} onChange={(e) => setMatchStatus(e.target.value as "" | "matched" | "unmatched")}>
@@ -474,6 +499,7 @@ export function TrafficLeads() {
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-40">Nome</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-52">Contato</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-36">Cidade/UF</th>
+                  <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-36">Página de origem</th>
                   <th className="sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] min-w-72">Anúncio vinculado</th>
                   {UTM_COLUMNS.map((c) => (
                     <th key={c.key} className={cn("sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)] normal-case", c.width)}>
@@ -499,6 +525,9 @@ export function TrafficLeads() {
                       {lead.city && lead.state ? `${lead.city}/${lead.state}` : lead.state || "—"}
                     </td>
                     <td className="px-4 py-3">
+                      <Badge tone="neutral">{pageOriginLabel(lead.page_origin)}</Badge>
+                    </td>
+                    <td className="px-4 py-3">
                       <AdNameCell lead={lead} />
                     </td>
                     {UTM_COLUMNS.map((c) => (
@@ -515,7 +544,7 @@ export function TrafficLeads() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={5 + UTM_COLUMNS.length} className="px-4 py-10 text-center text-sm text-gray-400">
+                    <td colSpan={6 + UTM_COLUMNS.length} className="px-4 py-10 text-center text-sm text-gray-400">
                       {loading ? "Carregando..." : "Nenhum lead encontrado no período."}
                     </td>
                   </tr>
