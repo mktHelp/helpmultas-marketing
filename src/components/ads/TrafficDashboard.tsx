@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { Select } from "@/components/ui/Select";
 import { Tabs } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
@@ -182,6 +183,20 @@ export function TrafficDashboard() {
   const [tableLimit, setTableLimit] = useState(12);
   const [adSort, setAdSort] = useState<"leads" | "cpl" | "ctr" | "spend">("leads");
   const [adLimit, setAdLimit] = useState(8);
+  const [preview, setPreview] = useState<{ adName: string; url: string | null; loading: boolean; error: string | null } | null>(null);
+
+  // Preview visual do anúncio (iframe oficial da Meta, via /api/meta-ads/preview).
+  async function openPreview(adName: string, metaAdId: string) {
+    setPreview({ adName, url: null, loading: true, error: null });
+    try {
+      const res = await fetch(`/api/meta-ads/preview?metaAdId=${encodeURIComponent(metaAdId)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erro ao gerar preview");
+      setPreview({ adName, url: json.previewUrl, loading: false, error: null });
+    } catch (err) {
+      setPreview({ adName, url: null, loading: false, error: err instanceof Error ? err.message : "Erro desconhecido" });
+    }
+  }
 
   const range = useMemo(() => rangeForPreset(period, custom, today), [period, custom, today]);
   const length = rangeLength(range);
@@ -695,6 +710,21 @@ export function TrafficDashboard() {
                     <p className="flex items-center gap-2 truncate font-semibold text-blue-900" title={r.name}>
                       {r.active != null && <span className={cn("h-2 w-2 shrink-0 rounded-full", r.active ? "bg-[color:var(--color-success)]" : "bg-gray-300")} title={r.active ? "Ativo" : "Inativo"} />}
                       <span className="truncate">{r.name}</span>
+                      {level === "ad" && (
+                        <button
+                          type="button"
+                          title="Ver preview do anúncio"
+                          aria-label="Ver preview do anúncio"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const ad = adById.get(r.id);
+                            if (ad) openPreview(ad.name, ad.meta_ad_id);
+                          }}
+                          className="ml-auto shrink-0 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-blue-900"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      )}
                     </p>
                     {(r.sub || r.budget) && (
                       <p className="truncate text-[11px] text-gray-400">
@@ -755,8 +785,8 @@ export function TrafficDashboard() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {gallery.slice(0, adLimit).map(({ ad, m }, i) => (
-              <div key={ad.id} className="overflow-hidden rounded-2xl border border-gray-200">
-                <a href={ad.preview_link || undefined} target="_blank" rel="noreferrer" className="block">
+              <div key={ad.id} className="group overflow-hidden rounded-2xl border border-gray-200 transition-shadow hover:shadow-[var(--shadow-md)]">
+                <button type="button" onClick={() => openPreview(ad.name, ad.meta_ad_id)} title="Ver preview do anúncio" className="block w-full cursor-pointer text-left">
                   <div className="relative aspect-[4/3] bg-gray-100">
                     {ad.thumbnail_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -764,6 +794,9 @@ export function TrafficDashboard() {
                     ) : (
                       <div className="flex h-full items-center justify-center text-xs text-gray-300">Sem prévia</div>
                     )}
+                    <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-blue-900/80 py-1.5 text-[11px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      <Eye className="h-3.5 w-3.5" /> Ver preview
+                    </span>
                     {i < 3 && adSort !== "spend" && (
                       <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500 text-xs font-bold text-blue-900 shadow">{i + 1}</span>
                     )}
@@ -794,7 +827,7 @@ export function TrafficDashboard() {
                       CTR {pct2(ctr(m))} · {fmt(m.impressions)} impr.
                     </p>
                   </div>
-                </a>
+                </button>
               </div>
             ))}
           </div>
@@ -905,6 +938,17 @@ export function TrafficDashboard() {
           />
         )}
       </Panel>
+
+      <Dialog open={!!preview} onClose={() => setPreview(null)} size="lg">
+        <DialogHeader title="Preview do anúncio" subtitle={preview?.adName} onClose={() => setPreview(null)} />
+        <DialogBody className="flex justify-center">
+          {preview?.loading && <p className="py-10 text-sm text-gray-500">Carregando preview...</p>}
+          {preview?.error && <p className="py-10 text-sm text-[color:var(--color-danger)]">{preview.error}</p>}
+          {preview?.url && (
+            <iframe src={preview.url} className="h-[600px] w-full max-w-sm rounded-xl border border-gray-200" title={`Preview — ${preview.adName}`} />
+          )}
+        </DialogBody>
+      </Dialog>
     </div>
   );
 }
