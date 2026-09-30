@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Search, Trophy, UserX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, MousePointerClick, Search, Trophy, UserX } from "lucide-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
@@ -348,6 +348,22 @@ function RankingCard({
             </table>
           </div>
         )}
+        {items.length > 0 && (
+          <div className="mt-3 space-y-1 text-xs text-gray-500">
+            <p className="flex items-center gap-1.5">
+              <MousePointerClick className="h-3.5 w-3.5 shrink-0 text-blue-900" />
+              Clique em um anúncio para ver o preview de como ele aparece no feed.
+            </p>
+            <p className="flex items-start gap-1.5">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-900" />
+              <span>
+                <strong>Leads:</strong> formulários recebidos pela Landing Page que vieram desse anúncio (identificado pelas UTMs).{" "}
+                <strong>Investido:</strong> gasto do anúncio na Meta no período.{" "}
+                <strong>Custo por lead:</strong> investido ÷ leads.
+              </span>
+            </p>
+          </div>
+        )}
       </CardBody>
     </Card>
   );
@@ -573,6 +589,22 @@ export function TrafficLeads() {
                 </Select>
               </div>
             </FilterField>
+          </div>
+
+          <div className="mb-3 space-y-1 rounded-xl bg-blue-050 px-4 py-3 text-xs text-blue-900">
+            <p className="flex items-center gap-1.5 font-semibold">
+              <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
+              Clique em qualquer lead para ver todas as informações e o preview do anúncio de onde ele veio.
+            </p>
+            <p className="flex items-start gap-1.5 text-blue-900/80">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                Role a tabela para o lado para ver todas as UTMs, exatamente como vieram na URL.{" "}
+                <strong>Página de origem</strong> é a página da LP onde o formulário foi preenchido (não é a{" "}
+                <code>utm_source</code>). <strong>Sem vínculo</strong> significa que as UTMs do lead não bateram com nenhuma
+                campanha, conjunto ou anúncio sincronizado; a cada sincronização o sistema tenta vincular de novo.
+              </span>
+            </p>
           </div>
 
           <div className="max-h-[65vh] overflow-auto rounded-2xl border border-gray-200 bg-white">
