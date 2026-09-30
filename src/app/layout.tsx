@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
 import { MetaSyncProvider } from "@/lib/meta-sync-context";
+import { InstagramSyncProvider } from "@/lib/instagram-sync-context";
 import { SyncStatusWidgets } from "@/components/ads/SyncStatusWidgets";
 import "./globals.css";
 
@@ -27,8 +28,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="pt-BR" className="h-full antialiased">
       <body className="min-h-full" suppressHydrationWarning>
         <MetaSyncProvider>
-          {children}
-          <SyncStatusWidgets />
+          <InstagramSyncProvider>
+            {children}
+            <SyncStatusWidgets />
+          </InstagramSyncProvider>
         </MetaSyncProvider>
         <Toaster position="top-right" richColors />
       </body>

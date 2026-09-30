@@ -499,5 +499,52 @@ export interface InstagramDailyInsight {
   profile_views: number;
   website_clicks: number;
   net_followers: number;
+  reach_followers: number;
+  reach_non_followers: number;
+  reach_by_type: Record<string, number>;
+  interactions_by_type: Record<string, number>;
+  replies: number;
+  reposts: number;
+  synced_at: string;
+}
+
+export interface InstagramMedia {
+  account_id: string;
+  media_id: string;
+  product_type: string;
+  media_type: string | null;
+  caption: string | null;
+  permalink: string | null;
+  thumbnail_url: string | null;
+  posted_at: string;
+  post_date: string;
+  like_count: number;
+  comments_count: number;
+  reach: number;
+  views: number;
+  shares: number;
+  saves: number;
+  total_interactions: number;
+  replies: number;
+  avg_watch_time_ms: number | null;
+  total_watch_time_ms: number | null;
+  synced_at: string;
+}
+
+export interface InstagramProfileInfo {
+  username?: string;
+  name?: string;
+  biography?: string;
+  followers_count?: number;
+  follows_count?: number;
+  media_count?: number;
+  profile_picture_url?: string;
+  website?: string;
+}
+
+export interface InstagramAudienceRow {
+  account_id: string;
+  kind: "profile" | "age" | "gender" | "city" | "country";
+  data: InstagramProfileInfo | { key: string; value: number }[];
   synced_at: string;
 }
