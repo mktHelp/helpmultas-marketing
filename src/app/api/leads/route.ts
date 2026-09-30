@@ -74,19 +74,38 @@ async function matchCampaign(admin: SupabaseClient, utmCampaign: string) {
   return null;
 }
 
+// A LP chama esta rota direto do navegador (outro domínio) com header
+// Authorization + JSON, o que dispara um preflight OPTIONS. Sem estes headers
+// o navegador bloqueia o POST antes de ele sair. A proteção real é o Bearer
+// token, não a origem.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+};
+
+function json(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: CORS_HEADERS });
+}
+
+export function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function POST(request: Request) {
   const token = process.env.LEADS_INGEST_TOKEN;
   if (!token) {
-    return NextResponse.json({ error: "LEADS_INGEST_TOKEN não configurado" }, { status: 500 });
+    return json({ error: "LEADS_INGEST_TOKEN não configurado" }, 500);
   }
   const auth = request.headers.get("authorization") || "";
   if (auth !== `Bearer ${token}`) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    return json({ error: "Não autorizado" }, 401);
   }
 
   const body = (await request.json().catch(() => null)) as LeadPayload | null;
   if (!body) {
-    return NextResponse.json({ error: "Corpo inválido" }, { status: 400 });
+    return json({ error: "Corpo inválido" }, 400);
   }
 
   const admin = createAdminClient();
@@ -149,10 +168,10 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return json({ error: error.message }, 500);
   }
 
-  return NextResponse.json({
+  return json({
     ok: true,
     id: data.id,
     matched: { campaign: matchedCampaignId, adset: matchedAdSetId, ad: matchedAdId },
