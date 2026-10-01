@@ -288,7 +288,7 @@ export function OverviewTab({
       </Panel>
 
       {/* Publicações por dia + seguidores */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel
           title="Publicações por dia"
           subtitle={
@@ -381,7 +381,7 @@ export function OverviewTab({
       </div>
 
       {/* Distribuições */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel title="Visualizações por tipo" subtitle="De onde vem a audiência">
           <Donut data={catSlices(t.viewsByCategory)} centerLabel="visualizações" centerValue={compact(t.views)} />
         </Panel>
@@ -400,7 +400,7 @@ export function OverviewTab({
         </Panel>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Interações" subtitle={`${fmt(t.interactions)} no período`}>
           <BarList items={interactionBars} total={t.interactions} />
         </Panel>
@@ -427,7 +427,7 @@ export function OverviewTab({
       {/* Destaques */}
       {insights.length > 0 && (
         <Panel title="Destaques do período" subtitle={`Leitura automática · ${periodLabel}`}>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {insights.map((i) => (
               <Insight key={i.title} icon={HIGHLIGHT_ICONS[i.key]} title={i.title}>
                 {i.text}

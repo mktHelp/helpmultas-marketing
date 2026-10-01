@@ -148,7 +148,7 @@ export function ReportsOverview({ model, label }: { model: ReportModel; label: s
       })}
 
       {/* Evolução */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel title="Instagram" subtitle="Visualizações por dia">
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={igSeries} margin={{ left: -14, right: 4 }}>
@@ -217,7 +217,7 @@ export function ReportsOverview({ model, label }: { model: ReportModel; label: s
       {/* Destaques */}
       {model.highlights.length > 0 && (
         <Panel title="Destaques consolidados" subtitle="Leitura automática de todas as frentes">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {model.highlights.map((h, i) => (
               <div key={i} className="flex gap-3 rounded-xl bg-gray-050 p-3">
                 <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", TONE[h.tone])}>

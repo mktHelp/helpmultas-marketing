@@ -70,7 +70,7 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
-      <div className="kanban-scroll flex h-[calc(100vh-260px)] min-h-[420px] gap-4 overflow-x-auto pb-4">
+      <div className="kanban-scroll flex h-[calc(100dvh-260px)] min-h-[420px] gap-4 overflow-x-auto pb-4">
         {activeStatuses.map((status) => (
           <KanbanColumn
             key={status.key}

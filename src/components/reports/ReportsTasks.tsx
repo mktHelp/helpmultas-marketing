@@ -45,7 +45,7 @@ export function ReportsTasks({ model, label }: { model: ReportModel; label: stri
         </ResponsiveContainer>
       </Panel>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Backlog ao longo do período" subtitle="Tarefas em aberto ao fim de cada dia">
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={flow} margin={{ left: -10, right: 8 }}>
@@ -77,7 +77,7 @@ export function ReportsTasks({ model, label }: { model: ReportModel; label: stri
         </Panel>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel title="Tarefas por status" subtitle="Panorama atual">
           <BarList items={t.byStatus.map((s) => ({ label: s.label, value: s.count, color: s.color }))} />
         </Panel>

@@ -371,14 +371,14 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
           </h1>
           <p className="mt-1 text-sm text-gray-500">Visão geral do Marketing — produção, Instagram e tráfego pago em um só lugar.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
           {period === "custom" && (
             <div className="flex items-center gap-2">
               <DateField label="De" value={custom.from} max={today} onChange={(v) => setCustom((c) => ({ ...c, from: v }))} />
               <DateField label="Até" value={custom.to} max={today} onChange={(v) => setCustom((c) => ({ ...c, to: v }))} />
             </div>
           )}
-          <div className="max-w-full overflow-x-auto">
+          <div className="min-w-0 max-w-full overflow-x-auto">
             <Tabs tabs={PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as PeriodKey)} />
           </div>
         </div>
@@ -396,7 +396,7 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
       </p>
 
       {/* Pulso do Marketing */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <PulseCard
           title="Instagram"
           icon={AtSign}
@@ -501,7 +501,7 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
       </Panel>
 
       {/* Distribuições */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel title="Abertas por área" subtitle="Onde está o trabalho agora">
           <Donut data={areaSlices} centerLabel="em aberto" centerValue={fmt(snap.open)} />
         </Panel>
@@ -513,7 +513,7 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
         </Panel>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel title="Ritmo por dia da semana" subtitle="Média de entregas (barras) e criações (linha)" className="lg:col-span-2">
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={weekday} margin={{ left: -14, right: 6 }}>
@@ -535,7 +535,7 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
       {slots.panels}
 
       {/* Instagram × Tráfego */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel
           title="Instagram — visualizações por dia"
           subtitle={`${fmt(ig.views)} visualizações · ${signed(ig.net)} seguidores líquidos`}
@@ -640,7 +640,7 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
       </Panel>
 
       {/* Agenda, prioridades e gargalos */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel title="Agenda de entregas" subtitle="Atrasadas e vencendo em até 7 dias" className="lg:col-span-1">
           {agenda.length === 0 ? (
             <p className="py-6 text-center text-sm text-gray-400">Nada vencendo nos próximos 7 dias. 🎉</p>
@@ -694,7 +694,7 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
       {/* Destaques */}
       {highlights.length > 0 && (
         <Panel title="Destaques" subtitle="Leitura automática da operação">
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {highlights.map((h) => (
               <div key={h.key} className="flex gap-3 rounded-xl bg-gray-050 p-3">
                 <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", TONE_STYLE[h.tone])}>

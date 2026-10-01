@@ -15,7 +15,7 @@ interface Result {
 
 const ICONS = { task: ListTodo, project: FolderKanban, campaign: Megaphone, user: UsersIcon };
 
-export function GlobalSearch() {
+export function GlobalSearch({ autoFocus, onNavigate }: { autoFocus?: boolean; onNavigate?: () => void } = {}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [open, setOpen] = useState(false);
@@ -70,6 +70,7 @@ export function GlobalSearch() {
   function go(r: Result) {
     setOpen(false);
     setQuery("");
+    onNavigate?.();
     const routes = { task: `/tasks/${r.id}`, project: `/projects/${r.id}`, campaign: `/campaigns/${r.id}`, user: `/team/${r.id}` };
     router.push(routes[r.type]);
   }
@@ -85,6 +86,7 @@ export function GlobalSearch() {
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          autoFocus={autoFocus}
           placeholder="Buscar tarefas, projetos, pessoas... (Ctrl+K)"
           className="w-full bg-transparent text-sm text-blue-900 placeholder:text-gray-500 focus:outline-none"
         />

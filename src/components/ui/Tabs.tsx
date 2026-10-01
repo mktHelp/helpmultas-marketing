@@ -14,13 +14,14 @@ export function Tabs({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center gap-1 rounded-full bg-gray-100 p-1", className)}>
+    // Em telas estreitas as abas rolam na horizontal em vez de estourar a página.
+    <div className={cn("flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-gray-100 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", className)}>
       {tabs.map((tab) => (
         <button
           key={tab.key}
           onClick={() => onChange(tab.key)}
           className={cn(
-            "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
+            "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
             active === tab.key ? "bg-white text-blue-900 shadow-sm" : "text-gray-700 hover:text-blue-900"
           )}
         >

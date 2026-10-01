@@ -83,7 +83,7 @@ export function ReportsTraffic({ model, label, range }: { model: ReportModel; la
         </ResponsiveContainer>
       </Panel>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Funil de conversão" subtitle="Do anúncio ao lead">
           <div className="space-y-3">
             {funnel.map((f) => (

@@ -141,7 +141,7 @@ export function ReportsHub({ raw }: { raw: ReportsRawData }) {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="max-w-full overflow-x-auto">
+        <div className="min-w-0 max-w-full overflow-x-auto">
           <Tabs tabs={REPORT_PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as ReportPeriodKey)} />
         </div>
         {period === "custom" && (

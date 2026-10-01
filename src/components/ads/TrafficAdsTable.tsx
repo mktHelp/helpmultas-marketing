@@ -532,7 +532,7 @@ export function TrafficAdsTable() {
           {preview?.url && (
             <iframe
               src={preview.url}
-              className="h-[600px] w-full max-w-sm rounded-xl border border-gray-200"
+              className="h-[min(600px,70dvh)] w-full max-w-sm rounded-xl border border-gray-200"
               title={`Preview — ${preview.adName}`}
             />
           )}

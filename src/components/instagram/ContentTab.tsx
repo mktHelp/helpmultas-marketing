@@ -195,7 +195,7 @@ export function ContentTab({ media }: { media: InstagramMedia[] }) {
       </div>
 
       {byCategory.length > 1 && (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Panel title="Média de visualizações por tipo" subtitle="Qual formato entrega mais">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={byCategory} margin={{ left: -10 }}>

@@ -168,7 +168,7 @@ export function InstagramInsights({
       {/* Controles */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Tabs tabs={accounts.map((a) => ({ key: a.id, label: a.label }))} active={accountId} onChange={setAccountId} />
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
           <Button
             size="sm"
             variant="secondary"
@@ -185,7 +185,7 @@ export function InstagramInsights({
           </Button>
           <Tabs tabs={SECTIONS} active={section} onChange={setSection} />
           {section !== "audience" && (
-            <div className="max-w-full overflow-x-auto">
+            <div className="min-w-0 max-w-full overflow-x-auto">
               <Tabs tabs={PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as PeriodKey)} />
             </div>
           )}

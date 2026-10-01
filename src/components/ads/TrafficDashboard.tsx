@@ -515,7 +515,7 @@ export function TrafficDashboard() {
     <div className="space-y-5">
       {/* Controles */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="max-w-full overflow-x-auto">
+        <div className="min-w-0 max-w-full overflow-x-auto">
           <Tabs tabs={PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as PeriodKey)} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -665,7 +665,7 @@ export function TrafficDashboard() {
       </Panel>
 
       {/* Funil + investimento */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Funil de conversão" subtitle="Do anúncio ao lead no período">
           <div className="space-y-2.5">
             <FunnelStep label="Impressões" value={totals.impressions} width={100} color={BRAND.blue} />
@@ -842,7 +842,7 @@ export function TrafficDashboard() {
       </Panel>
 
       {/* Dia da semana + ritmo */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Desempenho por dia da semana" subtitle="Média de investimento (barras) e de leads (linha) nos dias com gasto">
           <ResponsiveContainer width="100%" height={250}>
             <ComposedChart data={weekday} margin={{ left: -6, right: -6 }}>
@@ -885,7 +885,7 @@ export function TrafficDashboard() {
           <Kpi label="Com anúncio identificado" icon={Megaphone} value={percent(lpCur.filter((l) => l.matched_ad_id).length, lpCur.length, 0)} hint={`${fmt(lpCur.filter((l) => l.matched_ad_id).length)} de ${fmt(lpCur.length)} leads`} color={BRAND.steel} />
           <Kpi label="Leads Meta × LP" icon={Zap} value={`${fmt(totals.leads)} × ${fmt(lpCur.length)}`} hint="Conversões do Gerenciador × recebidos" color={BRAND.yellow} />
         </div>
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <p className="mb-1 text-xs font-bold text-blue-900">Leads por dia</p>
             <ResponsiveContainer width="100%" height={220}>
@@ -912,7 +912,7 @@ export function TrafficDashboard() {
       {/* Destaques */}
       {highlights.length > 0 && (
         <Panel title="Destaques do período" subtitle={`Leitura automática · ${label}`}>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {highlights.map((h) => (
               <Insight key={h.key + h.title} icon={HIGHLIGHT_ICONS[h.key]} title={h.title}>
                 {h.text}
@@ -945,7 +945,7 @@ export function TrafficDashboard() {
           {preview?.loading && <p className="py-10 text-sm text-gray-500">Carregando preview...</p>}
           {preview?.error && <p className="py-10 text-sm text-[color:var(--color-danger)]">{preview.error}</p>}
           {preview?.url && (
-            <iframe src={preview.url} className="h-[600px] w-full max-w-sm rounded-xl border border-gray-200" title={`Preview — ${preview.adName}`} />
+            <iframe src={preview.url} className="h-[min(600px,70dvh)] w-full max-w-sm rounded-xl border border-gray-200" title={`Preview — ${preview.adName}`} />
           )}
         </DialogBody>
       </Dialog>

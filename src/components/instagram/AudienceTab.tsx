@@ -77,7 +77,7 @@ export function AudienceTab({ audience, followersNow }: { audience: InstagramAud
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Gênero" subtitle="Seguidores por gênero">
           <Donut
             data={gender.map((g) => ({
@@ -106,7 +106,7 @@ export function AudienceTab({ audience, followersNow }: { audience: InstagramAud
         </Panel>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Panel title="Principais cidades" subtitle="Top 10 por seguidores">
           <BarList items={cities.slice(0, 10).map((c) => ({ label: c.key, value: c.value }))} total={total} />
         </Panel>
@@ -119,7 +119,7 @@ export function AudienceTab({ audience, followersNow }: { audience: InstagramAud
         </Panel>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {topCity && (
           <Insight icon={MapPin} title={`Praça principal: ${topCity.key}`}>
             Concentra {percent(topCity.value, total, 1)} da base. Bom alvo para conteúdo local e prova social regional.

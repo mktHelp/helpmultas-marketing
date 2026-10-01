@@ -44,7 +44,7 @@ export function Dialog({
       />
       <div
         className={cn(
-          "relative z-10 w-full rounded-[20px] bg-white shadow-[var(--shadow-lg)] max-h-[90vh] overflow-y-auto",
+          "relative z-10 w-full rounded-[20px] bg-white shadow-[var(--shadow-lg)] max-h-[90dvh] overflow-y-auto",
           sizes[size],
           className
         )}
@@ -67,13 +67,13 @@ export function DialogHeader({
 }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-5">
-      <div>
-        <h2 className="font-display text-lg font-semibold text-blue-900">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>}
+      <div className="min-w-0">
+        <h2 className="break-words font-display text-lg font-semibold text-blue-900">{title}</h2>
+        {subtitle && <p className="mt-0.5 break-words text-sm text-gray-500">{subtitle}</p>}
       </div>
       <button
         onClick={onClose}
-        className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-blue-900 transition-colors"
+        className="shrink-0 rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-blue-900 transition-colors"
       >
         <X className="h-5 w-5" />
       </button>

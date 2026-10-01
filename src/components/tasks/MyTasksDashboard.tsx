@@ -354,7 +354,7 @@ export function MyTasksDashboard({
       </div>
 
       {/* Foco + gráficos */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel title="Comece por aqui" subtitle="Atrasadas e as que vencem até amanhã, por prioridade">
           {focus.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">

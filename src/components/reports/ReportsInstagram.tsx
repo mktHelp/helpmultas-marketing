@@ -125,7 +125,7 @@ export function ReportsInstagram({
         </ResponsiveContainer>
       </Panel>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel title="Visualizações por tipo" subtitle="De onde vem a audiência">
           <Donut data={catSlices} centerLabel="visualizações" centerValue={compact(totals.views)} />
         </Panel>
