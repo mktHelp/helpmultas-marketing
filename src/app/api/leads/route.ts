@@ -62,6 +62,12 @@ export async function POST(request: Request) {
     return json({ error: "Corpo inválido" }, 400);
   }
 
+  // Lead sem nenhum dado de contato é quase sempre um teste/execução com dados
+  // vazios (ex.: n8n rodando o nó sem o lead real) — não salva lixo no banco.
+  if (!(body.name ?? "").trim() && !(body.email ?? "").trim() && !(body.phone ?? "").toString().trim()) {
+    return json({ error: "Lead vazio: envie ao menos nome, e-mail ou telefone" }, 400);
+  }
+
   const admin = createAdminClient();
   const match = await matchLead(admin, body);
 

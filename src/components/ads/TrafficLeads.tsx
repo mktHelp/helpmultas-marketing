@@ -64,6 +64,8 @@ function MatchCell({ lead }: { lead: LeadRow }) {
 const PAGE_ORIGIN_LABEL: Record<string, string> = {
   home: "Home",
   evento: "Evento",
+  // Leads do formulário nativo da Meta (campanhas FORMS II), enviados pelo n8n.
+  forms: "Formulário nativo",
 };
 
 function pageOriginLabel(value: string) {
