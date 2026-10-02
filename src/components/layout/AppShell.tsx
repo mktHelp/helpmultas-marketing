@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { LiveCursors } from "@/components/shared/LiveCursors";
+import { HelpinhoWidget } from "@/components/assistant/HelpinhoWidget";
 
 const STORAGE_KEY = "hm-sidebar-collapsed";
 
@@ -69,6 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }}
     >
       <LiveCursors />
+      <HelpinhoWidget />
       <div className="hidden lg:block">
         <Sidebar collapsed={collapsed} animate={animate} />
       </div>

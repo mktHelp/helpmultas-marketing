@@ -19,7 +19,7 @@ export interface SyncCompletion {
 // Container único: vários cards de progresso ficam empilhados (um acima do
 // outro) em vez de sobrepostos no mesmo canto.
 export function SyncProgressStack({ children }: { children: React.ReactNode }) {
-  return <div className="pointer-events-none fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">{children}</div>;
+  return <div className="pointer-events-none fixed bottom-24 right-5 z-40 flex flex-col items-end gap-3">{children}</div>;
 }
 
 // Overlay único: várias conclusões simultâneas aparecem empilhadas.
