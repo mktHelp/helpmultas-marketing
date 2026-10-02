@@ -1,13 +1,14 @@
 ﻿"use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  ArrowLeft, Camera, CalendarClock, Check, ChevronsLeftRight, ChevronsRightLeft, FileText, Folder, FolderPlus, Gauge,
-  FolderOpen, List, Minus, MonitorPlay, Pencil, PenLine, Play, Plus, Save, Search, Sparkles, Trash2, Type,
+  ArrowLeft, Wand2, Camera, CalendarClock, Check, ChevronsLeftRight, ChevronsRightLeft, FileText, Folder, FolderPlus, Gauge,
+  FolderOpen, List, Megaphone, Minus, MonitorPlay, Pencil, PenLine, Play, Plus, Save, Search, Sparkles, Trash2, Type,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -28,6 +29,7 @@ import {
   listTeleprompterFolders, listTeleprompterScripts, setTeleprompterRecorded, updateTeleprompterFolder,
   updateTeleprompterScript,
 } from "@/lib/services/teleprompterScripts";
+import { fetchAdsForScript, fetchLinkedScriptIds } from "@/lib/services/adScriptLinks";
 import { cn } from "@/lib/utils";
 import type { TeleprompterFolder, TeleprompterScript } from "@/types/database";
 
@@ -105,6 +107,10 @@ function TeleprompterContent() {
   const [mirrored, setMirrored] = useState(false);
   const [aiOpen, setAiOpen] = useState(true);
   const [layout, setLayout] = useState<Layout>("folders");
+  // quantos anúncios usam cada roteiro (selo na lista) e os anúncios do roteiro aberto (aviso no editor)
+  const [linkedCounts, setLinkedCounts] = useState<Map<string, number>>(new Map());
+  const [adLinks, setAdLinks] = useState<{ adId: string; name: string }[]>([]);
+  const lastCreatedRef = useRef<TeleprompterScript | null>(null);
 
   const editorRef = useRef<ScriptEditorHandle>(null);
   const stageRef = useRef<StageHandle>(null);
@@ -119,7 +125,22 @@ function TeleprompterContent() {
       })
       .catch(() => toast.error("Não foi possível carregar os roteiros"))
       .finally(() => setLoading(false));
+    fetchLinkedScriptIds(supabase).then(setLinkedCounts).catch(() => {});
   }, [supabase]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setAdLinks([]);
+      return;
+    }
+    let cancelled = false;
+    fetchAdsForScript(supabase, selectedId).then((links) => {
+      if (!cancelled) setAdLinks(links);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, selectedId]);
 
   // ------------------- Editor / seleção -------------------
 
@@ -349,6 +370,42 @@ function TeleprompterContent() {
 
   // ------------------- Palco -------------------
 
+  /** Cria um roteiro novo a partir do texto gerado pelo Helpinho, sem mexer no que está aberto no editor. */
+  async function saveGenerated(input: { title: string; text: string; folderId: string | null }) {
+    try {
+      const saved = await createTeleprompterScript(supabase, me?.id || "", {
+        title: input.title,
+        content: input.text,
+        content_html: textToHtml(input.text),
+        folder_id: input.folderId,
+        record_date: null,
+      });
+      setScripts((prev) => [saved, ...prev]);
+      lastCreatedRef.current = saved;
+      toast.success("Roteiro criado e salvo");
+      return true;
+    } catch {
+      toast.error("Não foi possível salvar o roteiro");
+      return false;
+    }
+  }
+
+  /** "Criar com o Helpinho": no celular abre a aba da IA; no desktop, o painel ao lado do editor. */
+  function startWithHelpinho() {
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
+      setAiOpen(true);
+      setTab("editor");
+    } else {
+      setTab("ai");
+    }
+  }
+
+  function openLastCreated() {
+    const created = lastCreatedRef.current;
+    if (created) selectScript(scripts.find((s) => s.id === created.id) ?? created);
+    else setTab("editor");
+  }
+
   function openStage(selection: string, selfie = false) {
     const text = selection || editorRef.current?.getText() || "";
     stageRef.current?.open({ text, selfie });
@@ -504,6 +561,35 @@ function TeleprompterContent() {
         {/* ---------------- Aba: Roteiros ---------------- */}
         <div className={tab === "scripts" ? "" : "hidden"}>
           <Card className="ast-fade-up flex min-h-[380px] flex-col p-0">
+            {/* Começar: os dois jeitos de criar um roteiro, sempre à vista */}
+            <div className="grid grid-cols-2 gap-2.5 border-b border-gray-100 p-3 sm:p-4">
+              <button
+                type="button"
+                onClick={startWithHelpinho}
+                className="group flex flex-col items-start gap-2 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-400 p-3.5 text-left text-blue-900 shadow-md shadow-yellow-500/25 transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-900 text-yellow-400 transition-transform group-hover:rotate-6 group-hover:scale-110">
+                  <Wand2 className="h-5 w-5" />
+                </span>
+                <span className="leading-tight">
+                  <span className="block font-display text-sm font-bold">Criar com o Helpinho</span>
+                  <span className="block text-[11px] font-semibold text-blue-900/70">Fale ou digite a ideia</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleNew}
+                className="group flex flex-col items-start gap-2 rounded-2xl border-2 border-gray-200 bg-white p-3.5 text-left text-blue-900 transition-all hover:-translate-y-0.5 hover:border-blue-900/30 hover:shadow-[var(--shadow-md)] active:scale-[0.98]"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-050 text-blue-800 transition-transform group-hover:-rotate-6 group-hover:scale-110">
+                  <PenLine className="h-5 w-5" />
+                </span>
+                <span className="leading-tight">
+                  <span className="block font-display text-sm font-bold">Escrever do zero</span>
+                  <span className="block text-[11px] font-semibold text-gray-500">Abrir o editor em branco</span>
+                </span>
+              </button>
+            </div>
             <div className="space-y-3 border-b border-gray-100 p-3 sm:p-4">
               {/* Pendentes / Gravados */}
               <div className="flex rounded-full bg-gray-100 p-1" role="tablist">
@@ -806,6 +892,11 @@ function TeleprompterContent() {
                                   <span className="truncate">{folder.name}</span>
                                 </span>
                               )}
+                              {(linkedCounts.get(s.id) ?? 0) > 0 && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-yellow-700" title="Este roteiro virou anúncio no Tráfego Pago">
+                                  <Megaphone className="h-3 w-3" /> Anúncio
+                                </span>
+                              )}
                               <span className="text-gray-400">{agoLabel(s.updated_at)}</span>
                             </div>
                           </div>
@@ -849,10 +940,33 @@ function TeleprompterContent() {
                 </span>
               )}
               <span className="ml-auto" />
-              <Button size="sm" variant="secondary" onClick={() => setTab("stage")} className="hidden gap-1.5 sm:inline-flex">
-                <MonitorPlay className="h-3.5 w-3.5" /> Ajustes do teleprompter
+              <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+                <Save className="h-3.5 w-3.5" /> {saving ? "Salvando…" : selected ? "Atualizar" : "Salvar"}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => openStage(editorRef.current?.getSelectionText() ?? "")}
+                disabled={wordCount === 0}
+                className="gap-1.5"
+                title="Abrir no teleprompter"
+              >
+                <Play className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Teleprompter</span>
               </Button>
             </div>
+
+            {selected && adLinks.length > 0 && (
+              <div className="ast-fade-up flex flex-wrap items-center gap-2 rounded-2xl bg-yellow-050 px-3.5 py-2.5 text-xs text-blue-900">
+                <Megaphone className="h-4 w-4 shrink-0 text-yellow-600" />
+                <span className="min-w-0 flex-1 font-semibold">
+                  Virou anúncio: {adLinks.slice(0, 2).map((a) => a.name).join(" · ")}
+                  {adLinks.length > 2 ? ` +${adLinks.length - 2}` : ""}
+                </span>
+                <Link href="/trafego-pago/leads" className="shrink-0 rounded-full px-2.5 py-1 font-bold text-blue-800 hover:bg-white">
+                  Ver resultado
+                </Link>
+              </div>
+            )}
 
             {/* No celular, com a aba do Helpinho aberta, os campos e o editor somem para dar espaço à IA */}
             <div className={cn("space-y-3 sm:space-y-4", tab === "ai" && "hidden lg:block")}>
@@ -910,9 +1024,6 @@ function TeleprompterContent() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Button onClick={handleSave} disabled={saving} className="gap-1.5">
-                  <Save className="h-4 w-4" /> {saving ? "Salvando..." : selected ? "Atualizar" : "Salvar"}
-                </Button>
                 {selected && (
                   <button
                     type="button"
@@ -958,10 +1069,17 @@ function TeleprompterContent() {
                   className="h-[calc(100dvh-380px)] min-h-[340px] lg:h-[560px]"
                 />
               </div>
-              <div className={cn("ast-fade-up min-h-0", tab === "ai" ? "block" : "hidden", aiOpen ? "lg:block" : "lg:hidden")}>
+              <div className={cn("ast-fade-up min-h-0 min-w-0", tab === "ai" ? "block" : "hidden", aiOpen ? "lg:block" : "lg:hidden")}>
                 <AiPanel
                   className="min-h-[calc(100dvh-250px)] lg:h-[560px] lg:min-h-0"
                   scriptId={selectedId}
+                  folders={folders}
+                  defaultFolderId={folderFilter !== "all" && folderFilter !== "none" ? folderFilter : null}
+                  canInsert={!!selected || wordCount > 0}
+                  insertLabel={title.trim() || "roteiro aberto"}
+                  onSaveNew={saveGenerated}
+                  onOpenStage={(text) => stageRef.current?.open({ text })}
+                  onOpenEditor={openLastCreated}
                   contextLabel={`${title.trim() || "Roteiro sem título"} · ${wordCount} palavras`}
                   onOpenChat={openInChat}
                   getFullText={() => editorRef.current?.getText() ?? ""}

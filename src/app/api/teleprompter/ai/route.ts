@@ -59,6 +59,108 @@ async function loadStyleBase(excludeId?: string): Promise<StyleItem[]> {
   return picked;
 }
 
+// ---------------------------------------------------------------------------
+// Roteiros vinculados a anúncios (tabela meta_ad_scripts): mostram à IA quais
+// roteiros viraram anúncios e quantos leads/CPL cada um gerou.
+
+interface PerfItem {
+  title: string;
+  text: string;
+  leads: number;
+  spend: number;
+  adNames: string[];
+}
+
+const PERF_DAYS = 120;
+const PERF_MAX_ITEMS = 6;
+
+function one<T>(v: T | T[] | null | undefined): T | null {
+  return (Array.isArray(v) ? v[0] : v) ?? null;
+}
+
+async function loadPerformanceBase(): Promise<PerfItem[]> {
+  const supabase = await createClient();
+  const { data: links, error } = await supabase
+    .from("meta_ad_scripts")
+    .select("ad_id, script_id, script:teleprompter_scripts(title, content), ad:meta_ads(name)")
+    .limit(80);
+  if (error || !links?.length) {
+    if (error) console.error("[teleprompter-ai] vínculos anúncio/roteiro indisponíveis:", error.message);
+    return [];
+  }
+
+  const rows = links as unknown as {
+    ad_id: string;
+    script_id: string;
+    script: { title: string; content: string } | { title: string; content: string }[] | null;
+    ad: { name: string } | { name: string }[] | null;
+  }[];
+  const adIds = rows.map((r) => r.ad_id);
+  const sinceDate = new Date(Date.now() - PERF_DAYS * 86400000).toISOString().slice(0, 10);
+
+  const leadCounts = await Promise.all(
+    adIds.map(async (id) => {
+      const { count } = await supabase
+        .from("landing_page_leads")
+        .select("id", { count: "exact", head: true })
+        .eq("matched_ad_id", id)
+        .gte("received_at", `${sinceDate}T00:00:00`);
+      return [id, count ?? 0] as const;
+    })
+  );
+  const leadsByAd = new Map(leadCounts);
+
+  const spendByAd = new Map<string, number>();
+  for (let from = 0; from < 10000; from += 1000) {
+    const { data } = await supabase
+      .from("meta_ad_insights")
+      .select("ad_id, spend")
+      .in("ad_id", adIds)
+      .gte("date", sinceDate)
+      .range(from, from + 999);
+    for (const r of data ?? []) spendByAd.set(r.ad_id, (spendByAd.get(r.ad_id) ?? 0) + Number(r.spend));
+    if (!data || data.length < 1000) break;
+  }
+
+  // um roteiro pode estar em vários anúncios: soma as métricas
+  const byScript = new Map<string, PerfItem>();
+  for (const r of rows) {
+    const script = one(r.script);
+    if (!script || (script.content ?? "").trim().length < 40) continue;
+    const item = byScript.get(r.script_id) ?? { title: script.title, text: script.content.trim(), leads: 0, spend: 0, adNames: [] };
+    item.leads += leadsByAd.get(r.ad_id) ?? 0;
+    item.spend += spendByAd.get(r.ad_id) ?? 0;
+    const adName = one(r.ad)?.name;
+    if (adName) item.adNames.push(adName);
+    byScript.set(r.script_id, item);
+  }
+
+  return [...byScript.values()]
+    .sort((a, b) => b.leads - a.leads || a.spend - b.spend)
+    .slice(0, PERF_MAX_ITEMS)
+    .map((it) => ({ ...it, text: it.text.length > PER_ITEM_CHARS ? `${it.text.slice(0, PER_ITEM_CHARS)}…` : it.text }));
+}
+
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+function performanceSection(items: PerfItem[], purpose: "organico" | "anuncio") {
+  if (items.length === 0) return "";
+  const body = items
+    .map((it, i) => {
+      const cpl = it.leads > 0 && it.spend > 0 ? ` · CPL ${brl.format(it.spend / it.leads)}` : "";
+      return `--- #${i + 1} "${it.title}" | ${it.leads} leads · gasto ${brl.format(it.spend)}${cpl} | anúncio: ${it.adNames.slice(0, 2).join(" / ")}
+${it.text}`;
+    })
+    .join("\n\n");
+  const focus =
+    purpose === "anuncio"
+      ? "O pedido é para um ANÚNCIO que gere leads: siga com prioridade o padrão dos roteiros que mais convertem (gancho, estrutura, duração, promessa e CTA)."
+      : "O pedido é para conteúdo orgânico: use estes roteiros como referência do que prende e converte, sem forçar o formato de anúncio.";
+  return `ROTEIROS QUE CONVERTEM — roteiros que viraram anúncios e geraram leads (ordem: mais leads, últimos ${PERF_DAYS} dias). Descubra o que eles têm em comum e aplique esse padrão no roteiro novo, sem copiar trechos. ${focus}
+
+${body}`;
+}
+
 function styleSection(items: StyleItem[]) {
   if (items.length === 0) {
     return "BASE DE ESTILO: ainda não há roteiros anteriores salvos. Use um tom direto, próximo e confiante, de quem explica multas de trânsito de forma simples.";
@@ -97,6 +199,7 @@ export async function POST(request: Request) {
   const instruction = typeof body?.instruction === "string" ? body.instruction.trim().slice(0, 1000) : "";
   const excludeId = typeof body?.scriptId === "string" ? body.scriptId : undefined;
   const duration = Math.min(Math.max(Number(body?.durationSeconds) || 60, 15), 300);
+  const purpose: "organico" | "anuncio" = body?.purpose === "anuncio" ? "anuncio" : "organico";
 
   if (action === "generate" && !brief) {
     return NextResponse.json({ error: "Conte do que é o vídeo para eu escrever o roteiro." }, { status: 400 });
@@ -105,7 +208,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Não há texto para revisar." }, { status: 400 });
   }
 
-  const style = styleSection(await loadStyleBase(excludeId));
+  const [styleItems, perfItems] = await Promise.all([loadStyleBase(excludeId), loadPerformanceBase()]);
+  const style = [styleSection(styleItems), performanceSection(perfItems, purpose)].filter(Boolean).join("\n\n");
   const words = Math.round((duration / 60) * 150);
 
   const prompt =

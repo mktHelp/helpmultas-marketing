@@ -394,3 +394,14 @@ a:active svg {
 /* O reset global "* { scrollbar-width: thin }" (sem camada) vence as utilities do Tailwind,
    então as classes [scrollbar-width:none] nunca escondiam a barra. Esta regra as honra. */
 [class*="scrollbar-width:none"] { scrollbar-width: none; }
+
+/* Sem zoom no celular: o iOS dá zoom ao focar campos com fonte menor que 16px,
+   e o toque duplo/pinça é desligado. */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Eye, Info, MousePointerClick, Search, Target, Trophy, UserX, Users, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Eye, FileText, Info, Link2, MousePointerClick, Search, Target, Trophy, UserX, Users, X } from "lucide-react";
+import Link from "next/link";
+import { ScriptLinkDialog } from "./ScriptLinkDialog";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
@@ -247,10 +249,12 @@ function RankingCard({
   ranking,
   loading,
   onSelect,
+  onLinkScript,
 }: {
   ranking: LeadAdRanking;
   loading: boolean;
   onSelect: (ad: { name: string; metaAdId: string }) => void;
+  onLinkScript: (item: LeadAdRanking["items"][number]) => void;
 }) {
   const { items, totalLeads, matchedLeads } = ranking;
   const max = items[0]?.leads ?? 1;
@@ -284,11 +288,17 @@ function RankingCard({
         {items.length > 0 && (
           <div className="space-y-2.5">
             {items.map((item, i) => (
-              <button
+              <div
                 key={item.adId}
-                type="button"
-                disabled={!item.metaAdId}
+                role={item.metaAdId ? "button" : undefined}
+                tabIndex={item.metaAdId ? 0 : undefined}
                 onClick={() => item.metaAdId && onSelect({ name: item.adName, metaAdId: item.metaAdId })}
+                onKeyDown={(e) => {
+                  if (item.metaAdId && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    onSelect({ name: item.adName, metaAdId: item.metaAdId });
+                  }
+                }}
                 title={item.metaAdId ? "Ver preview do anúncio" : undefined}
                 className={cn(
                   "group flex w-full flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border p-3 text-left transition-colors",
@@ -338,7 +348,33 @@ function RankingCard({
                   </div>
                 </div>
                 {item.metaAdId && <Eye className="hidden h-4 w-4 shrink-0 text-gray-300 transition-colors group-hover:text-blue-900 lg:block" />}
-              </button>
+
+                {/* Roteiro de origem do anúncio */}
+                <div className="flex w-full flex-wrap items-center gap-2 border-t border-gray-100 pt-2.5" onClick={(e) => e.stopPropagation()}>
+                  {item.script ? (
+                    <>
+                      <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full bg-blue-050 px-3 py-1 text-xs font-bold text-blue-900">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-blue-700" />
+                        <span className="truncate">Roteiro: {item.script.title}</span>
+                      </span>
+                      <Link href={`/teleprompter?roteiro=${item.script.id}`} className="rounded-full px-2.5 py-1 text-xs font-bold text-blue-800 hover:bg-blue-050">
+                        Abrir
+                      </Link>
+                      <button type="button" onClick={() => onLinkScript(item)} className="rounded-full px-2.5 py-1 text-xs font-bold text-gray-500 hover:bg-gray-100 hover:text-blue-900">
+                        Trocar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onLinkScript(item)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-gray-300 px-3.5 py-1.5 text-xs font-bold text-gray-600 transition-all hover:border-yellow-500 hover:bg-yellow-050 hover:text-blue-900 active:scale-95"
+                    >
+                      <Link2 className="h-3.5 w-3.5" /> Vincular roteiro
+                    </button>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -471,6 +507,7 @@ export function TrafficLeads() {
   const [loading, setLoading] = useState(true);
   const [ranking, setRanking] = useState<LeadAdRanking>({ items: [], totalLeads: 0, matchedLeads: 0 });
   const [rankingLoading, setRankingLoading] = useState(true);
+  const [linkAd, setLinkAd] = useState<{ adId: string; adName: string; current: { id: string; title: string } | null } | null>(null);
   const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
   const [ads, setAds] = useState<{ id: string; name: string }[]>([]);
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
@@ -589,7 +626,8 @@ export function TrafficLeads() {
         active={matchStatus}
         onFilter={filterByMatch}
       />
-      <RankingCard ranking={ranking} loading={rankingLoading} onSelect={setPreviewAd} />
+      <RankingCard ranking={ranking} loading={rankingLoading} onSelect={setPreviewAd} onLinkScript={(item) => setLinkAd({ adId: item.adId, adName: item.adName, current: item.script })} />
+      <ScriptLinkDialog ad={linkAd} onClose={() => setLinkAd(null)} onChanged={loadRanking} />
 
       <Card id="lista-leads" className="scroll-mt-4">
         <CardHeader className="items-center">

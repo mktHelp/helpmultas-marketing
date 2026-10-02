@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchScriptsForAds } from "@/lib/services/adScriptLinks";
 import type { MetaAd, MetaAdSet, MetaCampaign } from "@/types/database";
 
 export interface Metrics {
@@ -409,6 +410,8 @@ export interface LeadAdRankItem {
   // (investimento ÷ leads recebidos). null quando não há investimento.
   spend: number;
   cpl: number | null;
+  // Roteiro do Teleprompter vinculado a este anúncio (tabela meta_ad_scripts).
+  script: { id: string; title: string } | null;
 }
 
 export interface LeadAdRanking {
@@ -483,6 +486,8 @@ export async function fetchLeadAdRanking(
     if (!data || data.length < INSIGHTS_PAGE_SIZE) break;
   }
 
+  const scriptByAd = await fetchScriptsForAds(supabase, topIds);
+
   const items = topIds.map((adId) => {
     const leads = countByAd.get(adId) ?? 0;
     const spend = spendById.get(adId) ?? 0;
@@ -498,6 +503,7 @@ export async function fetchLeadAdRanking(
       share: rows.length > 0 ? (leads / rows.length) * 100 : 0,
       spend,
       cpl: spend > 0 && leads > 0 ? spend / leads : null,
+      script: scriptByAd.has(adId) ? { id: scriptByAd.get(adId)!.scriptId, title: scriptByAd.get(adId)!.title } : null,
     };
   });
 
