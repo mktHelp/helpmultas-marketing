@@ -77,19 +77,31 @@ function requireToken(): string {
   return token;
 }
 
-async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
-  const res = await fetch(url);
-  if (res.status === 429 && attempt <= 3) {
-    await new Promise((r) => setTimeout(r, attempt * 2000));
-    return fetchWithRetry(url, attempt + 1);
+const TRANSIENT_CODES = new Set([1, 2, 4, 17, 32, 341, 613]);
+
+// Retry on rate limit (429), 5xx and Graph "transient" errors ("Service temporarily unavailable").
+async function fetchJsonWithRetry<J extends GraphError>(url: string, attempt = 1): Promise<J> {
+  let json: J | null = null;
+  let retryable = false;
+  try {
+    const res = await fetch(url);
+    retryable = res.status === 429 || res.status >= 500;
+    json = (await res.json()) as J;
+    const err = json.error as { code?: number; is_transient?: boolean } | undefined;
+    if (err && (err.is_transient || (err.code !== undefined && TRANSIENT_CODES.has(err.code)))) retryable = true;
+    if (!retryable || !err) return json;
+  } catch (e) {
+    if (attempt > 4) throw e;
+    retryable = true;
   }
-  return res;
+  if (!retryable || attempt > 4) return json as J;
+  await new Promise((r) => setTimeout(r, attempt * 3000));
+  return fetchJsonWithRetry<J>(url, attempt + 1);
 }
 
 async function graphGetSingle<T>(path: string, params: Record<string, string>): Promise<T> {
   const url = `${GRAPH_BASE}${path}?${new URLSearchParams({ ...params, access_token: requireToken() })}`;
-  const res = await fetchWithRetry(url);
-  const json = (await res.json()) as T & GraphError;
+  const json = await fetchJsonWithRetry<T & GraphError>(url);
   if (json.error) throw new Error(`Meta API (${path}): ${json.error.message}`);
   return json;
 }
@@ -98,8 +110,7 @@ async function graphGetEdge<T>(path: string, params: Record<string, string>): Pr
   const results: T[] = [];
   let url = `${GRAPH_BASE}${path}?${new URLSearchParams({ ...params, access_token: requireToken() })}`;
   while (url) {
-    const res = await fetchWithRetry(url);
-    const json = (await res.json()) as { data?: T[] } & GraphPaging & GraphError;
+    const json = await fetchJsonWithRetry<{ data?: T[] } & GraphPaging & GraphError>(url);
     if (json.error) throw new Error(`Meta API (${path}): ${json.error.message}`);
     results.push(...(json.data ?? []));
     url = json.paging?.next ?? "";
@@ -137,7 +148,27 @@ interface RawAd {
   status: string;
   effective_status: string;
   adset_id: string;
-  creative?: { id: string; thumbnail_url?: string };
+  creative?: {
+    id: string;
+    thumbnail_url?: string;
+    image_url?: string;
+    image_hash?: string;
+    video_id?: string;
+    object_story_spec?: {
+      link_data?: { picture?: string; image_hash?: string };
+      video_data?: { image_url?: string; image_hash?: string; video_id?: string };
+      photo_data?: { url?: string; image_hash?: string };
+    };
+  };
+}
+
+// Melhor imagem disponível sem chamadas extras; devolve também hash/vídeo para resolver depois.
+function creativeImageRefs(c: RawAd["creative"]) {
+  const spec = c?.object_story_spec;
+  const direct = c?.image_url || spec?.link_data?.picture || spec?.video_data?.image_url || spec?.photo_data?.url || "";
+  const hash = c?.image_hash || spec?.link_data?.image_hash || spec?.video_data?.image_hash || spec?.photo_data?.image_hash || "";
+  const videoId = c?.video_id || spec?.video_data?.video_id || "";
+  return { direct, hash, videoId };
 }
 
 interface RawDailyInsight {
@@ -294,11 +325,43 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
     activeAdSetMetaIds.length === 0
       ? []
       : await graphGetEdge<RawAd>(`/${accountId}/ads`, {
-          fields: "id,name,status,effective_status,adset_id,creative{id,thumbnail_url}",
+          fields: "id,name,status,effective_status,adset_id,creative.thumbnail_width(720).thumbnail_height(720){id,thumbnail_url,image_url,image_hash,video_id,object_story_spec}",
           filtering: JSON.stringify([{ field: "adset.id", operator: "IN", value: activeAdSetMetaIds }]),
           limit: "200",
         });
   entities.ads = ads.length;
+
+  // Resolve imagens em resolução cheia para criativos sem image_url (hash de imagem / capa do vídeo).
+  const imageByHash = new Map<string, string>();
+  const imageByVideo = new Map<string, string>();
+  const hashes = new Set<string>();
+  const videoIds = new Set<string>();
+  for (const ad of ads) {
+    const refs = creativeImageRefs(ad.creative);
+    if (refs.direct) continue;
+    if (refs.hash) hashes.add(refs.hash);
+    else if (refs.videoId) videoIds.add(refs.videoId);
+  }
+  try {
+    const hashList = [...hashes];
+    for (let i = 0; i < hashList.length; i += 50) {
+      const imgs = await graphGetEdge<{ hash: string; url: string }>(`/${accountId}/adimages`, {
+        fields: "hash,url",
+        hashes: JSON.stringify(hashList.slice(i, i + 50)),
+      });
+      for (const img of imgs) if (img.url) imageByHash.set(img.hash, img.url);
+    }
+    const videoList = [...videoIds];
+    for (let i = 0; i < videoList.length; i += 50) {
+      const vids = await graphGetSingle<Record<string, { picture?: string }>>("/", {
+        ids: videoList.slice(i, i + 50).join(","),
+        fields: "picture",
+      });
+      for (const [vid, v] of Object.entries(vids)) if (v?.picture) imageByVideo.set(vid, v.picture);
+    }
+  } catch {
+    // Melhor esforço: sem a imagem cheia, cai na miniatura.
+  }
 
   const adIdByMetaId = new Map<string, string>();
   const adRows = ads.flatMap((ad) => {
@@ -312,7 +375,16 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
         status: ad.status,
         effective_status: ad.effective_status,
         creative_meta_id: ad.creative?.id ?? "",
-        thumbnail_url: ad.creative?.thumbnail_url ?? "",
+        thumbnail_url: (() => {
+          const refs = creativeImageRefs(ad.creative);
+          return (
+            refs.direct ||
+            (refs.hash && imageByHash.get(refs.hash)) ||
+            (refs.videoId && imageByVideo.get(refs.videoId)) ||
+            ad.creative?.thumbnail_url ||
+            ""
+          );
+        })(),
         synced_at: startedAt,
       },
     ];
