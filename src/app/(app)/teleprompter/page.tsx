@@ -6,8 +6,10 @@ import {
   Play, Pause, RotateCcw, Plus, Save, Trash2,
   Minus, ChevronsLeftRight, ChevronsRightLeft, Maximize2, Minimize2, X, FileText,
   Camera, Circle, Square, Download, RefreshCw,
+  MonitorPlay, Search, Timer, Type, Gauge,
 } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { formatDistanceToNow, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
@@ -27,6 +29,14 @@ const MAX_FONT = 96;
 const MIN_SPEED = 1;
 const MAX_SPEED = 20;
 const PX_PER_SEC_PER_SPEED = 12;
+
+function agoLabel(iso: string) {
+  try {
+    return formatDistanceToNow(parseISO(iso), { locale: ptBR, addSuffix: true });
+  } catch {
+    return "";
+  }
+}
 
 function StageButton({
   onClick, label, children, primary, large, active,
@@ -434,64 +444,132 @@ export default function TeleprompterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stop, selfieMode]);
 
+  const [query, setQuery] = useState("");
+  const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const readSeconds = Math.round((wordCount / 150) * 60);
+  const readLabel = readSeconds < 60 ? `${readSeconds}s` : `${Math.floor(readSeconds / 60)}min ${String(readSeconds % 60).padStart(2, "0")}s`;
+  const filteredScripts = (() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return scripts;
+    return scripts.filter((sc) => sc.title.toLowerCase().includes(q) || sc.content.toLowerCase().includes(q));
+  })();
+
   return (
     <div>
-      <PageHeader
-        title="Teleprompter"
-        description="Escreva ou selecione um roteiro do banco, ajuste fonte e velocidade e rode em tela cheia."
-        action={
-          <Button onClick={handleNew} variant="secondary" className="gap-1.5">
-            <Plus className="h-4 w-4" /> Novo roteiro
-          </Button>
-        }
-      />
+      {/* Banner */}
+      <div className="ast-fade-up relative mb-5 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 p-5 text-white sm:p-6">
+        <div className="pointer-events-none absolute -right-10 -top-12 h-52 w-52 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-48 w-48 rounded-full bg-sky-400/10 blur-3xl" aria-hidden />
+        <div className="relative flex flex-wrap items-center gap-4">
+          <span className="ast-float flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-yellow-500 text-blue-900 shadow-lg">
+            <MonitorPlay className="h-7 w-7" />
+          </span>
+          <div className="min-w-0 flex-1 basis-64">
+            <h1 className="font-display text-2xl font-bold">Teleprompter</h1>
+            <p className="mt-0.5 text-sm text-blue-100">
+              Escreva ou escolha um roteiro, ajuste fonte e velocidade e rode em tela cheia, ou grave em modo selfie.
+            </p>
+          </div>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <Button onClick={handleNew} variant="secondary" className="gap-1.5 border-white/40 bg-white/10 text-white hover:bg-white/20">
+              <Plus className="h-4 w-4" /> Novo roteiro
+            </Button>
+            <Button onClick={handlePlay} disabled={!content.trim()} className="gap-1.5">
+              <Play className="h-4 w-4" /> Abrir teleprompter
+            </Button>
+          </div>
+        </div>
+        <div className="relative mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+          <span className="rounded-full bg-white/10 px-3 py-1">{scripts.length} {scripts.length === 1 ? "roteiro salvo" : "roteiros salvos"}</span>
+          <span className="rounded-full bg-white/10 px-3 py-1">{wordCount} palavras no editor</span>
+          {wordCount > 0 && <span className="rounded-full bg-yellow-500/90 px-3 py-1 text-blue-900">leitura ~ {readLabel}</span>}
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_1fr]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_1fr]">
         {/* Banco de scripts */}
-        <Card className="p-4">
-          <p className="mb-3 font-display text-sm font-bold text-blue-900">Banco de roteiros</p>
-          {loading ? (
-            <p className="text-sm text-gray-500">Carregando...</p>
-          ) : scripts.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="Nenhum roteiro salvo"
-              description="Crie um roteiro e salve para reutilizar depois."
-            />
-          ) : (
-            <div className="space-y-1.5">
-              {scripts.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => selectScript(s)}
-                  className={cn(
-                    "group flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 transition-colors",
-                    selectedId === s.id ? "bg-yellow-100" : "hover:bg-gray-050"
-                  )}
-                >
-                  <FileText className="h-4 w-4 shrink-0 text-blue-900" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-blue-900">{s.title}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmDeleteId(s.id);
-                    }}
-                    className="shrink-0 rounded-full p-1 text-gray-400 opacity-0 hover:bg-white hover:text-[color:var(--color-danger)] group-hover:opacity-100"
-                    title="Excluir"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
+        <Card className="ast-fade-up flex max-h-[calc(100dvh-200px)] min-h-[320px] flex-col p-0" style={{ animationDelay: "80ms" }}>
+          <div className="space-y-3 border-b border-gray-100 p-4">
+            <div className="flex items-center justify-between">
+              <p className="font-display text-sm font-bold text-blue-900">Banco de roteiros</p>
+              <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[11px] font-bold text-blue-900">{filteredScripts.length}</span>
             </div>
-          )}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar roteiro..."
+                aria-label="Buscar roteiro"
+                className="h-10 w-full rounded-full border border-gray-200 bg-gray-050 pl-9 pr-3 text-sm text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:bg-white focus:shadow-[var(--shadow-focus)]"
+              />
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+            {loading ? (
+              [0, 1, 2].map((i) => <div key={i} className="ast-skeleton h-20 rounded-2xl" style={{ animationDelay: `${i * 100}ms` }} />)
+            ) : scripts.length === 0 ? (
+              <EmptyState icon={FileText} title="Nenhum roteiro salvo" description="Crie um roteiro e salve para reutilizar depois." />
+            ) : filteredScripts.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-400">Nenhum roteiro encontrado.</p>
+            ) : (
+              filteredScripts.map((s, i) => {
+                const active = selectedId === s.id;
+                const words = s.content.trim() ? s.content.trim().split(/\s+/).length : 0;
+                return (
+                  <div
+                    key={s.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => selectScript(s)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        selectScript(s);
+                      }
+                    }}
+                    style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
+                    className={cn(
+                      "kb-card-in group relative cursor-pointer overflow-hidden rounded-2xl border px-3.5 py-3 outline-none transition-all duration-200",
+                      "focus-visible:ring-2 focus-visible:ring-blue-900",
+                      active ? "border-yellow-400 bg-yellow-050 shadow-[var(--shadow-sm)]" : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-[var(--shadow-md)]"
+                    )}
+                  >
+                    {active && <span className="absolute inset-y-0 left-0 w-1 bg-yellow-500" aria-hidden />}
+                    <div className="flex items-start gap-2">
+                      <FileText className={cn("mt-0.5 h-4 w-4 shrink-0", active ? "text-yellow-600" : "text-blue-700")} />
+                      <p className="min-w-0 flex-1 truncate text-sm font-bold text-blue-900">{s.title}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDeleteId(s.id);
+                        }}
+                        className="shrink-0 rounded-full p-1 text-gray-400 opacity-100 transition-opacity hover:bg-white hover:text-[color:var(--color-danger)] sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                        title="Excluir"
+                        aria-label={`Excluir roteiro ${s.title}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {s.content && <p className="mt-1 line-clamp-2 text-xs text-gray-500">{s.content}</p>}
+                    <p className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-gray-400">
+                      <span>{words} palavras</span>
+                      <span aria-hidden>·</span>
+                      <span>{agoLabel(s.updated_at)}</span>
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </Card>
 
         {/* Editor + palco */}
-        <div className="space-y-4">
-          <Card className="space-y-3 p-4">
+        <div className="min-w-0 space-y-4">
+          <Card className="ast-fade-up space-y-3 p-4" style={{ animationDelay: "120ms" }}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <Label>Título do roteiro</Label>
                 <Input
                   value={title}
@@ -504,7 +582,7 @@ export default function TeleprompterPage() {
                   style={{ fontSize: 16 }}
                 />
               </div>
-              <Button onClick={handleSave} disabled={saving} className="gap-1.5 w-full sm:w-auto">
+              <Button onClick={handleSave} disabled={saving} className="w-full gap-1.5 sm:w-auto">
                 <Save className="h-4 w-4" /> {saving ? "Salvando..." : selected ? "Atualizar" : "Salvar"}
               </Button>
             </div>
@@ -518,79 +596,155 @@ export default function TeleprompterPage() {
                 }}
                 placeholder="Escreva aqui o texto que vai rolar no teleprompter..."
                 rows={10}
-                className="resize-y touch-manipulation select-text"
+                className="touch-manipulation select-text resize-y"
                 style={{ fontSize: 16, touchAction: "manipulation" }}
               />
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-gray-500">
+                <span className="rounded-full bg-gray-100 px-2.5 py-1">{wordCount} palavras</span>
+                <span className="rounded-full bg-gray-100 px-2.5 py-1">{content.length} caracteres</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1">
+                  <Timer className="h-3 w-3" /> leitura ~ {readLabel}
+                </span>
+                {dirty && (
+                  <span className="ast-pop ml-auto inline-flex items-center gap-1.5 rounded-full bg-yellow-100 px-2.5 py-1 text-blue-900">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-600" /> alterações não salvas
+                  </span>
+                )}
+              </div>
             </div>
           </Card>
 
-          {/* Controles */}
-          <Card className="flex flex-wrap items-center gap-3 p-4 sm:gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-500">Fonte</span>
-              <Button size="icon" variant="secondary" onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 4))}>
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-9 text-center text-sm font-bold text-blue-900">{fontSize}</span>
-              <Button size="icon" variant="secondary" onClick={() => setFontSize((f) => Math.min(MAX_FONT, f + 4))}>
-                <Plus className="h-4 w-4" />
-              </Button>
+          {/* Ajustes + prévia */}
+          <Card className="ast-fade-up grid gap-4 p-4 md:grid-cols-[1fr_1fr]" style={{ animationDelay: "160ms" }}>
+            <div className="space-y-4">
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                    <Type className="h-3.5 w-3.5" /> Fonte
+                  </span>
+                  <span className="rounded-full bg-blue-050 px-2 py-0.5 text-xs font-bold text-blue-900">{fontSize}px</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="icon" variant="secondary" onClick={() => setFontSize((f) => Math.max(MIN_FONT, f - 4))} aria-label="Diminuir fonte">
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <input
+                    type="range"
+                    min={MIN_FONT}
+                    max={MAX_FONT}
+                    step={4}
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Number(e.target.value))}
+                    aria-label="Tamanho da fonte"
+                    className="h-2 flex-1 cursor-pointer accent-[var(--yellow-500)]"
+                  />
+                  <Button size="icon" variant="secondary" onClick={() => setFontSize((f) => Math.min(MAX_FONT, f + 4))} aria-label="Aumentar fonte">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-500">
+                    <Gauge className="h-3.5 w-3.5" /> Velocidade
+                  </span>
+                  <span className="rounded-full bg-blue-050 px-2 py-0.5 text-xs font-bold text-blue-900">{speed}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="icon" variant="secondary" onClick={() => setSpeed((v) => Math.max(MIN_SPEED, v - 1))} aria-label="Diminuir velocidade">
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <input
+                    type="range"
+                    min={MIN_SPEED}
+                    max={MAX_SPEED}
+                    step={1}
+                    value={speed}
+                    onChange={(e) => setSpeed(Number(e.target.value))}
+                    aria-label="Velocidade de rolagem"
+                    className="h-2 flex-1 cursor-pointer accent-[var(--yellow-500)]"
+                  />
+                  <Button size="icon" variant="secondary" onClick={() => setSpeed((v) => Math.min(MAX_SPEED, v + 1))} aria-label="Aumentar velocidade">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMirrored((m) => !m)}
+                  aria-pressed={mirrored}
+                  title="Espelhar texto (para vidro de teleprompter físico)"
+                  className={cn(
+                    "inline-flex h-10 items-center gap-1.5 rounded-full border-2 px-4 font-display text-sm font-semibold transition-all active:scale-95",
+                    mirrored ? "border-blue-900 bg-blue-900 text-white" : "border-blue-900 bg-white text-blue-900 hover:bg-blue-050"
+                  )}
+                >
+                  {mirrored ? <ChevronsRightLeft className="h-4 w-4" /> : <ChevronsLeftRight className="h-4 w-4" />}
+                  {mirrored ? "Espelhado" : "Normal"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleToggleSelfie}
+                  aria-pressed={selfieMode}
+                  title="Gravar em modo selfie com teleprompter na tela"
+                  className={cn(
+                    "inline-flex h-10 items-center gap-1.5 rounded-full border-2 px-4 font-display text-sm font-semibold transition-all active:scale-95",
+                    selfieMode ? "border-yellow-500 bg-yellow-500 text-blue-900" : "border-blue-900 bg-white text-blue-900 hover:bg-blue-050"
+                  )}
+                >
+                  <Camera className="h-4 w-4" />
+                  {selfieMode ? "Sair do modo selfie" : "Gravar selfie"}
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-500">Velocidade</span>
-              <Button size="icon" variant="secondary" onClick={() => setSpeed((v) => Math.max(MIN_SPEED, v - 1))}>
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="w-9 text-center text-sm font-bold text-blue-900">{speed}</span>
-              <Button size="icon" variant="secondary" onClick={() => setSpeed((v) => Math.min(MAX_SPEED, v + 1))}>
-                <Plus className="h-4 w-4" />
-              </Button>
+            {/* Prévia ao vivo */}
+            <div className="flex min-h-[200px] flex-col overflow-hidden rounded-2xl bg-black">
+              <div className="flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white/50">
+                <span>Prévia</span>
+                <span>{fontSize}px · vel. {speed}</span>
+              </div>
+              <div className="relative min-h-0 flex-1 overflow-hidden px-4">
+                <p
+                  className="whitespace-pre-wrap font-display font-bold leading-relaxed text-white transition-all duration-300"
+                  style={{
+                    fontSize: `${Math.max(12, Math.round(fontSize * 0.42))}px`,
+                    transform: mirrored ? "scaleX(-1)" : undefined,
+                  }}
+                >
+                  {content.trim() ? content.slice(0, 220) : "Seu texto aparece aqui…"}
+                </p>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black to-transparent" aria-hidden />
+              </div>
             </div>
+          </Card>
 
+          {/* Ações */}
+          <Card className="ast-fade-up flex flex-wrap items-center gap-3 p-4" style={{ animationDelay: "200ms" }}>
+            <Button onClick={handlePlay} disabled={!content.trim()} className="gap-1.5">
+              <Play className="h-4 w-4" /> Abrir teleprompter
+            </Button>
+            {playing && (
+              <Button onClick={handlePause} variant="secondary" className="gap-1.5">
+                <Pause className="h-4 w-4" /> Pausar
+              </Button>
+            )}
+            <Button variant="secondary" onClick={handleRestart} className="gap-1.5">
+              <RotateCcw className="h-4 w-4" /> Reiniciar
+            </Button>
             <Button
               variant="secondary"
-              className="gap-1.5"
-              onClick={() => setMirrored((m) => !m)}
-              title="Espelhar texto (para vidro de teleprompter físico)"
+              size="icon"
+              className="ml-auto shrink-0"
+              onClick={() => (fullscreen ? exitFullscreen() : enterFullscreen())}
+              title={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
+              aria-label={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
             >
-              {mirrored ? <ChevronsRightLeft className="h-4 w-4" /> : <ChevronsLeftRight className="h-4 w-4" />}
-              {mirrored ? "Espelhado" : "Normal"}
+              {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
-
-            <Button
-              variant="secondary"
-              className={cn("gap-1.5", selfieMode && "bg-yellow-100 text-blue-900")}
-              onClick={handleToggleSelfie}
-              title="Gravar em modo selfie com teleprompter na tela"
-            >
-              <Camera className="h-4 w-4" />
-              {selfieMode ? "Sair do modo selfie" : "Gravar selfie"}
-            </Button>
-
-            <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
-              <Button variant="secondary" onClick={handleRestart} className="flex-1 gap-1.5 sm:flex-none">
-                <RotateCcw className="h-4 w-4" /> Reiniciar
-              </Button>
-              {playing ? (
-                <Button onClick={handlePause} className="flex-1 gap-1.5 sm:flex-none">
-                  <Pause className="h-4 w-4" /> Pausar
-                </Button>
-              ) : (
-                <Button onClick={handlePlay} className="flex-1 gap-1.5 sm:flex-none">
-                  <Play className="h-4 w-4" /> Iniciar
-                </Button>
-              )}
-              <Button
-                variant="secondary"
-                size="icon"
-                className="shrink-0"
-                onClick={() => (fullscreen ? exitFullscreen() : enterFullscreen())}
-                title={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
-              >
-                {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-            </div>
           </Card>
         </div>
       </div>

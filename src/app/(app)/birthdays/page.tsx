@@ -3,14 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format,
+  addMonths, differenceInCalendarDays, eachDayOfInterval, endOfMonth, endOfWeek, format,
   isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Cake, PartyPopper, Paperclip, Trash2, Plus, Pencil, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Cake, CalendarClock, CalendarDays, Home, PartyPopper, Paperclip, Trash2, Plus, Pencil, Download, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { StatCard } from "@/components/shared/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { Input, Label } from "@/components/ui/Input";
@@ -79,20 +78,44 @@ export default function BirthdaysPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const KINDS = [
+    { key: "life" as const, label: "Aniversário de Vida", icon: Cake },
+    { key: "work" as const, label: "Aniversário de Casa", icon: Home },
+  ];
+
   return (
     <div>
       <PageHeader
         title="Aniversários"
         description="Aniversário de vida e de casa da equipe, com data e fotos para postar nos stories."
         action={
-          <Tabs
-            tabs={[{ key: "life", label: "Aniversário de Vida" }, { key: "work", label: "Aniversário de Casa" }]}
-            active={kind}
-            onChange={(v) => setKind(v as "life" | "work")}
-          />
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-gray-100 p-1" role="tablist">
+            {KINDS.map((k) => {
+              const Icon = k.icon;
+              const active = kind === k.key;
+              return (
+                <button
+                  key={k.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setKind(k.key)}
+                  className={cn(
+                    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-200",
+                    active ? "bg-blue-900 text-white shadow-sm" : "text-gray-700 hover:text-blue-900"
+                  )}
+                >
+                  <Icon className={cn("h-4 w-4 transition-transform duration-200", active && "scale-110 text-yellow-400")} />
+                  {k.label}
+                </button>
+              );
+            })}
+          </div>
         }
       />
-      {kind === "life" ? <LifeBirthdays profiles={profiles} /> : <WorkAnniversaries profiles={profiles} />}
+      <div key={kind} className="ast-fade-up">
+        {kind === "life" ? <LifeBirthdays profiles={profiles} /> : <WorkAnniversaries profiles={profiles} />}
+      </div>
     </div>
   );
 }
@@ -112,6 +135,23 @@ function OwnerAvatars({ profileIds, profiles, size = "sm" }: { profileIds: strin
 
 // ------------------------- Shared calendar/cards shell -------------------------
 
+const MONTH_COLORS = [
+  "#3b82f6", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4",
+  "#ef4444", "#84cc16", "#f97316", "#6366f1", "#14b8a6", "#e11d48",
+];
+
+function daysUntil(md: MonthDay) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return differenceInCalendarDays(nextOccurrence(md), today);
+}
+
+function countdownLabel(days: number) {
+  if (days === 0) return "Hoje!";
+  if (days === 1) return "Amanhã";
+  return `em ${days} dias`;
+}
+
 function AnniversaryBoard<T extends { id: string; name: string; notes: string | null }>({
   items, getMonthDay, getBadgeExtra, photoCounts, ownerIds, profiles, onSelect, onCreate, emptyLabel,
 }: {
@@ -127,11 +167,37 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
 }) {
   const [view, setView] = useState<"cards" | "calendar">("cards");
   const [month, setMonth] = useState(new Date());
+  const [monthFilter, setMonthFilter] = useState<number | null>(null);
 
   const sorted = useMemo(
     () => [...items].sort((a, b) => nextOccurrence(getMonthDay(a)).getTime() - nextOccurrence(getMonthDay(b)).getTime()),
     [items, getMonthDay]
   );
+
+  const stats = useMemo(() => {
+    const now = new Date();
+    let today = 0;
+    let week = 0;
+    let thisMonth = 0;
+    for (const it of items) {
+      const md = getMonthDay(it);
+      const d = daysUntil(md);
+      if (d === 0) today++;
+      if (d <= 7) week++;
+      if (md.month === now.getMonth() + 1) thisMonth++;
+    }
+    return { today, week, thisMonth, total: items.length };
+  }, [items, getMonthDay]);
+
+  const visible = useMemo(
+    () => (monthFilter === null ? sorted : sorted.filter((it) => getMonthDay(it).month === monthFilter)),
+    [sorted, monthFilter, getMonthDay]
+  );
+
+  const hero = sorted[0] ?? null;
+  const heroDays = hero ? daysUntil(getMonthDay(hero)) : null;
+  const heroToday = heroDays === 0;
+  const todayPeople = heroToday ? sorted.filter((it) => daysUntil(getMonthDay(it)) === 0) : [];
 
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
@@ -144,7 +210,71 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      {hero && heroDays !== null && (
+        <div
+          className={cn(
+            "ast-fade-up relative mb-5 overflow-hidden rounded-3xl p-5 sm:p-6",
+            heroToday
+              ? "bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-400 text-blue-900"
+              : "bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 text-white"
+          )}
+        >
+          {heroToday &&
+            Array.from({ length: 14 }).map((_, i) => (
+              <span
+                key={i}
+                aria-hidden
+                className="pg-confetti pointer-events-none absolute top-0 h-2 w-2 rounded-sm"
+                style={{
+                  left: `${(i * 7 + 4) % 100}%`,
+                  animationDelay: `${(i % 7) * 0.35}s`,
+                  backgroundColor: ["#243746", "#ffffff", "#e11d48", "#3b82f6", "#10b981"][i % 5],
+                }}
+              />
+            ))}
+          <div className="relative flex flex-wrap items-center gap-4">
+            <span
+              className={cn(
+                "flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-3xl shadow-lg",
+                heroToday ? "bg-blue-900 text-yellow-400" : "bg-yellow-500 text-blue-900"
+              )}
+            >
+              {heroToday ? <PartyPopper className="h-8 w-8" /> : <Cake className="h-8 w-8" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className={cn("text-xs font-bold uppercase tracking-widest", heroToday ? "text-blue-900/70" : "text-yellow-400")}>
+                {heroToday ? "É hoje!" : "Próximo da lista"}
+              </p>
+              <p className="truncate font-display text-xl font-bold sm:text-2xl">
+                {heroToday ? todayPeople.map((p) => p.name).join(" · ") : hero.name}
+              </p>
+              <p className={cn("text-sm", heroToday ? "text-blue-900/80" : "text-blue-100")}>
+                {heroToday
+                  ? "Não esqueça de postar no story. 🎂"
+                  : `${formatMonthDay(getMonthDay(hero))} · ${countdownLabel(heroDays)}`}
+              </p>
+            </div>
+            {!heroToday && (
+              <button
+                type="button"
+                onClick={() => onSelect(hero)}
+                className="rounded-full bg-yellow-500 px-4 py-2 font-display text-sm font-semibold text-blue-900 shadow-sm transition-all hover:bg-yellow-400 active:scale-95"
+              >
+                Ver detalhes
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard icon={PartyPopper} label="Hoje" value={stats.today} color="#e0a900" index={0} />
+        <StatCard icon={CalendarClock} label="Próximos 7 dias" value={stats.week} color="#3b82f6" index={1} />
+        <StatCard icon={CalendarDays} label="Neste mês" value={stats.thisMonth} color="#8b5cf6" index={2} />
+        <StatCard icon={Users} label="Cadastrados" value={stats.total} color="#375367" index={3} />
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Tabs
           tabs={[{ key: "cards", label: "Cards" }, { key: "calendar", label: "Calendário" }]}
           active={view}
@@ -158,79 +288,134 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
       {sorted.length === 0 ? (
         <EmptyState icon={Cake} title="Nada cadastrado ainda" description={emptyLabel} actionLabel="Adicionar" onAction={onCreate} />
       ) : view === "cards" ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {sorted.map((it) => {
-            const md = getMonthDay(it);
-            const occ = nextOccurrence(md);
-            const isTodayItem = isToday(occ);
-            return (
-              <Card
-                key={it.id}
-                onClick={() => onSelect(it)}
-                className={cn(
-                  "cursor-pointer p-5 hover:shadow-[var(--shadow-md)] transition-shadow",
-                  isTodayItem && "ring-2 ring-yellow-500"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-lg font-bold text-white">
-                    {initials(it.name)}
-                  </span>
-                  <div>
-                    <p className="font-display font-bold text-blue-900">{it.name}</p>
-                    {it.notes && <p className="text-xs text-gray-500">{it.notes}</p>}
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <Badge tone={isTodayItem ? "accent" : "neutral"}>
-                    <Cake className="mr-1 inline h-3 w-3" />
-                    {formatMonthDay(md)}
-                  </Badge>
-                  {getBadgeExtra?.(it) && <Badge tone="info">{getBadgeExtra(it)}</Badge>}
-                  {isTodayItem && <Badge tone="success">Hoje!</Badge>}
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
-                    <Paperclip className="h-3.5 w-3.5" />
-                    {(photoCounts.get(it.id) || 0) === 0
-                      ? "Sem fotos anexadas"
-                      : `${photoCounts.get(it.id)} foto(s) anexada(s)`}
-                  </div>
-                  <OwnerAvatars profileIds={ownerIds(it)} profiles={profiles} size="xs" />
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <>
+          <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <button
+              type="button"
+              onClick={() => setMonthFilter(null)}
+              className={cn(
+                "shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-all active:scale-95",
+                monthFilter === null ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+              )}
+            >
+              Todos
+            </button>
+            {MONTH_NAMES.map((name, i) => {
+              const count = sorted.filter((it) => getMonthDay(it).month === i + 1).length;
+              const active = monthFilter === i + 1;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setMonthFilter(active ? null : i + 1)}
+                  disabled={count === 0 && !active}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-all active:scale-95 disabled:opacity-35",
+                    active ? "border-transparent text-white" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  )}
+                  style={active ? { backgroundColor: MONTH_COLORS[i] } : undefined}
+                >
+                  {name.slice(0, 3)}
+                  {count > 0 && <span className={cn("ml-1", active ? "text-white/80" : "text-gray-400")}>{count}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {visible.length === 0 ? (
+            <p className="py-12 text-center text-sm text-gray-400">Ninguém em {monthFilter ? MONTH_NAMES[monthFilter - 1] : "este filtro"}.</p>
+          ) : (
+            <div key={monthFilter ?? "all"} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {visible.map((it, i) => {
+                const md = getMonthDay(it);
+                const d = daysUntil(md);
+                const isTodayItem = d === 0;
+                const color = MONTH_COLORS[md.month - 1];
+                const photos = photoCounts.get(it.id) || 0;
+                return (
+                  <button
+                    type="button"
+                    key={it.id}
+                    onClick={() => onSelect(it)}
+                    style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
+                    className={cn(
+                      "kb-card-in group relative overflow-hidden rounded-2xl border bg-white p-4 text-left shadow-[var(--shadow-sm)] transition-all duration-200",
+                      "hover:-translate-y-1 hover:shadow-[var(--shadow-md)] active:translate-y-0",
+                      isTodayItem ? "pg-pulse-soft border-yellow-500 bg-yellow-050" : "border-gray-200"
+                    )}
+                  >
+                    <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: color }} aria-hidden />
+                    <div className="flex items-center gap-3.5">
+                      <span
+                        className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl leading-none text-white shadow-sm transition-transform duration-200 group-hover:scale-105 group-hover:-rotate-3"
+                        style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)` }}
+                      >
+                        <span className="font-display text-2xl font-bold">{md.day}</span>
+                        <span className="mt-0.5 text-[10px] font-bold uppercase tracking-wide">{MONTH_NAMES[md.month - 1].slice(0, 3)}</span>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-display font-bold text-blue-900">{it.name}</p>
+                        {it.notes && <p className="truncate text-xs text-gray-500">{it.notes}</p>}
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                              isTodayItem ? "bg-yellow-500 text-blue-900" : d <= 7 ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-600"
+                            )}
+                          >
+                            {countdownLabel(d)}
+                          </span>
+                          {getBadgeExtra?.(it) && (
+                            <span className="rounded-full bg-blue-050 px-2 py-0.5 text-[11px] font-bold text-blue-700">{getBadgeExtra(it)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3.5 flex items-center justify-between gap-2 border-t border-gray-100 pt-3">
+                      <span className="flex items-center gap-1 text-xs text-gray-500">
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {photos === 0 ? "Sem fotos anexadas" : `${photos} foto(s) anexada(s)`}
+                      </span>
+                      <OwnerAvatars profileIds={ownerIds(it)} profiles={profiles} size="xs" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       ) : (
         <div>
           <div className="mb-4 flex items-center justify-center gap-2">
-            <Button size="icon" variant="secondary" onClick={() => setMonth(subMonths(month, 1))}>
+            <Button size="icon" variant="secondary" onClick={() => setMonth(subMonths(month, 1))} aria-label="Mês anterior">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="font-display text-sm font-bold text-blue-900 capitalize w-32 text-center">
+            <span className="w-36 text-center font-display text-sm font-bold capitalize text-blue-900">
               {format(month, "MMMM yyyy", { locale: ptBR })}
             </span>
-            <Button size="icon" variant="secondary" onClick={() => setMonth(addMonths(month, 1))}>
+            <Button size="icon" variant="secondary" onClick={() => setMonth(addMonths(month, 1))} aria-label="Próximo mês">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 sm:grid">
-            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-              <div key={d} className="bg-blue-900 py-2 text-center text-xs font-bold text-white">{d}</div>
+          <div key={format(month, "yyyy-MM")} className="ast-fade-up hidden grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 shadow-[var(--shadow-sm)] sm:grid">
+            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d, i) => (
+              <div key={d} className={cn("py-2.5 text-center text-xs font-bold uppercase tracking-wide text-white", i === 0 || i === 6 ? "bg-blue-800" : "bg-blue-900")}>
+                {d}
+              </div>
             ))}
             {days.map((day) => {
               const dayItems = itemsForDay(day);
+              const weekend = day.getDay() === 0 || day.getDay() === 6;
               return (
                 <div
                   key={day.toISOString()}
-                  className={cn("min-h-[110px] bg-white p-2", !isSameMonth(day, month) && "bg-gray-050 text-gray-300")}
+                  className={cn("min-h-[110px] p-1.5", weekend ? "bg-gray-050" : "bg-white", !isSameMonth(day, month) && "bg-gray-100/70 opacity-60")}
                 >
                   <span
                     className={cn(
                       "flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold",
-                      isToday(day) ? "bg-yellow-500 text-blue-900" : "text-gray-500"
+                      isToday(day) ? "pg-pulse-soft bg-yellow-500 text-blue-900" : "text-gray-500"
                     )}
                   >
                     {format(day, "d")}
@@ -240,7 +425,7 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
                       <button
                         key={it.id}
                         onClick={() => onSelect(it)}
-                        className="flex w-full items-center gap-1 truncate rounded-md bg-yellow-100 px-1.5 py-0.5 text-left text-[11px] font-semibold text-blue-900 hover:bg-yellow-200"
+                        className="flex w-full items-center gap-1 truncate rounded-md bg-yellow-100 px-1.5 py-0.5 text-left text-[11px] font-semibold text-blue-900 transition-all hover:translate-x-0.5 hover:bg-yellow-200"
                       >
                         <Cake className="h-3 w-3 shrink-0" />
                         <span className="truncate">{it.name}</span>
@@ -262,7 +447,7 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
                 const dayItems = itemsForDay(day);
                 if (dayItems.length === 0) return null;
                 return (
-                  <div key={day.toISOString()} className="rounded-2xl border border-gray-200 bg-white p-3">
+                  <div key={day.toISOString()} className="kb-card-in rounded-2xl border border-gray-200 bg-white p-3">
                     <div className="mb-2 flex items-center gap-2">
                       <span
                         className={cn(
