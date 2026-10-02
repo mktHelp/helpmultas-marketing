@@ -62,10 +62,26 @@ export interface Birthday {
   updated_at: string;
 }
 
+export interface TeleprompterFolder {
+  id: string;
+  name: string;
+  color: string;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface TeleprompterScript {
   id: string;
   title: string;
+  /** texto puro (o que roda no teleprompter) */
   content: string;
+  /** versão formatada do editor; null em roteiros antigos */
+  content_html: string | null;
+  folder_id: string | null;
+  /** data planejada de gravação (YYYY-MM-DD) */
+  record_date: string | null;
+  is_recorded: boolean;
+  recorded_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
