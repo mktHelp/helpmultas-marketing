@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -21,16 +22,22 @@ export function Markdown({ children, reveal = false, className }: { children: st
           p: ({ children }) => <p className="mb-2.5 last:mb-0">{children}</p>,
           strong: ({ children }) => <strong className="font-bold text-blue-900">{children}</strong>,
           em: ({ children }) => <em className="italic">{children}</em>,
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-blue-800 underline decoration-yellow-500 decoration-2 underline-offset-2 hover:text-blue-900"
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            const className = "font-semibold text-blue-800 underline decoration-yellow-500 decoration-2 underline-offset-2 hover:text-blue-900";
+            // Links internos do app (ex.: /teleprompter?roteiro=…) navegam sem abrir outra aba.
+            if (href && href.startsWith("/") && !href.startsWith("//")) {
+              return (
+                <Link href={href} className={className}>
+                  {children}
+                </Link>
+              );
+            }
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+                {children}
+              </a>
+            );
+          },
           ul: ({ children }) => <ul className="mb-2.5 list-disc space-y-1 pl-5 marker:text-yellow-600 last:mb-0">{children}</ul>,
           ol: ({ children }) => <ol className="mb-2.5 list-decimal space-y-1 pl-5 marker:font-semibold marker:text-blue-700 last:mb-0">{children}</ol>,
           li: ({ children }) => <li className="pl-0.5">{children}</li>,

@@ -25,7 +25,7 @@ interface NavItem {
   exact?: boolean;
 }
 
-const ASSISTENTE_ITEM: NavItem = { href: "/assistente", label: "Assistente", icon: Bot, color: "#fcbf00" };
+const ASSISTENTE_ITEM: NavItem = { href: "/assistente", label: "Helpinho", icon: Bot, color: "#fcbf00" };
 
 const SECTIONS: { title: string; dot: string; items: NavItem[] }[] = [
   {
@@ -324,8 +324,8 @@ export function Sidebar({
           {!collapsed && (
             <>
               <span className="min-w-0 flex-1 leading-tight">
-                <span className="block whitespace-nowrap">Assistente</span>
-                <span className="block whitespace-nowrap text-[11px] font-semibold text-blue-900/65">IA do Marketing Hub</span>
+                <span className="block whitespace-nowrap">Helpinho</span>
+                <span className="block whitespace-nowrap text-[11px] font-semibold text-blue-900/65">Assistente de marketing</span>
               </span>
               <Sparkles className="sb-twinkle h-4 w-4 shrink-0 text-blue-900/75" />
             </>

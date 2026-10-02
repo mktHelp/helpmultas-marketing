@@ -72,8 +72,11 @@ const SUGESTOES = [
   { icon: TrendingUp, label: "Instagram", prompt: "Como foi o desempenho do Instagram nos últimos 30 dias?" },
   { icon: Megaphone, label: "Tráfego pago", prompt: "Quanto gastamos em anúncios nos últimos 7 dias e quantos leads vieram?" },
   { icon: Gauge, label: "Leads", prompt: "Quantos leads recebemos esta semana, por campanha?" },
-  { icon: PenLine, label: "Conteúdo", prompt: "Me dá um rascunho de legenda para um reels sobre recurso de multa" },
+  { icon: PenLine, label: "Roteiros", prompt: "Escreva um roteiro de 1 minuto no meu estilo sobre recurso de multa e salve no teleprompter" },
 ];
+
+/** Chave usada pelo Teleprompter para entregar um texto ao chat (ver AiPanel). */
+const HANDOFF_KEY = "hm-helpinho-handoff";
 
 const THINKING_STEPS = [
   "Entendendo sua pergunta…",
@@ -535,6 +538,7 @@ function AssistenteContent() {
   const [shareMenuFor, setShareMenuFor] = useState<string | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createTaskTitle, setCreateTaskTitle] = useState("");
+  const handoffDoneRef = useRef(false);
   const createTaskConvRef = useRef<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -705,6 +709,35 @@ function AssistenteContent() {
       }
     }
   }
+
+  /* ---------- vindo do Teleprompter ---------- */
+
+  // O Teleprompter guarda o texto/roteiro no sessionStorage e navega pra cá:
+  // abrimos uma conversa nova e deixamos a mensagem pronta no campo.
+  useEffect(() => {
+    if (handoffDoneRef.current || !ready) return;
+    handoffDoneRef.current = true;
+    let raw: string | null = null;
+    try {
+      raw = window.sessionStorage.getItem(HANDOFF_KEY);
+      window.sessionStorage.removeItem(HANDOFF_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    try {
+      const { prompt } = JSON.parse(raw) as { prompt?: string };
+      if (!prompt) return;
+      void (async () => {
+        await handleNewConversation();
+        setInput(prompt);
+      })();
+    } catch {
+      // payload inválido: ignora
+    }
+    // roda uma única vez, quando o histórico da primeira conversa fica pronto
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   /* ---------- envio ---------- */
 
@@ -907,7 +940,7 @@ function AssistenteContent() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
-        title="Assistente"
+        title="Helpinho"
         description="Pergunte sobre tarefas, Instagram, tráfego pago, leads e metas — ou peça ajuda para criar conteúdo."
         action={
           <span
