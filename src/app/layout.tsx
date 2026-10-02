@@ -3,6 +3,7 @@ import { Toaster } from "sonner";
 import { MetaSyncProvider } from "@/lib/meta-sync-context";
 import { InstagramSyncProvider } from "@/lib/instagram-sync-context";
 import { SyncStatusWidgets } from "@/components/ads/SyncStatusWidgets";
+import { NoPinchZoom } from "@/components/shared/NoPinchZoom";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,12 +22,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
+  // Sem zoom no celular (nem pinça nem o zoom automático ao focar num campo).
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className="h-full antialiased">
       <body className="min-h-full" suppressHydrationWarning>
+        <NoPinchZoom />
         <MetaSyncProvider>
           <InstagramSyncProvider>
             {children}
