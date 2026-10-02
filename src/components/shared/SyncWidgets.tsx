@@ -16,10 +16,28 @@ export interface SyncCompletion {
   technical?: string;
 }
 
+// Container único: vários cards de progresso ficam empilhados (um acima do
+// outro) em vez de sobrepostos no mesmo canto.
+export function SyncProgressStack({ children }: { children: React.ReactNode }) {
+  return <div className="pointer-events-none fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">{children}</div>;
+}
+
+// Overlay único: várias conclusões simultâneas aparecem empilhadas.
+export function SyncCompletionStack({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 overflow-y-auto bg-black/60 py-6"
+      style={{ animation: "overlay-fade-in 0.2s ease-out" }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function SyncProgressCard({ title, message }: { title: string; message: string }) {
   return (
     <div
-      className="fixed bottom-5 right-5 z-40 flex max-w-xs items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-lg)]"
+      className="pointer-events-auto flex max-w-xs items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-lg)]"
       style={{ animation: "overlay-fade-in 0.2s ease-out" }}
     >
       <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-blue-900" />
@@ -54,12 +72,9 @@ export function SyncCompletionDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
-      style={{ animation: "overlay-fade-in 0.2s ease-out" }}
-    >
+    <div className="w-full">
       <div
-        className="relative mx-4 flex max-h-[90vh] w-full max-w-md flex-col items-center gap-3 overflow-y-auto rounded-3xl bg-white p-8 text-center shadow-[var(--shadow-lg)]"
+        className="relative mx-auto flex max-h-[90vh] w-[calc(100%-2rem)] max-w-md flex-col items-center gap-3 overflow-y-auto rounded-3xl bg-white p-8 text-center shadow-[var(--shadow-lg)]"
         style={{ animation: "overlay-pop-in 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}
       >
         <button
