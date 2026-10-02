@@ -32,7 +32,7 @@ export function TaskTable({
   const [selected, setSelected] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const supabase = createClient();
-  const { activeStatuses } = useTaskStatuses();
+  const { activeStatuses, byKey } = useTaskStatuses();
 
   function toggle(id: string) {
     setSelected((s) => (s.includes(id) ? s.filter((i) => i !== id) : [...s, id]));
@@ -75,7 +75,7 @@ export function TaskTable({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white">
+    <div className="ast-fade-up overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[var(--shadow-sm)]">
       {selected.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 bg-yellow-050 px-4 py-2.5">
           <span className="text-sm font-semibold text-blue-900">{selected.length} selecionada(s)</span>
@@ -99,7 +99,11 @@ export function TaskTable({
         {tasks.map((task) => {
           const overdue = isOverdue(task.due_date, task.completed_at);
           return (
-            <div key={task.id} className="flex items-start gap-3 px-4 py-3">
+            <div
+              key={task.id}
+              className="flex items-start gap-3 border-l-4 px-4 py-3"
+              style={{ borderLeftColor: byKey[task.status]?.color ?? "transparent" }}
+            >
               <Checkbox checked={selected.includes(task.id)} onChange={() => toggle(task.id)} className="mt-1 shrink-0" />
               <Link href={`/tasks/${task.id}`} className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-blue-900">{task.title}</p>
@@ -136,7 +140,7 @@ export function TaskTable({
       <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 text-left text-xs font-bold uppercase text-gray-500">
+            <tr className="bg-blue-900 text-left text-[11px] font-bold uppercase tracking-wider text-white">
               <th className="w-10 py-3 pl-4">
                 <Checkbox checked={selected.length === tasks.length} onChange={toggleAll} />
               </th>
@@ -149,11 +153,15 @@ export function TaskTable({
             </tr>
           </thead>
           <tbody>
-            {tasks.map((task) => {
+            {tasks.map((task, i) => {
               const overdue = isOverdue(task.due_date, task.completed_at);
               return (
-                <tr key={task.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-050/60">
-                  <td className="py-3 pl-4">
+                <tr
+                  key={task.id}
+                  style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                  className="kb-card-in group border-b border-gray-50 transition-colors last:border-0 hover:bg-yellow-050/70"
+                >
+                  <td className="border-l-4 py-3 pl-3" style={{ borderLeftColor: byKey[task.status]?.color ?? "transparent" }}>
                     <Checkbox checked={selected.includes(task.id)} onChange={() => toggle(task.id)} />
                   </td>
                   <td className="py-3 pr-3">

@@ -75,13 +75,13 @@ export function KanbanCardContent({ task }: { task: TaskWithRelations }) {
 // clipping/stacking context - this is what actually follows the cursor.
 export function KanbanCardOverlay({ task }: { task: TaskWithRelations }) {
   return (
-    <div className="w-72 cursor-grabbing rounded-xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-lg)]">
+    <div className="w-72 rotate-2 cursor-grabbing rounded-xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-lg)]">
       <KanbanCardContent task={task} />
     </div>
   );
 }
 
-export function KanbanCard({ task }: { task: TaskWithRelations }) {
+export function KanbanCard({ task, accent, index = 0 }: { task: TaskWithRelations; accent?: string; index?: number }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
 
   return (
@@ -89,8 +89,10 @@ export function KanbanCard({ task }: { task: TaskWithRelations }) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      style={{ ...(accent ? { borderLeftColor: accent, borderLeftWidth: 4 } : null), animationDelay: `${Math.min(index, 10) * 30}ms` }}
       className={cn(
-        "cursor-grab rounded-xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-sm)] active:cursor-grabbing",
+        "kb-card-in cursor-grab rounded-xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-sm)] transition-[transform,box-shadow] duration-200",
+        "hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:cursor-grabbing",
         isDragging && "opacity-0"
       )}
     >
