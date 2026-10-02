@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Eye, FileText, Info, Link2, MousePointerClick, Search, Target, Trophy, UserX, Users, X } from "lucide-react";
+import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Crown, Eye, FileText, Info, Link2, MapPin, MousePointerClick, Phone, Search, Target, Trophy, UserX, Users, X } from "lucide-react";
 import Link from "next/link";
 import { ScriptLinkDialog } from "./ScriptLinkDialog";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -302,17 +302,21 @@ function RankingCard({
                 title={item.metaAdId ? "Ver preview do anúncio" : undefined}
                 className={cn(
                   "group flex w-full flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border p-3 text-left transition-colors",
-                  i === 0 ? "border-yellow-400/60 bg-yellow-050" : "border-gray-200 bg-white",
+                  "kb-card-in",
+                  i === 0 ? "border-yellow-400/70 bg-gradient-to-r from-yellow-050 to-white shadow-[var(--shadow-sm)]" : "border-gray-200 bg-white",
                   item.metaAdId ? "cursor-pointer hover:border-blue-900/30 hover:shadow-[var(--shadow-sm)]" : "cursor-default"
                 )}
               >
                 <span
                   className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-                    i === 0 ? "bg-yellow-400 text-blue-900" : "bg-gray-100 text-gray-600"
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold shadow-sm",
+                    i === 0 && "bg-gradient-to-br from-yellow-300 to-amber-500 text-blue-900",
+                    i === 1 && "bg-gradient-to-br from-gray-200 to-gray-400 text-blue-900",
+                    i === 2 && "bg-gradient-to-br from-orange-300 to-orange-600 text-white",
+                    i > 2 && "bg-gray-100 text-gray-600"
                   )}
                 >
-                  {i + 1}
+                  {i === 0 ? <Crown className="h-4 w-4" /> : i + 1}
                 </span>
                 <AdThumb url={item.thumbnailUrl} />
                 <div className="min-w-0 flex-1 basis-48">
@@ -333,7 +337,7 @@ function RankingCard({
                       <span className="ml-1 text-[11px] font-normal text-gray-400">· {item.share.toFixed(1)}%</span>
                     </p>
                     <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
-                      <div className={cn("h-full rounded-full", i === 0 ? "bg-yellow-400" : "bg-blue-200")} style={{ width: `${(item.leads / max) * 100}%` }} />
+                      <div className={cn("h-full rounded-full transition-all duration-700", i === 0 ? "bg-gradient-to-r from-yellow-400 to-amber-500" : "bg-gradient-to-r from-sky-300 to-indigo-300")} style={{ width: `${(item.leads / max) * 100}%` }} />
                     </div>
                   </div>
                   <div className="text-right">
@@ -402,6 +406,8 @@ function StatCard({
   hint,
   percent,
   barClass,
+  gradient,
+  index = 0,
   active,
   onClick,
 }: {
@@ -412,6 +418,8 @@ function StatCard({
   hint?: string;
   percent?: number;
   barClass?: string;
+  gradient: string;
+  index?: number;
   active?: boolean;
   onClick?: () => void;
 }) {
@@ -419,19 +427,26 @@ function StatCard({
   return (
     <Tag
       {...(onClick ? { type: "button" as const, onClick } : {})}
+      style={{ animationDelay: `${index * 60}ms` }}
       className={cn(
-        "rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-[var(--shadow-sm)] transition-shadow",
-        onClick && "cursor-pointer hover:shadow-[var(--shadow-md)]",
-        active && "ring-2 ring-yellow-500"
+        "ast-fade-up group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-[var(--shadow-sm)] transition-all duration-200",
+        onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0",
+        active && "border-yellow-500 ring-2 ring-yellow-500"
       )}
     >
-      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
-        <Icon className="h-3.5 w-3.5" /> {label}
-      </p>
-      <p className={cn("mt-1 font-display text-2xl font-bold text-blue-900", valueClass)}>{value}</p>
+      <span className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", gradient)} aria-hidden />
+      <div className="flex items-start gap-3">
+        <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110", gradient)}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{label}</p>
+          <p className={cn("font-display text-2xl font-bold tabular-nums text-blue-900", valueClass)}>{value}</p>
+        </div>
+      </div>
       {percent !== undefined && (
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-          <div className={cn("h-full rounded-full", barClass)} style={{ width: `${Math.min(percent, 100)}%` }} />
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
+          <div className={cn("h-full rounded-full transition-all duration-700", barClass)} style={{ width: `${Math.min(percent, 100)}%` }} />
         </div>
       )}
       {hint && <p className="mt-1.5 line-clamp-2 text-[11px] text-gray-400">{hint}</p>}
@@ -459,8 +474,10 @@ function StatsCards({
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <StatCard label="Total de leads" icon={Users} value={numberFormatter.format(total)} hint="Recebidos no período" />
+      <StatCard index={0} gradient="from-sky-500 to-indigo-500" label="Total de leads" icon={Users} value={numberFormatter.format(total)} hint="Recebidos no período" />
       <StatCard
+        index={1}
+        gradient="from-emerald-500 to-teal-500"
         label="Vinculados a anúncio"
         icon={CheckCircle2}
         value={numberFormatter.format(matched)}
@@ -472,6 +489,8 @@ function StatsCards({
         onClick={() => onFilter("matched")}
       />
       <StatCard
+        index={2}
+        gradient="from-amber-500 to-orange-500"
         label="Sem vínculo"
         icon={UserX}
         value={numberFormatter.format(unmatched)}
@@ -483,6 +502,8 @@ function StatsCards({
         onClick={() => onFilter("unmatched")}
       />
       <StatCard
+        index={3}
+        gradient="from-rose-500 to-pink-500"
         label="Melhor custo por lead"
         icon={Target}
         value={best ? currencyFormatter.format(best.cpl as number) : "—"}
@@ -612,7 +633,7 @@ export function TrafficLeads() {
   }
 
   const colCount = 6 + (showUtms ? UTM_COLUMNS.length : 0);
-  const th = "sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)]";
+  const th = "sticky top-0 z-20 bg-blue-900 px-4 py-3 text-white";
   const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const to = Math.min((page + 1) * PAGE_SIZE, total);
 
@@ -649,15 +670,15 @@ export function TrafficLeads() {
         </CardHeader>
         <CardBody>
           {/* Filtros */}
-          <div className="mb-4 space-y-3 rounded-2xl border border-gray-100 bg-gray-050 p-3">
+          <div className="mb-4 space-y-3 rounded-3xl border border-gray-100 bg-gray-050/80 p-3 sm:p-4">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative min-w-[240px] flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Buscar por nome, e-mail, telefone ou UTM..."
-                  className="h-10 w-full rounded-[14px] border border-gray-200 bg-white pl-9 pr-9 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  className="h-11 w-full rounded-full border border-gray-200 bg-white pl-10 pr-9 text-sm text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10"
                 />
                 {searchInput && (
                   <button
@@ -675,8 +696,8 @@ export function TrafficLeads() {
                     key={d}
                     onClick={() => quickRange(d)}
                     className={cn(
-                      "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                      rangeDays === d ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-blue-900 hover:text-blue-900"
+                      "rounded-full border px-3.5 py-2 text-xs font-bold transition-all active:scale-95 sm:py-1.5",
+                      rangeDays === d ? "border-transparent bg-blue-900 text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:border-blue-900 hover:text-blue-900"
                     )}
                   >
                     {label}
@@ -689,7 +710,7 @@ export function TrafficLeads() {
                   value={dateRange.since}
                   max={dateRange.until}
                   onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, since: e.target.value }))}
-                  className="h-10 rounded-[14px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  className="h-10 rounded-full border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)]"
                 />
                 até
                 <input
@@ -697,7 +718,7 @@ export function TrafficLeads() {
                   value={dateRange.until}
                   min={dateRange.since}
                   onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, until: e.target.value }))}
-                  className="h-10 rounded-[14px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  className="h-10 rounded-full border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)]"
                 />
               </div>
             </div>
@@ -750,10 +771,56 @@ export function TrafficLeads() {
           </div>
 
           {/* Tabela */}
-          <div className="max-h-[65vh] overflow-auto rounded-2xl border border-gray-200 bg-white">
+          {/* Celular: cartões */}
+          <ul className="space-y-2.5 md:hidden">
+            {rows.map((lead, i) => {
+              const { ad, adset, campaign } = linkedEntities(lead);
+              const origin = ad?.name ?? adset?.name ?? campaign?.name;
+              return (
+                <li
+                  key={lead.id}
+                  onClick={() => setSelectedLead(lead)}
+                  style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
+                  className="kb-card-in cursor-pointer rounded-2xl border border-gray-200 bg-white p-3.5 shadow-[var(--shadow-sm)] active:scale-[0.99]"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 font-display text-sm font-bold text-white">
+                      {(lead.name || "?").trim().charAt(0).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-blue-900">{lead.name || "—"}</p>
+                      <p className="truncate text-xs text-gray-500">{lead.email}</p>
+                    </div>
+                    <MatchCell lead={lead} />
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                    {lead.phone && (
+                      <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {lead.phone}</span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> {lead.city && lead.state ? `${lead.city}/${lead.state}` : lead.state || "—"}
+                    </span>
+                    <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDateTime(lead.received_at)}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge tone="neutral">{pageOriginLabel(lead.page_origin)}</Badge>
+                    {origin && <span className="min-w-0 max-w-full truncate rounded-full bg-blue-050 px-2.5 py-0.5 text-[11px] font-semibold text-blue-900">{origin}</span>}
+                  </div>
+                </li>
+              );
+            })}
+            {rows.length === 0 && (
+              <li className="rounded-2xl border border-dashed border-gray-200 px-4 py-10 text-center text-sm text-gray-400">
+                {loading ? "Carregando..." : hasFilters ? "Nenhum lead com esses filtros." : "Nenhum lead encontrado no período."}
+              </li>
+            )}
+          </ul>
+
+          {/* Desktop: tabela */}
+          <div className="hidden max-h-[65vh] overflow-auto rounded-3xl border border-gray-200 bg-white md:block">
             <table className={cn("w-full border-collapse text-sm", showUtms ? "min-w-[1900px]" : "min-w-[960px]")}>
               <thead>
-                <tr className="text-left text-xs font-bold uppercase text-gray-500">
+                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-white">
                   <th className={cn(th, "min-w-56")}>Lead</th>
                   <th className={cn(th, "min-w-32")}>Cidade/UF</th>
                   <th className={cn(th, "min-w-28")}>Origem</th>
@@ -773,12 +840,19 @@ export function TrafficLeads() {
                     <tr
                       key={lead.id}
                       onClick={() => setSelectedLead(lead)}
-                      className="cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-050"
+                      className="cursor-pointer border-b border-gray-100 transition-colors last:border-0 hover:bg-yellow-050/70"
                     >
                       <td className="px-4 py-3">
-                        <p className="font-semibold text-blue-900">{lead.name || "—"}</p>
-                        <p className="text-xs text-gray-600">{lead.email}</p>
-                        <p className="text-xs text-gray-400">{lead.phone}</p>
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 font-display text-xs font-bold text-white">
+                            {(lead.name || "?").trim().charAt(0).toUpperCase()}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-blue-900">{lead.name || "—"}</p>
+                            <p className="truncate text-xs text-gray-600">{lead.email}</p>
+                            <p className="text-xs text-gray-400">{lead.phone}</p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-600">
                         {lead.city && lead.state ? `${lead.city}/${lead.state}` : lead.state || "—"}

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
-import { Select } from "@/components/ui/Select";
-import { Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
-import { Tabs } from "@/components/ui/Tabs";
+import {
+  ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Eye, Image as ImageIcon, Layers, Megaphone, MousePointerClick, Percent,
+  Search, Target, Wallet, X,
+} from "lucide-react";
 import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -21,6 +20,7 @@ import {
 } from "@/lib/services/meta-ads";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { currencyFormatter, formatDay, numberFormatter } from "@/lib/format";
+import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
 // Espelha a estrutura do Gerenciador de Anúncios da Meta: uma aba por nível
@@ -36,12 +36,6 @@ function ctrOf(m: Metrics) {
   return m.impressions > 0 ? (m.clicks / m.impressions) * 100 : 0;
 }
 
-function statusTone(status: string): "success" | "neutral" | "danger" {
-  if (status === "ACTIVE") return "success";
-  if (status === "PAUSED") return "neutral";
-  return "danger";
-}
-
 function zero(): Metrics {
   return { spend: 0, impressions: 0, clicks: 0, conversions: 0 };
 }
@@ -52,6 +46,49 @@ function addUp(a: Metrics, b: Metrics): Metrics {
     clicks: a.clicks + b.clicks,
     conversions: a.conversions + b.conversions,
   };
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "Ativo",
+  PAUSED: "Pausado",
+  CAMPAIGN_PAUSED: "Campanha pausada",
+  ADSET_PAUSED: "Conjunto pausado",
+  ARCHIVED: "Arquivado",
+  DELETED: "Excluído",
+  WITH_ISSUES: "Com problemas",
+  PENDING_REVIEW: "Em análise",
+  IN_PROCESS: "Processando",
+  DISAPPROVED: "Reprovado",
+};
+
+function StatusPill({ status }: { status: string }) {
+  if (!status) return <span className="text-gray-300">—</span>;
+  const active = status === "ACTIVE";
+  const paused = status.includes("PAUSED");
+  const warn = status === "PENDING_REVIEW" || status === "IN_PROCESS";
+  const tone = active
+    ? "bg-[color:var(--color-success-bg)] text-[color:var(--color-success)]"
+    : paused || warn
+    ? "bg-gray-100 text-gray-600"
+    : "bg-[color:var(--color-danger-bg)] text-[color:var(--color-danger)]";
+  const dot = active ? "bg-[color:var(--color-success)]" : paused || warn ? "bg-gray-400" : "bg-[color:var(--color-danger)]";
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold", tone)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", dot, active && "animate-pulse")} />
+      {STATUS_LABEL[status] ?? status}
+    </span>
+  );
+}
+
+function SpendCell({ value, max }: { value: number; max: number }) {
+  return (
+    <div className="min-w-[96px]">
+      <span className="font-semibold tabular-nums text-blue-900">{currencyFormatter.format(value)}</span>
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100">
+        <div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500" style={{ width: `${max > 0 ? Math.max(3, (value / max) * 100) : 0}%` }} />
+      </div>
+    </div>
+  );
 }
 
 type Column<T> = {
@@ -68,12 +105,17 @@ function SortableTable<T extends { id: string }>({
   emptyLabel,
   defaultSortKey,
   onRowClick,
+  mobileCard,
+  loading,
 }: {
   rows: T[];
   columns: Column<T>[];
   emptyLabel: string;
   defaultSortKey?: string;
   onRowClick?: (row: T) => void;
+  /** cartão usado no celular no lugar da tabela larga */
+  mobileCard?: (row: T) => React.ReactNode;
+  loading?: boolean;
 }) {
   const [sortKey, setSortKey] = useState<string | null>(defaultSortKey ?? null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -101,61 +143,129 @@ function SortableTable<T extends { id: string }>({
     });
   }, [rows, sortKey, sortDir, columns]);
 
+  if (loading) {
+    return (
+      <div className="space-y-2" role="status" aria-label="Carregando">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="ast-skeleton h-14 rounded-2xl" style={{ animationDelay: `${i * 90}ms` }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (sortedRows.length === 0) {
+    return (
+      <div className="ast-fade-up flex flex-col items-center gap-2 rounded-3xl border border-dashed border-gray-200 bg-gray-050/60 px-6 py-14 text-center">
+        <Megaphone className="h-7 w-7 text-gray-300" />
+        <p className="text-sm text-gray-500">{emptyLabel}</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-h-[70vh] overflow-auto rounded-2xl border border-gray-200 bg-white">
-      <table className="w-full min-w-[1100px] border-collapse text-sm">
-        <thead>
-          <tr className="text-left text-xs font-bold uppercase text-gray-500">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={cn("sticky top-0 z-20 bg-gray-050 px-4 py-3 shadow-[inset_0_-1px_0_var(--gray-200)]", col.widthClass)}
-              >
-                {col.sortValue ? (
-                  <button
-                    onClick={() => toggleSort(col.key)}
-                    className={cn(
-                      "flex items-center gap-1 uppercase hover:text-blue-900",
-                      sortKey === col.key && "text-blue-900"
-                    )}
-                  >
-                    {col.label}
-                    {sortKey === col.key ? (
-                      sortDir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                    ) : (
-                      <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                    )}
-                  </button>
-                ) : (
-                  col.label
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedRows.map((row) => (
-            <tr
+    <>
+      {mobileCard && (
+        <ul className="space-y-2.5 md:hidden">
+          {sortedRows.slice(0, 60).map((row, i) => (
+            <li
               key={row.id}
+              style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
-              className={cn("border-b border-gray-100 last:border-0", onRowClick && "cursor-pointer hover:bg-gray-050")}
+              className={cn("kb-card-in", onRowClick && "cursor-pointer active:scale-[0.99]")}
             >
+              {mobileCard(row)}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className={cn("max-h-[70vh] overflow-auto rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-sm)]", mobileCard && "hidden md:block")}>
+        <table className="w-full min-w-[1100px] border-collapse text-sm">
+          <thead>
+            <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-white">
               {columns.map((col) => (
-                <td key={col.key} className="px-4 py-3">
-                  {col.render(row)}
-                </td>
+                <th key={col.key} className={cn("sticky top-0 z-20 bg-blue-900 px-4 py-3", col.widthClass)}>
+                  {col.sortValue ? (
+                    <button
+                      onClick={() => toggleSort(col.key)}
+                      className={cn("flex items-center gap-1 uppercase transition-colors hover:text-yellow-400", sortKey === col.key && "text-yellow-400")}
+                    >
+                      {col.label}
+                      {sortKey === col.key ? (
+                        sortDir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                      )}
+                    </button>
+                  ) : (
+                    col.label
+                  )}
+                </th>
               ))}
             </tr>
-          ))}
-          {sortedRows.length === 0 && (
-            <tr>
-              <td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-gray-400">
-                {emptyLabel}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sortedRows.map((row, i) => (
+              <tr
+                key={row.id}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                style={{ animationDelay: `${Math.min(i, 12) * 20}ms` }}
+                className={cn(
+                  "kb-card-in border-b border-gray-100 transition-colors last:border-0",
+                  i % 2 === 1 && "bg-gray-050/50",
+                  onRowClick && "cursor-pointer hover:bg-yellow-050/70"
+                )}
+              >
+                {columns.map((col) => (
+                  <td key={col.key} className="px-4 py-3">
+                    {col.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function MetricCard({
+  title,
+  subtitle,
+  status,
+  metrics,
+  chip,
+}: {
+  title: string;
+  subtitle?: string;
+  status?: string;
+  metrics: Metrics;
+  chip?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-3.5 shadow-[var(--shadow-sm)]">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-sm font-bold leading-snug text-blue-900">{title}</p>
+          {subtitle && <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">{subtitle}</p>}
+        </div>
+        {status !== undefined && <StatusPill status={status} />}
+      </div>
+      {chip && <span className="mt-2 inline-block rounded-full bg-yellow-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-900">{chip}</span>}
+      <dl className="mt-3 grid grid-cols-4 gap-2 border-t border-gray-100 pt-3 text-center">
+        {[
+          ["Investido", currencyFormatter.format(metrics.spend)],
+          ["Cliques", numberFormatter.format(metrics.clicks)],
+          ["CTR", `${ctrOf(metrics).toFixed(2)}%`],
+          ["Conv.", numberFormatter.format(metrics.conversions)],
+        ].map(([label, value]) => (
+          <div key={label} className="min-w-0">
+            <dd className="truncate text-[13px] font-bold tabular-nums text-blue-900">{value}</dd>
+            <dt className="text-[10px] font-bold uppercase text-gray-400">{label}</dt>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -169,43 +279,55 @@ function useNameFilter<T>(rows: T[], getHaystack: (row: T) => string) {
   return { name, setName, filtered };
 }
 
-function SummaryLine({ count, label, metrics }: { count: number; label: string; metrics: Metrics }) {
+function Toolbar({
+  value,
+  onChange,
+  placeholder,
+  summary,
+  children,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  summary: string;
+  children?: React.ReactNode;
+}) {
   return (
-    <span className="ml-auto text-xs text-gray-500">
-      {count} {label} · {currencyFormatter.format(metrics.spend)} investidos no período
-    </span>
-  );
-}
-
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-1 text-[11px] font-bold uppercase text-gray-500">{label}</p>
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          className="h-10 w-full rounded-full border border-gray-200 bg-white pl-10 pr-9 text-sm text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:shadow-[var(--shadow-focus)]"
+        />
+        {value && (
+          <button type="button" onClick={() => onChange("")} aria-label="Limpar busca" className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
       {children}
+      <span className="ml-auto text-xs font-semibold text-gray-500">{summary}</span>
     </div>
   );
 }
 
-function CampaignsSection({
-  rows,
-  loading,
-  onSelect,
-}: {
-  rows: CampaignRow[];
-  loading: boolean;
-  onSelect: (campaign: CampaignRow) => void;
-}) {
+function CampaignsSection({ rows, loading, onSelect }: { rows: CampaignRow[]; loading: boolean; onSelect: (campaign: CampaignRow) => void }) {
   const { name, setName, filtered } = useNameFilter(rows, (r) => r.name);
   const totals = useMemo(() => filtered.reduce((acc, r) => addUp(acc, r.metrics), zero()), [filtered]);
+  const maxSpend = useMemo(() => Math.max(0, ...filtered.map((r) => r.metrics.spend)), [filtered]);
 
   const columns: Column<CampaignRow>[] = [
     { key: "name", label: "Campanha", widthClass: "min-w-72", sortValue: (r) => r.name, render: (r) => <span className="font-semibold text-blue-900">{r.name}</span> },
     { key: "objective", label: "Objetivo", widthClass: "w-40", sortValue: (r) => r.objective, render: (r) => r.objective || "—" },
-    { key: "status", label: "Status", widthClass: "w-32", render: (r) => <Badge tone={statusTone(r.status)}>{r.status || "—"}</Badge> },
+    { key: "status", label: "Status", widthClass: "w-36", render: (r) => <StatusPill status={r.status} /> },
     { key: "budget", label: "Orçamento diário", widthClass: "w-36", sortValue: (r) => r.daily_budget ?? 0, render: (r) => (r.daily_budget ? currencyFormatter.format(r.daily_budget) : "—") },
     { key: "adsets", label: "Conjuntos", widthClass: "w-24", sortValue: (r) => r.adSetsCount, render: (r) => numberFormatter.format(r.adSetsCount) },
     { key: "ads", label: "Anúncios", widthClass: "w-24", sortValue: (r) => r.adsCount, render: (r) => numberFormatter.format(r.adsCount) },
-    { key: "spend", label: "Investido", widthClass: "w-32", sortValue: (r) => r.metrics.spend, render: (r) => currencyFormatter.format(r.metrics.spend) },
+    { key: "spend", label: "Investido", widthClass: "w-40", sortValue: (r) => r.metrics.spend, render: (r) => <SpendCell value={r.metrics.spend} max={maxSpend} /> },
     { key: "impressions", label: "Impressões", widthClass: "w-32", sortValue: (r) => r.metrics.impressions, render: (r) => numberFormatter.format(r.metrics.impressions) },
     { key: "clicks", label: "Cliques no link", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
     { key: "ctr", label: "CTR", widthClass: "w-24", sortValue: (r) => ctrOf(r.metrics), render: (r) => `${ctrOf(r.metrics).toFixed(2)}%` },
@@ -214,18 +336,22 @@ function CampaignsSection({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-end gap-2">
-        <FilterField label="Buscar">
-          <Input className="h-9 w-56" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da campanha..." />
-        </FilterField>
-        <SummaryLine count={filtered.length} label={filtered.length === 1 ? "campanha" : "campanhas"} metrics={totals} />
-      </div>
+      <Toolbar
+        value={name}
+        onChange={setName}
+        placeholder="Buscar campanha…"
+        summary={`${filtered.length} ${filtered.length === 1 ? "campanha" : "campanhas"} · ${currencyFormatter.format(totals.spend)} investidos`}
+      />
       <SortableTable
         rows={filtered}
         columns={columns}
         defaultSortKey="spend"
-        emptyLabel={loading ? "Carregando..." : "Nenhuma campanha sincronizada ainda."}
+        loading={loading}
+        emptyLabel="Nenhuma campanha sincronizada ainda."
         onRowClick={onSelect}
+        mobileCard={(r) => (
+          <MetricCard title={r.name} subtitle={r.objective || undefined} status={r.status} metrics={r.metrics} chip={`${r.adSetsCount} conjuntos · ${r.adsCount} anúncios`} />
+        )}
       />
     </div>
   );
@@ -244,17 +370,18 @@ function AdSetsSection({
 }) {
   const { name, setName, filtered } = useNameFilter(rows, (r) => `${r.name} ${r.campaign?.name ?? ""}`);
   const totals = useMemo(() => filtered.reduce((acc, r) => addUp(acc, r.metrics), zero()), [filtered]);
+  const maxSpend = useMemo(() => Math.max(0, ...filtered.map((r) => r.metrics.spend)), [filtered]);
 
   const columns: Column<AdSetRow>[] = [
     { key: "name", label: "Conjunto de anúncios", widthClass: "min-w-64", sortValue: (r) => r.name, render: (r) => <span className="font-semibold text-blue-900">{r.name}</span> },
     ...(showCampaign
       ? [{ key: "campaign", label: "Campanha", widthClass: "min-w-56", sortValue: (r: AdSetRow) => r.campaign?.name ?? "", render: (r: AdSetRow) => r.campaign?.name ?? "—" }]
       : []),
-    { key: "status", label: "Status", widthClass: "w-32", render: (r) => <Badge tone={statusTone(r.status)}>{r.status || "—"}</Badge> },
+    { key: "status", label: "Status", widthClass: "w-36", render: (r) => <StatusPill status={r.status} /> },
     { key: "goal", label: "Otimização", widthClass: "w-40", sortValue: (r) => r.optimization_goal, render: (r) => r.optimization_goal || "—" },
     { key: "budget", label: "Orçamento diário", widthClass: "w-36", sortValue: (r) => r.daily_budget ?? 0, render: (r) => (r.daily_budget ? currencyFormatter.format(r.daily_budget) : "—") },
     { key: "ads", label: "Anúncios", widthClass: "w-24", sortValue: (r) => r.adsCount, render: (r) => numberFormatter.format(r.adsCount) },
-    { key: "spend", label: "Investido", widthClass: "w-32", sortValue: (r) => r.metrics.spend, render: (r) => currencyFormatter.format(r.metrics.spend) },
+    { key: "spend", label: "Investido", widthClass: "w-40", sortValue: (r) => r.metrics.spend, render: (r) => <SpendCell value={r.metrics.spend} max={maxSpend} /> },
     { key: "impressions", label: "Impressões", widthClass: "w-32", sortValue: (r) => r.metrics.impressions, render: (r) => numberFormatter.format(r.metrics.impressions) },
     { key: "clicks", label: "Cliques no link", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
     { key: "ctr", label: "CTR", widthClass: "w-24", sortValue: (r) => ctrOf(r.metrics), render: (r) => `${ctrOf(r.metrics).toFixed(2)}%` },
@@ -263,18 +390,22 @@ function AdSetsSection({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-end gap-2">
-        <FilterField label="Buscar">
-          <Input className="h-9 w-56" value={name} onChange={(e) => setName(e.target.value)} placeholder="Conjunto ou campanha..." />
-        </FilterField>
-        <SummaryLine count={filtered.length} label={filtered.length === 1 ? "conjunto" : "conjuntos"} metrics={totals} />
-      </div>
+      <Toolbar
+        value={name}
+        onChange={setName}
+        placeholder="Buscar conjunto ou campanha…"
+        summary={`${filtered.length} ${filtered.length === 1 ? "conjunto" : "conjuntos"} · ${currencyFormatter.format(totals.spend)} investidos`}
+      />
       <SortableTable
         rows={filtered}
         columns={columns}
         defaultSortKey="spend"
-        emptyLabel={loading ? "Carregando..." : "Nenhum conjunto de anúncios sincronizado ainda."}
+        loading={loading}
+        emptyLabel="Nenhum conjunto de anúncios sincronizado ainda."
         onRowClick={onSelect}
+        mobileCard={(r) => (
+          <MetricCard title={r.name} subtitle={r.campaign?.name} status={r.status} metrics={r.metrics} chip={`${r.adsCount} anúncios${r.optimization_goal ? ` · ${r.optimization_goal}` : ""}`} />
+        )}
       />
     </div>
   );
@@ -301,6 +432,7 @@ function AdsSection({
     return byName.filter((r) => (matched === "sim" ? !!r.matched_creative_id : !r.matched_creative_id));
   }, [byName, matched]);
   const totals = useMemo(() => filtered.reduce((acc, r) => addUp(acc, r.metrics), zero()), [filtered]);
+  const maxSpend = useMemo(() => Math.max(0, ...filtered.map((r) => r.metrics.spend)), [filtered]);
 
   const columns: Column<AdRow>[] = [
     { key: "name", label: "Anúncio", widthClass: "min-w-72", sortValue: (r) => r.name, render: (r) => <span className="font-semibold text-blue-900">{r.name}</span> },
@@ -320,14 +452,19 @@ function AdsSection({
           },
         ]
       : []),
-    { key: "status", label: "Status", widthClass: "w-32", render: (r) => <Badge tone={statusTone(r.effective_status)}>{r.effective_status || "—"}</Badge> },
+    { key: "status", label: "Status", widthClass: "w-36", render: (r) => <StatusPill status={r.effective_status} /> },
     {
       key: "creative",
       label: "Criativo vinculado",
       widthClass: "w-56",
-      render: (r) => (r.matched_creative ? <Badge tone="accent">{r.matched_creative.name}</Badge> : <span className="text-gray-400">Sem vínculo</span>),
+      render: (r) =>
+        r.matched_creative ? (
+          <span className="inline-block max-w-[200px] truncate rounded-full bg-yellow-100 px-2.5 py-1 text-[11px] font-bold text-blue-900">{r.matched_creative.name}</span>
+        ) : (
+          <span className="text-gray-400">Sem vínculo</span>
+        ),
     },
-    { key: "spend", label: "Investido", widthClass: "w-32", sortValue: (r) => r.metrics.spend, render: (r) => currencyFormatter.format(r.metrics.spend) },
+    { key: "spend", label: "Investido", widthClass: "w-40", sortValue: (r) => r.metrics.spend, render: (r) => <SpendCell value={r.metrics.spend} max={maxSpend} /> },
     { key: "impressions", label: "Impressões", widthClass: "w-32", sortValue: (r) => r.metrics.impressions, render: (r) => numberFormatter.format(r.metrics.impressions) },
     { key: "clicks", label: "Cliques no link", widthClass: "w-28", sortValue: (r) => r.metrics.clicks, render: (r) => numberFormatter.format(r.metrics.clicks) },
     { key: "ctr", label: "CTR", widthClass: "w-24", sortValue: (r) => ctrOf(r.metrics), render: (r) => `${ctrOf(r.metrics).toFixed(2)}%` },
@@ -336,29 +473,82 @@ function AdsSection({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-end gap-2">
-        <FilterField label="Buscar">
-          <Input className="h-9 w-56" value={name} onChange={(e) => setName(e.target.value)} placeholder="Anúncio, campanha ou conjunto..." />
-        </FilterField>
-        <FilterField label="Criativo vinculado">
-          <div className="w-36">
-            <Select className="h-9" value={matched} onChange={(e) => setMatched(e.target.value)}>
-              <option value="">Todos</option>
-              <option value="sim">Sim</option>
-              <option value="nao">Não</option>
-            </Select>
-          </div>
-        </FilterField>
-        <SummaryLine count={filtered.length} label={filtered.length === 1 ? "anúncio" : "anúncios"} metrics={totals} />
-      </div>
+      <Toolbar
+        value={name}
+        onChange={setName}
+        placeholder="Buscar anúncio, campanha ou conjunto…"
+        summary={`${filtered.length} ${filtered.length === 1 ? "anúncio" : "anúncios"} · ${currencyFormatter.format(totals.spend)} investidos`}
+      >
+        <div className="flex rounded-full bg-gray-100 p-1" role="group" aria-label="Criativo vinculado">
+          {([["", "Todos"], ["sim", "Com criativo"], ["nao", "Sem criativo"]] as const).map(([value, label]) => (
+            <button
+              key={value || "all"}
+              type="button"
+              onClick={() => setMatched(value)}
+              aria-pressed={matched === value}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-xs font-bold transition-all",
+                matched === value ? "bg-white text-blue-900 shadow-sm" : "text-gray-500 hover:text-blue-900"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Toolbar>
       <SortableTable
         rows={filtered}
         columns={columns}
         defaultSortKey="spend"
-        emptyLabel={loading ? "Carregando..." : "Nenhum anúncio sincronizado ainda."}
+        loading={loading}
+        emptyLabel="Nenhum anúncio sincronizado ainda."
         onRowClick={onSelect}
+        mobileCard={(r) => (
+          <MetricCard
+            title={r.name}
+            subtitle={[r.adset?.campaign?.name, r.adset?.name].filter(Boolean).join(" › ") || undefined}
+            status={r.effective_status}
+            metrics={r.metrics}
+            chip={r.matched_creative ? `Criativo: ${r.matched_creative.name}` : undefined}
+          />
+        )}
       />
-      <p className="mt-2 text-xs text-gray-400">Clique num anúncio para ver o preview.</p>
+      <p className="mt-2 text-xs text-gray-400">Toque em um anúncio para ver o preview.</p>
+    </div>
+  );
+}
+
+function Kpi({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  gradient,
+  index,
+}: {
+  icon: typeof Wallet;
+  label: string;
+  value: string;
+  hint?: string;
+  gradient: string;
+  index: number;
+}) {
+  return (
+    <div
+      style={{ animationDelay: `${index * 60}ms` }}
+      className="ast-fade-up group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-3.5 shadow-[var(--shadow-sm)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
+    >
+      <span className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", gradient)} aria-hidden />
+      <div className="flex items-center gap-2.5">
+        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110", gradient)}>
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0 leading-tight">
+          <p className="truncate font-display text-lg font-bold tabular-nums text-blue-900 sm:text-xl">{value}</p>
+          <p className="truncate text-[11px] font-bold uppercase tracking-wide text-gray-500">{label}</p>
+          {hint && <p className="truncate text-[10px] text-gray-400">{hint}</p>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -421,6 +611,12 @@ export function TrafficAdsTable() {
     return data.ads;
   }, [data.ads, selectedAdSetId, selectedCampaignId]);
 
+  // Totais do período para os cartões do topo: seguem o nível/filtro em foco.
+  const totals = useMemo(() => {
+    const rows = tab === "ads" ? adRows : tab === "adsets" ? adSetRows : data.campaigns;
+    return rows.reduce((acc, r) => addUp(acc, r.metrics), zero());
+  }, [tab, adRows, adSetRows, data.campaigns]);
+
   function selectCampaign(campaign: CampaignRow) {
     setSelectedCampaignId(campaign.id);
     setSelectedAdSetId(null);
@@ -454,75 +650,165 @@ export function TrafficAdsTable() {
     }
   }
 
+  function quickRange(days: number) {
+    const today = todayBRT();
+    setDateRange({ since: shiftDate(today, -(days - 1)), until: today });
+  }
+  function allRange() {
+    if (structure.minDate) setDateRange({ since: structure.minDate, until: structure.maxDate ?? todayBRT() });
+  }
+  const today = todayBRT();
+  const rangeDays = (() => {
+    if (dateRange.until !== today) return null;
+    const days = Math.round((Date.parse(`${dateRange.until}T12:00:00Z`) - Date.parse(`${dateRange.since}T12:00:00Z`)) / 86400000) + 1;
+    return [7, 14, 30, 60].includes(days) ? days : null;
+  })();
+  const isAll = !!structure.minDate && dateRange.since === structure.minDate;
+
+  const ctr = ctrOf(totals);
+  const costPerConversion = totals.conversions > 0 ? totals.spend / totals.conversions : null;
+  const levelLabel = tab === "ads" ? "anúncios" : tab === "adsets" ? "conjuntos" : "campanhas";
+
+  const levels = [
+    { key: "campaigns" as const, label: "Campanhas", icon: Megaphone, count: data.campaigns.length },
+    { key: "adsets" as const, label: "Conjuntos", icon: Layers, count: adSetRows.length },
+    { key: "ads" as const, label: "Anúncios", icon: ImageIcon, count: adRows.length },
+  ];
+
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-end gap-2">
-        <FilterField label="De">
+      {/* Período */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-3xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-sm)]">
+        <div className="flex flex-wrap gap-1.5">
+          {([7, 14, 30, 60] as const).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => quickRange(d)}
+              aria-pressed={rangeDays === d}
+              className={cn(
+                "rounded-full border px-3.5 py-2 text-xs font-bold transition-all active:scale-95 sm:py-1.5",
+                rangeDays === d ? "border-transparent bg-blue-900 text-white shadow-sm" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-050"
+              )}
+            >
+              {d} dias
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={allRange}
+            disabled={!structure.minDate}
+            aria-pressed={isAll}
+            className={cn(
+              "rounded-full border px-3.5 py-2 text-xs font-bold transition-all active:scale-95 disabled:opacity-40 sm:py-1.5",
+              isAll ? "border-transparent bg-blue-900 text-white shadow-sm" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-050"
+            )}
+          >
+            Tudo
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-gray-500 lg:ml-auto">
           <input
             type="date"
+            aria-label="De"
             value={dateRange.since}
             max={dateRange.until}
             min={structure.minDate ?? undefined}
-            onChange={(e) => setDateRange((r) => ({ ...r, since: e.target.value }))}
-            className="h-9 rounded-[14px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, since: e.target.value }))}
+            className="h-10 rounded-full border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-9"
           />
-        </FilterField>
-        <FilterField label="Até">
+          até
           <input
             type="date"
+            aria-label="Até"
             value={dateRange.until}
             min={dateRange.since}
             max={structure.maxDate ?? undefined}
-            onChange={(e) => setDateRange((r) => ({ ...r, until: e.target.value }))}
-            className="h-9 rounded-[14px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, until: e.target.value }))}
+            className="h-10 rounded-full border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-9"
           />
-        </FilterField>
-        {structure.minDate && (
-          <p className="pb-2 text-xs text-gray-400">Dados sincronizados desde {formatDay(structure.minDate)}.</p>
-        )}
+        </div>
+        {structure.minDate && <p className="w-full text-[11px] text-gray-400">Dados sincronizados desde {formatDay(structure.minDate)}.</p>}
       </div>
 
-      <Tabs
-        className="mb-3"
-        active={tab}
-        onChange={(key) => setTab(key as typeof tab)}
-        tabs={[
-          { key: "campaigns", label: "Campanhas", count: data.campaigns.length },
-          { key: "adsets", label: "Conjuntos de Anúncios", count: adSetRows.length },
-          { key: "ads", label: "Anúncios", count: adRows.length },
-        ]}
-      />
+      {/* Resumo do período (segue o nível em foco) */}
+      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <Kpi index={0} icon={Wallet} label="Investido" value={currencyFormatter.format(totals.spend)} hint={`em ${levelLabel}`} gradient="from-sky-500 to-indigo-500" />
+        <Kpi index={1} icon={Eye} label="Impressões" value={numberFormatter.format(totals.impressions)} gradient="from-violet-500 to-fuchsia-500" />
+        <Kpi index={2} icon={MousePointerClick} label="Cliques no link" value={numberFormatter.format(totals.clicks)} gradient="from-emerald-500 to-teal-500" />
+        <Kpi index={3} icon={Percent} label="CTR" value={`${ctr.toFixed(2)}%`} gradient="from-amber-500 to-orange-500" />
+        <Kpi
+          index={4}
+          icon={Target}
+          label="Conversões"
+          value={numberFormatter.format(totals.conversions)}
+          hint={costPerConversion !== null ? `${currencyFormatter.format(costPerConversion)} por conversão` : undefined}
+          gradient="from-rose-500 to-pink-500"
+        />
+      </div>
+
+      {/* Nível: campanhas → conjuntos → anúncios */}
+      <div className="mb-3 grid grid-cols-3 gap-2" role="tablist" aria-label="Nível">
+        {levels.map((l, i) => {
+          const Icon = l.icon;
+          const active = tab === l.key;
+          return (
+            <button
+              key={l.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTab(l.key)}
+              className={cn(
+                "group relative flex flex-col items-center gap-1 rounded-2xl border-2 px-2 py-2.5 transition-all duration-200 active:scale-[0.98] sm:flex-row sm:justify-center sm:gap-2.5 sm:py-3",
+                active ? "border-transparent bg-gradient-to-r from-blue-900 to-sky-800 text-white shadow-md" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+              )}
+            >
+              <Icon className={cn("h-5 w-5 transition-transform duration-200 group-hover:scale-110", active ? "text-yellow-400" : "text-blue-700")} />
+              <span className="text-center leading-tight">
+                <span className="block text-xs font-bold sm:text-sm">{l.label}</span>
+                <span className={cn("block text-[11px] font-semibold", active ? "text-blue-100" : "text-gray-400")}>{l.count}</span>
+              </span>
+              {i < levels.length - 1 && (
+                <ArrowRight className="absolute -right-2.5 top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 rounded-full bg-white text-gray-300 sm:block" aria-hidden />
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {(selectedCampaign || selectedAdSet) && (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="ast-fade-up mb-3 flex flex-wrap items-center gap-2">
           {selectedCampaign && (
             <button
               onClick={clearCampaign}
-              className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1.5 text-sm font-semibold text-blue-900 hover:bg-blue-200"
+              className="flex max-w-full items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1.5 text-sm font-semibold text-blue-900 transition-colors hover:bg-blue-200"
             >
-              Campanha: {selectedCampaign.name}
-              <X className="h-3.5 w-3.5" />
+              <span className="truncate">Campanha: {selectedCampaign.name}</span>
+              <X className="h-3.5 w-3.5 shrink-0" />
             </button>
           )}
           {selectedAdSet && (
             <button
               onClick={clearAdSet}
-              className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1.5 text-sm font-semibold text-blue-900 hover:bg-blue-200"
+              className="flex max-w-full items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1.5 text-sm font-semibold text-blue-900 transition-colors hover:bg-blue-200"
             >
-              Conjunto: {selectedAdSet.name}
-              <X className="h-3.5 w-3.5" />
+              <span className="truncate">Conjunto: {selectedAdSet.name}</span>
+              <X className="h-3.5 w-3.5 shrink-0" />
             </button>
           )}
         </div>
       )}
 
-      {tab === "campaigns" && <CampaignsSection rows={data.campaigns} loading={loading} onSelect={selectCampaign} />}
-      {tab === "adsets" && (
-        <AdSetsSection rows={adSetRows} loading={loading} showCampaign={!selectedCampaignId} onSelect={selectAdSet} />
-      )}
-      {tab === "ads" && (
-        <AdsSection rows={adRows} loading={loading} showCampaign={!selectedCampaignId && !selectedAdSetId} onSelect={openPreview} />
-      )}
+      <div key={tab} className="ast-fade-up">
+        {tab === "campaigns" && <CampaignsSection rows={data.campaigns} loading={loading} onSelect={selectCampaign} />}
+        {tab === "adsets" && (
+          <AdSetsSection rows={adSetRows} loading={loading} showCampaign={!selectedCampaignId} onSelect={selectAdSet} />
+        )}
+        {tab === "ads" && (
+          <AdsSection rows={adRows} loading={loading} showCampaign={!selectedCampaignId && !selectedAdSetId} onSelect={openPreview} />
+        )}
+      </div>
 
       <Dialog open={!!preview} onClose={() => setPreview(null)} size="lg">
         <DialogHeader title="Preview do anúncio" subtitle={preview?.adName} onClose={() => setPreview(null)} />
