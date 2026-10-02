@@ -183,3 +183,184 @@ a:active svg {
   70% { transform: scale(1.08); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Assistente (Helpinho): animações do chat                            */
+/* ------------------------------------------------------------------ */
+@keyframes ast-msg-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ast-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ast-slide-in-left {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes ast-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+@keyframes ast-ring {
+  0% { transform: scale(0.9); opacity: 0.55; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+@keyframes ast-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes ast-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes ast-gradient {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes ast-reveal {
+  from { opacity: 0; transform: translateY(6px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes ast-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ast-msg-in { animation: ast-msg-in 320ms var(--ease-standard) both; }
+.ast-fade-up { animation: ast-fade-up 480ms var(--ease-standard) both; }
+.ast-slide-in-left { animation: ast-slide-in-left 280ms var(--ease-standard) both; }
+.ast-float { animation: ast-float 4.5s ease-in-out infinite; }
+.ast-pop { animation: ast-pop 260ms var(--ease-standard) both; }
+.ast-dot { animation: ast-dot 1.1s ease-in-out infinite; }
+.ast-ring { animation: ast-ring 2.4s ease-out infinite; }
+.ast-skeleton {
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-050) 50%, var(--gray-100) 75%);
+  background-size: 200% 100%;
+  animation: ast-shimmer 1.4s linear infinite;
+}
+.ast-shimmer-text {
+  background: linear-gradient(90deg, var(--gray-500) 0%, var(--blue-900) 45%, var(--gray-500) 90%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ast-shimmer 2.2s linear infinite;
+}
+.ast-gradient-bar {
+  background: linear-gradient(90deg, var(--yellow-500), var(--blue-600), var(--yellow-500));
+  background-size: 200% 100%;
+  animation: ast-gradient 1.6s linear infinite;
+}
+
+/* Revela os blocos da resposta em cascata (parágrafos, listas, tabelas). */
+.ast-reveal > * { animation: ast-reveal 420ms var(--ease-standard) both; }
+.ast-reveal > *:nth-child(1) { animation-delay: 0ms; }
+.ast-reveal > *:nth-child(2) { animation-delay: 70ms; }
+.ast-reveal > *:nth-child(3) { animation-delay: 140ms; }
+.ast-reveal > *:nth-child(4) { animation-delay: 210ms; }
+.ast-reveal > *:nth-child(5) { animation-delay: 280ms; }
+.ast-reveal > *:nth-child(6) { animation-delay: 350ms; }
+.ast-reveal > *:nth-child(n+7) { animation-delay: 420ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ast-msg-in, .ast-fade-up, .ast-slide-in-left, .ast-float, .ast-pop, .ast-dot, .ast-ring,
+  .ast-skeleton, .ast-shimmer-text, .ast-gradient-bar, .ast-reveal > * {
+    animation: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sidebar principal                                                   */
+/* ------------------------------------------------------------------ */
+@keyframes sb-sweep {
+  0% { transform: translateX(-130%) skewX(-18deg); }
+  55%, 100% { transform: translateX(260%) skewX(-18deg); }
+}
+@keyframes sb-item-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes sb-bar-in {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@keyframes sb-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(252, 191, 0, 0.0), 0 6px 18px rgba(252, 191, 0, 0.22); }
+  50% { box-shadow: 0 0 0 4px rgba(252, 191, 0, 0.10), 0 8px 24px rgba(252, 191, 0, 0.38); }
+}
+@keyframes sb-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+  50% { transform: scale(1.25) rotate(18deg); opacity: 1; }
+}
+@keyframes sb-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.sb-item-in { animation: sb-item-in 360ms var(--ease-standard) both; }
+.sb-bar-in { animation: sb-bar-in 240ms var(--ease-standard) both; transform-origin: center; }
+.sb-glow { animation: sb-glow 3.2s ease-in-out infinite; }
+.sb-twinkle { animation: sb-twinkle 2.6s ease-in-out infinite; }
+.sb-bob { animation: sb-bob 2.4s ease-in-out infinite; }
+.sb-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: sb-sweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Barra de rolagem discreta da navegação (escura) */
+.sb-scroll { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+
+/* Neutraliza o "scale" global de ícones dentro de botões/links da sidebar:
+   a sidebar anima os próprios ícones. */
+.sb-nav a svg, .sb-nav button svg { transition: none; }
+.sb-nav a:hover svg, .sb-nav button:hover svg { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-item-in, .sb-bar-in, .sb-glow, .sb-twinkle, .sb-bob, .sb-sweep::after { animation: none !important; }
+}
+
+@keyframes sb-drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.sb-drawer-in { animation: sb-drawer-in 280ms var(--ease-standard) both; }
+@media (prefers-reduced-motion: reduce) { .sb-drawer-in { animation: none !important; } }
+
+/* Quadro (kanban) */
+@keyframes kb-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes kb-col-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.kb-card-in { animation: kb-card-in 340ms var(--ease-standard) both; }
+.kb-col-in { animation: kb-col-in 420ms var(--ease-standard) both; }
+@media (prefers-reduced-motion: reduce) { .kb-card-in, .kb-col-in { animation: none !important; } }
+
+/* Gaveta lateral direita + páginas */
+@keyframes sb-drawer-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.sb-drawer-in-right { animation: sb-drawer-in-right 280ms var(--ease-standard) both; }
+@keyframes pg-confetti {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(120px) rotate(360deg); opacity: 0; }
+}
+.pg-confetti { animation: pg-confetti 2.6s ease-in infinite; }
+@keyframes pg-pulse-soft {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(252, 191, 0, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(252, 191, 0, 0); }
+}
+.pg-pulse-soft { animation: pg-pulse-soft 2s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .sb-drawer-in-right, .pg-confetti, .pg-pulse-soft { animation: none !important; } }
