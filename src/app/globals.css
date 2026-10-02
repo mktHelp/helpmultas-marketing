@@ -405,3 +405,16 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adj
     font-size: 16px;
   }
 }
+
+/* Botão flutuante do Helpinho */
+@keyframes hw-pop-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes hw-bubble-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.hw-pop-in { animation: hw-pop-in 260ms var(--ease-standard) both; transform-origin: bottom right; }
+.hw-bubble-in { animation: hw-bubble-in 360ms var(--ease-standard) both; transform-origin: bottom right; }
+@media (prefers-reduced-motion: reduce) { .hw-pop-in, .hw-bubble-in { animation: none !important; } }
