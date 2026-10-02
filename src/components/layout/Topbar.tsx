@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, Plus, Search, X } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, X } from "lucide-react";
 import { GlobalSearch } from "./GlobalSearch";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { Button } from "@/components/ui/Button";
 import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 
-export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
+export function Topbar({
+  onMenuClick,
+  sidebarCollapsed = false,
+  onToggleSidebar,
+}: {
+  onMenuClick: () => void;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+}) {
   const [createOpen, setCreateOpen] = useState(false);
   // No celular a busca fica recolhida atrás de um ícone (a barra larga só cabe a partir de md).
   const [searchOpen, setSearchOpen] = useState(false);
@@ -18,6 +26,17 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         <button onClick={onMenuClick} className="rounded-lg p-2 text-gray-700 hover:bg-gray-100 lg:hidden">
           <Menu className="h-5 w-5" />
         </button>
+        {onToggleSidebar && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+            title={sidebarCollapsed ? "Expandir menu (Ctrl+B)" : "Recolher menu (Ctrl+B)"}
+            className="hidden rounded-lg p-2 text-gray-700 transition-colors hover:bg-gray-100 lg:block"
+          >
+            {sidebarCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+          </button>
+        )}
         <div className="hidden flex-1 md:block">
           <GlobalSearch />
         </div>
