@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { broadcastHelpinho, subscribeHelpinho } from "@/lib/helpinho-sync";
 
 // Estado do chat do Helpinho para o botão flutuante (mesmas rotas da página
 // /assistente). Só carrega depois que o painel é aberto pela primeira vez.
@@ -62,6 +63,7 @@ export function useHelpinhoChat(enabled: boolean) {
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [errorsByConv, setErrorsByConv] = useState<Record<string, string>>({});
   const pendingRef = useRef<Set<string>>(new Set());
+  const remotePendingRef = useRef<Set<string>>(new Set());
   const historyRequestedRef = useRef<Set<string>>(new Set());
   const listLoadedRef = useRef(false);
 
@@ -125,9 +127,9 @@ export function useHelpinhoChat(enabled: boolean) {
     if (enabled && !listLoadedRef.current) void loadConversations();
   }, [enabled, loadConversations]);
 
-  const loadHistory = useCallback(async (conversationId: string) => {
+  const loadHistory = useCallback(async (conversationId: string, silent = false) => {
     historyRequestedRef.current.add(conversationId);
-    setHistoryByConv((prev) => ({ ...prev, [conversationId]: "loading" }));
+    if (!silent) setHistoryByConv((prev) => ({ ...prev, [conversationId]: "loading" }));
     try {
       const res = await fetch(`/api/assistente?conversationId=${encodeURIComponent(conversationId)}`);
       const data = await res.json().catch(() => null);
@@ -135,10 +137,53 @@ export function useHelpinhoChat(enabled: boolean) {
       setMessagesByConv((prev) => ({ ...prev, [conversationId]: data.messages }));
       setHistoryByConv((prev) => ({ ...prev, [conversationId]: "ready" }));
     } catch {
+      if (silent) return;
       historyRequestedRef.current.delete(conversationId);
       setHistoryByConv((prev) => ({ ...prev, [conversationId]: "error" }));
     }
   }, []);
+
+  // Mudanças feitas na página /assistente (ou em outra aba) chegam aqui.
+  useEffect(() => {
+    if (!enabled) return;
+    return subscribeHelpinho(async (event) => {
+      const cid = event.conversationId;
+      if (event.type === "sending" && cid && event.message) {
+        const msg = event.message;
+        remotePendingRef.current.add(cid);
+        setMessagesByConv((prev) =>
+          prev[cid] && !prev[cid].some((m) => m.id === msg.id) ? { ...prev, [cid]: [...prev[cid], msg] } : prev
+        );
+        setPending(cid, true);
+        return;
+      }
+      if (cid && remotePendingRef.current.delete(cid)) setPending(cid, false);
+      if (event.type === "failed") {
+        if (cid) void loadHistory(cid, true);
+        return;
+      }
+      if (event.type === "deleted" && event.conversationId) {
+        const id = event.conversationId;
+        historyRequestedRef.current.delete(id);
+        setConversations((prev) => prev.filter((c) => c.id !== id));
+        setActiveIdState((cur) => (cur === id ? null : cur));
+        return;
+      }
+      try {
+        const res = await fetch("/api/assistente/conversations");
+        const data = await res.json().catch(() => null);
+        if (res.ok && Array.isArray(data?.conversations)) {
+          const list = data.conversations as WidgetConversation[];
+          setConversations(list);
+          setActiveIdState((cur) => cur ?? list[0]?.id ?? null);
+        }
+      } catch {
+        // mantém a lista atual
+      }
+      const id = event.conversationId;
+      if (id && historyRequestedRef.current.has(id) && !pendingRef.current.has(id)) void loadHistory(id, true);
+    });
+  }, [enabled, loadHistory, setPending]);
 
   useEffect(() => {
     if (!enabled || !activeId || historyRequestedRef.current.has(activeId)) return;
@@ -151,6 +196,7 @@ export function useHelpinhoChat(enabled: boolean) {
     registerNew(created);
     setConversations((prev) => [created, ...prev]);
     setActiveId(created.id);
+    broadcastHelpinho({ type: "changed", conversationId: created.id });
     return created;
   }, [createConversation, registerNew, setActiveId]);
 
@@ -172,6 +218,7 @@ export function useHelpinhoChat(enabled: boolean) {
         return next;
       });
       if (activeId === id) setActiveId(remaining[0]?.id ?? null);
+      broadcastHelpinho({ type: "deleted", conversationId: id });
       return true;
     },
     [conversations, activeId, setActiveId]
@@ -207,6 +254,7 @@ export function useHelpinhoChat(enabled: boolean) {
       });
       appendMessage(cid, userMessage);
       setPending(cid, true);
+      broadcastHelpinho({ type: "sending", conversationId: cid, message: userMessage });
 
       try {
         const res = await fetch("/api/assistente", {
@@ -234,6 +282,7 @@ export function useHelpinhoChat(enabled: boolean) {
           };
           return [updated, ...prev.filter((c) => c.id !== cid)];
         });
+        broadcastHelpinho({ type: "changed", conversationId: cid });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao falar com o Helpinho";
         setMessagesByConv((prev) => ({
@@ -241,6 +290,7 @@ export function useHelpinhoChat(enabled: boolean) {
           [cid]: (prev[cid] ?? []).map((m) => (m.id === userMessage.id ? { ...m, failed: true } : m)),
         }));
         setErrorsByConv((prev) => ({ ...prev, [cid]: message }));
+        broadcastHelpinho({ type: "failed", conversationId: cid });
       } finally {
         setPending(cid, false);
       }

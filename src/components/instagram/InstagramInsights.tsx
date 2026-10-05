@@ -134,7 +134,7 @@ export function InstagramInsights({
             initials(account?.label ?? "IG")
           )}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-40">
           <p className="truncate font-display text-lg font-bold text-blue-900">{profile.name || account?.label}</p>
           <a
             href={`https://instagram.com/${profile.username ?? account?.ig_username ?? ""}`}
@@ -148,7 +148,7 @@ export function InstagramInsights({
           </a>
           {profile.biography && <p className="mt-1 line-clamp-2 max-w-2xl whitespace-pre-line text-xs text-gray-500">{profile.biography}</p>}
         </div>
-        <div className="flex gap-6 text-center">
+        <div className="flex w-full justify-around gap-4 text-center sm:w-auto sm:justify-start sm:gap-6">
           {[
             ["Seguidores", followersNow],
             ["Seguindo", profile.follows_count ?? null],
@@ -166,8 +166,8 @@ export function InstagramInsights({
       </Card>
 
       {/* Controles */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs tabs={accounts.map((a) => ({ key: a.id, label: a.label }))} active={accountId} onChange={setAccountId} />
+      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
+        <Tabs tabs={accounts.map((a) => ({ key: a.id, label: a.label }))} active={accountId} onChange={setAccountId} className="self-start" />
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
           <Button
             size="sm"
@@ -185,7 +185,7 @@ export function InstagramInsights({
           </Button>
           <Tabs tabs={SECTIONS} active={section} onChange={setSection} />
           {section !== "audience" && (
-            <div className="min-w-0 max-w-full overflow-x-auto">
+            <div className="w-full min-w-0 max-w-full overflow-x-auto sm:w-auto">
               <Tabs tabs={PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as PeriodKey)} />
             </div>
           )}

@@ -126,7 +126,7 @@ export function ExpansionCreativesTable() {
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-end gap-2">
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <FilterField label="Nome">
           <Input
             className="h-9 w-48"
@@ -219,7 +219,7 @@ export function ExpansionCreativesTable() {
         )}
       </div>
 
-      <div className="max-h-[70vh] overflow-auto rounded-2xl border border-gray-200 bg-white">
+      <div className="max-h-[70vh] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full min-w-[960px] border-collapse text-sm">
           <thead>
             <tr className="text-left text-xs font-bold uppercase text-gray-500">

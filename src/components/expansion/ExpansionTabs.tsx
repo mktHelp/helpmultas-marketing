@@ -1,58 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { Tabs } from "@/components/ui/Tabs";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { PageHero } from "@/components/shared/PageHero";
 import { ExpansionCreativesTable } from "@/components/expansion/ExpansionCreativesTable";
+import { EXPANSION_SECTIONS, useExpansionSection } from "@/components/expansion/ExpansionNav";
 import { TrafficAdsTable } from "@/components/ads/TrafficAdsTable";
 import { TrafficDashboard } from "@/components/ads/TrafficDashboard";
 import { TrafficLeads } from "@/components/ads/TrafficLeads";
 import { SyncButton } from "@/components/ads/SyncButton";
 
-const SECTIONS = {
-  dashboard: {
-    label: "Dashboard",
-    title: "Dashboard de Tráfego Pago",
-    description: "KPIs do Gerenciador de Anúncios da Meta e ranking dos criativos vinculados. Somente leitura.",
-  },
-  creatives: {
-    label: "Criativos",
-    title: "Criativos da Franqueadora",
-    description: "Anúncios produzidos pelo Marketing, para rastrear a origem dos leads. Atualizado em tempo real.",
-  },
-  traffic: {
-    label: "Tráfego Pago",
-    title: "Tráfego Pago",
-    description: "Campanhas, conjuntos e anúncios sincronizados do Gerenciador de Anúncios da Meta. Somente leitura.",
-  },
-  leads: {
-    label: "Leads",
-    title: "Leads",
-    description: "Leads recebidos da Landing Page com rastreamento de anúncio de origem via UTM.",
-  },
-} as const;
-
-type SectionKey = keyof typeof SECTIONS;
-
+// A navegação fica no cabeçalho (desktop) e na barra inferior (celular);
+// aqui só se renderiza a seção escolhida na URL.
 export function ExpansionTabs() {
-  const [section, setSection] = useState<SectionKey>("dashboard");
-  const current = SECTIONS[section];
+  const section = useExpansionSection();
+  const current = EXPANSION_SECTIONS[section];
 
   return (
     <div>
-      <Tabs
-        className="mb-6"
-        active={section}
-        onChange={(key) => setSection(key as SectionKey)}
-        tabs={Object.entries(SECTIONS).map(([key, value]) => ({ key, label: value.label }))}
+      <PageHero
+        tone={current.tone}
+        icon={current.icon}
+        title={current.title}
+        description={current.description}
+        action={section !== "creatives" ? <SyncButton /> : undefined}
       />
 
-      <PageHeader title={current.title} description={current.description} action={section !== "creatives" ? <SyncButton /> : undefined} />
-
-      {section === "creatives" && <ExpansionCreativesTable />}
-      {section === "traffic" && <TrafficAdsTable />}
-      {section === "dashboard" && <TrafficDashboard />}
-      {section === "leads" && <TrafficLeads />}
+      <div key={section} className="ast-fade-up">
+        {section === "creatives" && <ExpansionCreativesTable />}
+        {section === "traffic" && <TrafficAdsTable />}
+        {section === "dashboard" && <TrafficDashboard />}
+        {section === "leads" && <TrafficLeads />}
+      </div>
     </div>
   );
 }

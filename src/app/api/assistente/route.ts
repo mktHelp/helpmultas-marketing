@@ -83,6 +83,9 @@ export async function POST(request: Request) {
         chatInput: message,
         sessionId: conversationId,
         userName: profile?.full_name ?? "",
+        // "master" | "gestor" | "membro" | "expansao": o workflow do n8n usa
+        // isso para limitar os dados que o perfil Expansão pode consultar.
+        userRole: profile?.role ?? "membro",
       }),
       signal: AbortSignal.timeout(180_000),
     });

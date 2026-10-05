@@ -31,6 +31,7 @@ import { Card } from "@/components/ui/Card";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Markdown } from "@/components/assistant/Markdown";
 import { useAuth } from "@/lib/auth-context";
+import { broadcastHelpinho, subscribeHelpinho } from "@/lib/helpinho-sync";
 import { cn } from "@/lib/utils";
 import { ShareMenu } from "./ShareMenu";
 import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
@@ -529,6 +530,7 @@ function AssistenteContent() {
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [errorsByConv, setErrorsByConv] = useState<Record<string, string>>({});
   const pendingRef = useRef<Set<string>>(new Set());
+  const remotePendingRef = useRef<Set<string>>(new Set());
   const historyRequestedRef = useRef<Set<string>>(new Set());
 
   const [input, setInput] = useState("");
@@ -634,9 +636,9 @@ function AssistenteContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadHistory = useCallback(async (conversationId: string) => {
+  const loadHistory = useCallback(async (conversationId: string, silent = false) => {
     historyRequestedRef.current.add(conversationId);
-    setHistoryByConv((prev) => ({ ...prev, [conversationId]: "loading" }));
+    if (!silent) setHistoryByConv((prev) => ({ ...prev, [conversationId]: "loading" }));
     try {
       const res = await fetch(`/api/assistente?conversationId=${encodeURIComponent(conversationId)}`);
       const data = await res.json().catch(() => null);
@@ -644,10 +646,51 @@ function AssistenteContent() {
       setMessagesByConv((prev) => ({ ...prev, [conversationId]: data.messages }));
       setHistoryByConv((prev) => ({ ...prev, [conversationId]: "ready" }));
     } catch {
+      if (silent) return;
       historyRequestedRef.current.delete(conversationId);
       setHistoryByConv((prev) => ({ ...prev, [conversationId]: "error" }));
     }
   }, []);
+
+  // Mudanças feitas no chat flutuante (ou em outra aba) chegam aqui.
+  useEffect(() => {
+    return subscribeHelpinho(async (event) => {
+      const cid = event.conversationId;
+      if (event.type === "sending" && cid && event.message) {
+        const msg = event.message;
+        remotePendingRef.current.add(cid);
+        setMessagesByConv((prev) =>
+          prev[cid] && !prev[cid].some((m) => m.id === msg.id) ? { ...prev, [cid]: [...prev[cid], msg] } : prev
+        );
+        setPending(cid, true);
+        return;
+      }
+      if (cid && remotePendingRef.current.delete(cid)) setPending(cid, false);
+      if (event.type === "failed") {
+        if (cid) void loadHistory(cid, true);
+        return;
+      }
+      if (event.type === "deleted" && event.conversationId) {
+        const id = event.conversationId;
+        historyRequestedRef.current.delete(id);
+        setConversations((prev) => prev.filter((c) => c.id !== id));
+        setActiveId((cur) => (cur === id ? null : cur));
+        return;
+      }
+      try {
+        const res = await fetch("/api/assistente/conversations");
+        const data = await res.json().catch(() => null);
+        if (res.ok && Array.isArray(data?.conversations) && data.conversations.length > 0) {
+          setConversations(data.conversations);
+          setActiveId((cur) => cur ?? data.conversations[0].id);
+        }
+      } catch {
+        // mantém a lista atual
+      }
+      const id = event.conversationId;
+      if (id && historyRequestedRef.current.has(id) && !pendingRef.current.has(id)) void loadHistory(id, true);
+    });
+  }, [loadHistory, setPending]);
 
   useEffect(() => {
     if (!activeId || historyRequestedRef.current.has(activeId)) return;
@@ -668,6 +711,7 @@ function AssistenteContent() {
     registerNewConversation(created);
     setConversations((prev) => [created, ...prev]);
     setListError(null);
+    broadcastHelpinho({ type: "changed", conversationId: created.id });
     selectConversation(created.id);
     window.setTimeout(() => inputRef.current?.focus(), 50);
   }
@@ -693,6 +737,7 @@ function AssistenteContent() {
       return next;
     });
     historyRequestedRef.current.delete(id);
+    broadcastHelpinho({ type: "deleted", conversationId: id });
 
     if (activeId !== id) return;
 
@@ -766,7 +811,7 @@ function AssistenteContent() {
       setInput("");
       stickRef.current = true;
 
-      const createTitle = detectCreateTaskIntent(content);
+      const createTitle = profile?.role === "expansao" ? null : detectCreateTaskIntent(content);
       if (createTitle !== null) {
         appendMessage(conversationId, userMessage);
         appendMessage(conversationId, {
@@ -784,6 +829,7 @@ function AssistenteContent() {
 
       appendMessage(conversationId, userMessage);
       setPending(conversationId, true);
+      broadcastHelpinho({ type: "sending", conversationId, message: userMessage });
 
       try {
         const res = await fetch("/api/assistente", {
@@ -819,6 +865,7 @@ function AssistenteContent() {
           };
           return [updated, ...prev.filter((c) => c.id !== conversationId)];
         });
+        broadcastHelpinho({ type: "changed", conversationId });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao falar com o assistente";
         setMessagesByConv((prev) => ({
@@ -826,6 +873,7 @@ function AssistenteContent() {
           [conversationId]: (prev[conversationId] ?? []).map((m) => (m.id === userMessage.id ? { ...m, failed: true } : m)),
         }));
         setErrorsByConv((prev) => ({ ...prev, [conversationId]: message }));
+        broadcastHelpinho({ type: "failed", conversationId });
       } finally {
         setPending(conversationId, false);
       }

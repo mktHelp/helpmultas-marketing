@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { ExpansionTabs } from "@/components/expansion/ExpansionTabs";
 
 export default function ExpansionCreativesPage() {
-  return <ExpansionTabs />;
+  return (
+    <Suspense>
+      <ExpansionTabs />
+    </Suspense>
+  );
 }

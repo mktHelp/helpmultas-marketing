@@ -389,7 +389,7 @@ export function Sidebar({
                 onClick={() => setTrafficOpenManual(!trafficOpen)}
                 aria-expanded={trafficOpen}
                 aria-controls="sb-traffic-group"
-                className="group flex w-full items-center gap-3 px-2.5 py-2.5 text-left"
+                className="group flex w-full cursor-pointer items-center gap-3 px-2.5 py-2.5 text-left"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-400 to-indigo-500 shadow-md shadow-sky-500/30 transition-transform duration-200 group-hover:rotate-6 group-hover:scale-110">
                   <TrendingUp className="h-[17px] w-[17px] text-white" strokeWidth={2.4} />

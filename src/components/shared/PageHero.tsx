@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 const TONES = {
   blue: "from-blue-900 via-blue-800 to-blue-700",
   traffic: "from-blue-900 via-sky-800 to-indigo-700",
-  day: "from-blue-900 via-blue-800 to-[#2c5a73]",
+  instagram: "from-blue-900 via-fuchsia-900 to-rose-700",
+  day:"from-blue-900 via-blue-800 to-[#2c5a73]",
 } as const;
 
 /** Faixa de abertura das páginas: ícone, título, descrição, ação e até uma linha de pílulas. */

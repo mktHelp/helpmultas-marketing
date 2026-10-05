@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 // chat (/assistente) e no Teleprompter, que já têm o Helpinho integrado. O
 // painel só fecha pelo X: nada de fechar ao clicar fora ou apertar Esc.
 
-const HIDDEN_PREFIXES = ["/assistente", "/teleprompter"];
+const HIDDEN_PREFIXES = ["/assistente", "/teleprompter", "/expansao/assistente"];
 const OPEN_KEY = "hm-widget-open";
 const GREETED_KEY = "hm-widget-greeted";
 const POS_KEY = "hm-widget-bottom";
@@ -97,6 +97,9 @@ export function HelpinhoWidget() {
   const pathname = usePathname();
   const router = useRouter();
   const { profile } = useAuth();
+  // Na área da Expansão o chat é o mesmo, mas sem criar tarefas (é do time interno).
+  const isExpansion = pathname === "/expansao" || pathname.startsWith("/expansao/");
+  const chatPath = isExpansion ? "/expansao/assistente" : "/assistente";
   const hidden = HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   const [open, setOpen] = useState(false);
@@ -220,7 +223,7 @@ export function HelpinhoWidget() {
     if (!content) return;
     setInput("");
     stickRef.current = true;
-    const intent = detectCreateTaskIntent(content);
+    const intent = isExpansion ? null : detectCreateTaskIntent(content);
     if (intent !== null) {
       await chat.addLocalExchange(content, "Claro! Abri o formulário de nova tarefa pra você preencher os detalhes.");
       setCreateTaskTitle(intent);
@@ -354,7 +357,7 @@ export function HelpinhoWidget() {
             </button>
             <button
               type="button"
-              onClick={() => router.push(chat.activeId ? `/assistente?conversationId=${chat.activeId}` : "/assistente")}
+              onClick={() => router.push(chat.activeId ? `${chatPath}?conversationId=${chat.activeId}` : chatPath)}
               aria-label="Abrir em tela cheia"
               title="Abrir em tela cheia"
               className="hidden h-9 w-9 items-center justify-center rounded-full hover:bg-white/10 sm:flex"
@@ -580,7 +583,7 @@ export function HelpinhoWidget() {
         </section>
       )}
 
-      <CreateTaskModal open={createTaskOpen} onClose={() => setCreateTaskOpen(false)} defaultTitle={createTaskTitle} onCreated={() => setCreateTaskOpen(false)} />
+      {!isExpansion && <CreateTaskModal open={createTaskOpen} onClose={() => setCreateTaskOpen(false)} defaultTitle={createTaskTitle} onCreated={() => setCreateTaskOpen(false)} />}
     </>
   );
 }
