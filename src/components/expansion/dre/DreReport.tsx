@@ -145,7 +145,7 @@ function Funnel({ c, S }: { c: DreResult; S: DreInput }) {
           <div className="h-2.5 rounded-full bg-gray-100"><div className="h-full rounded-full" style={{ width: `${Math.max((r.leads / mx) * 100, 1.5)}%`, background: r.col }} /></div>
         </div>
       ))}
-      <p className="pt-1 text-[10px] text-gray-500">Por mês, no ritmo máximo: <b>{pct1(c.leadsMes)}</b> leads viram <b>{pct1(c.casosMes)}</b> clientes.</p>
+      <p className="pt-1 text-[10px] text-gray-500">Por mês, no ritmo máximo: <b>{pct1(c.leadsMes)}</b> leads viram <b>{pct1(c.casosNovos)}</b> clientes novos, e a recompra soma <b>{pct1(c.recompraMes)}</b>.</p>
     </div>
   );
 }
@@ -173,11 +173,13 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
   const TOTAL = 4;
   const emitido = new Date().toLocaleDateString("pt-BR");
   const premissas: [string, string][] = [
+    ["Modelo", S.modelo === "loja" ? "Loja" : "Home Based"],
     ["Pessoas no círculo", num(c.mercado)],
     ["Credibilidade", `${credPct(S)}% do círculo em 12 meses`],
     ["Leads/mês do círculo", `${pct1(c.leadsCirculo)} · conversão ${S.convCirculo}%`],
     ["Parceiros × indicações/mês", `${S.parceiros} × ${pct1(S.indicPorParceiro)} = ${pct1(c.leadsParceiros)} · conversão ${S.convParceiros}%`],
     ["Leads/mês do marketing", `${pct1(c.leadsMkt)} · conversão ${S.convMkt}%`],
+    ["Recompra e indicação (após 60 dias)", `${S.recompra}% · +${pct1(c.recompraMes)} clientes/mês`],
     ["Clientes/mês (ritmo máximo)", pct1(c.casosMes)],
     ["Ritmo máximo em", `${S.rampa} meses`],
     ["Ticket médio", brl(c.ticket)],
@@ -212,7 +214,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
             {c.pay ? <>volta no <span className="text-yellow-500">mês {c.pay}</span></> : <>passa de 36 meses de retorno</>}
           </h1>
           <p className="relative mt-2 text-[12px] leading-relaxed text-blue-100">
-            Com um círculo de <b className="text-white">{num(c.mercado)} pessoas</b> {S.regiao !== "Brasil" ? `na região ${S.regiao} ` : ""}projetamos <b className="text-white">{pct1(c.casosMes)} clientes por mês</b> e um resultado líquido de <b className="text-white">{brl(c.pico.resultado)}/mês</b> a partir do mês {Math.min(S.rampa, 36)}.
+            Com base no seu círculo de amigos, parceiros de negócios, tráfego pago, recompra e indicação de amigos, projetamos  <b className="text-white">{pct1(c.casosMes)} clientes por mês</b> e um resultado líquido de <b className="text-white">{brl(c.pico.resultado)}/mês</b> a partir do mês {Math.min(S.rampa, 36)}.
           </p>
           <p className="relative mt-3 text-[9px] text-blue-200">Emitido em {emitido}</p>
         </div>
@@ -255,7 +257,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
         </div>
         <div className="mt-4 flex items-center gap-3 rounded-xl px-4 py-3 text-blue-900" style={{ background: "linear-gradient(90deg,#fcbf00,#fbbf24)" }}>
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-[11px] font-bold text-yellow-500">60d</span>
-          <p className="text-[11px]"><b className="font-display">Após 60 dias · recompra.</b> De 20% a 30% dos clientes voltam a comprar e indicam novos leads.</p>
+          <p className="text-[11px]"><b className="font-display">Após 60 dias - recompra e indicação</b><br />20% a 30% volta a comprar e indica novos clientes</p>
         </div>
       </Page>
 

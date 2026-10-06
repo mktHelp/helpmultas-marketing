@@ -9,6 +9,7 @@ export interface DreSimulationRow {
     mercado?: number;
     casosMes?: number;
     parceiros?: number;
+    modelo?: "home" | "loja" | null;
     investimento?: number;
     retornoMes?: number | null;
     resultadoMes?: number;
@@ -44,7 +45,7 @@ export async function getDreSimulation(supabase: SupabaseClient, id: string) {
   return {
     id: data.id as string,
     updatedAt: data.updated_at as string,
-    input: migrateInput({ ...structuredClone(DEFAULT_INPUT), ...(data.inputs as Partial<DreInput>) } as DreInput),
+    input: migrateInput({ ...structuredClone(DEFAULT_INPUT), ...(data.inputs as Partial<DreInput>), modelo: (data.inputs as Partial<DreInput>).modelo ?? "home" } as DreInput),
   };
 }
 
@@ -67,6 +68,8 @@ export async function saveDreSimulation(
     mercado: Math.round(c.mercado),
     casosMes: Number(c.casosMes.toFixed(2)),
     parceiros: input.parceiros,
+    recompraPct: input.recompra,
+    modelo: input.modelo,
     casosParceiros: Number(c.casosParceiros.toFixed(2)),
     ticket: c.ticket,
     investimento: c.inv,

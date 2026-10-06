@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { ArrowLeft, ArrowRight, BarChart3, Check, ChevronDown, FolderOpen, Loader2, MapPin, Plus, Save, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, ArrowRight, BarChart3, Check, ChevronDown, FolderOpen, Home, Loader2, MapPin, Store, Plus, Save, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/lib/auth-context";
@@ -15,11 +15,11 @@ import { DreReport } from "./DreReport";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
-  CENARIOS, CRED_PCT, DEFAULT_INPUT, migrateInput, PERIODOS, REGIOES, brl, brlShort, calc, credPct, num, sum, tot,
-  type Cred, type DreInput, type DreResult, type Item,
+  CENARIOS, CRED_PCT, DEFAULT_INPUT, MODELO_LABEL, inputForModelo, migrateInput, switchModelo, PERIODOS, REGIOES, brl, brlShort, calc, credPct, num, sum, tot,
+  type Cred, type DreInput, type DreResult, type Item, type Modelo,
 } from "@/lib/expansion/dre";
 
-const STORAGE_KEY = "hm-expansion-dre-v4";
+const STORAGE_KEY = "hm-expansion-dre-v5";
 const STEPS = [
   { t: "Mercado", icon: Users },
   { t: "Ticket médio", icon: Receipt },
@@ -38,7 +38,10 @@ type Filtro = "12 meses" | "24 meses" | "36 meses";
 function load(): DreInput {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? migrateInput({ ...structuredClone(DEFAULT_INPUT), ...JSON.parse(raw) }) : structuredClone(DEFAULT_INPUT);
+    if (!raw) return structuredClone(DEFAULT_INPUT);
+    const saved = JSON.parse(raw) as Partial<DreInput>;
+    // rascunho de antes dos modelos = Home Based (os padrões eram os dele)
+    return migrateInput({ ...structuredClone(DEFAULT_INPUT), ...saved, modelo: saved.modelo === undefined ? "home" : saved.modelo });
   } catch {
     return structuredClone(DEFAULT_INPUT);
   }
@@ -56,6 +59,9 @@ export function ExpansionDre() {
   // Simulação salva que esta pessoa abriu (para avisar se outra pessoa salvou por cima).
   const [loaded, setLoaded] = useState<{ id: string; updatedAt: string } | null>(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+  const [confirmModelo, setConfirmModelo] = useState(false);
+  // A primeira tela é sempre a escolha do modelo; "started" vira true ao escolher, continuar ou abrir uma salva.
+  const [started, setStarted] = useState(false);
   const { profile } = useAuth();
   const [saveState, setSaveState] = useState<{ kind: "idle" | "saving" | "ok" | "error"; msg?: string }>({ kind: "idle" });
 
@@ -88,6 +94,10 @@ export function ExpansionDre() {
     setS((s) => ({ ...s, ...p }));
     setSaveState((st) => (st.kind === "idle" ? st : { kind: "idle" }));
   };
+  const patchAll = (next: DreInput) => {
+    setS(next);
+    setSaveState((st) => (st.kind === "idle" ? st : { kind: "idle" }));
+  };
   const go = (n: number) => {
     setStep(n);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -101,6 +111,7 @@ export function ExpansionDre() {
       setLoaded({ id: sim.id, updatedAt: sim.updatedAt });
       setSaveState({ kind: "idle" });
       setSavedOpen(false);
+      setStarted(true);
       setStep(0);
       setFiltro("36 meses");
       window.scrollTo({ top: 0 });
@@ -137,6 +148,7 @@ export function ExpansionDre() {
     setConfirmNovo(false);
     setS(structuredClone(DEFAULT_INPUT));
     setLoaded(null);
+    setStarted(false);
     setStep(0);
   }
 
@@ -145,6 +157,33 @@ export function ExpansionDre() {
   }
 
   if (printing) return <DreReport S={S} c={c} />;
+
+  function escolherModelo(m: Modelo) {
+    setStarted(true);
+    setS(inputForModelo(m));
+    setLoaded(null);
+    setStep(0);
+    setSaveState({ kind: "idle" });
+  }
+  function trocarModelo() {
+    if (!S.modelo) return;
+    setConfirmModelo(false);
+    patchAll(switchModelo(S, S.modelo === "home" ? "loja" : "home"));
+  }
+  const outroModelo: Modelo = S.modelo === "loja" ? "home" : "loja";
+
+  if (!ready) return null;
+
+  if (!started || !S.modelo) {
+    const draftLead = S.lead.trim();
+    const hasDraft = !!S.modelo && (!!draftLead || sum(S.mercado) > 0 || S.parceiros > 0 || S.leadsMkt > 0);
+    return (
+      <>
+        <ModeloPicker onPick={escolherModelo} onSaved={() => setSavedOpen(true)} draft={hasDraft ? { lead: draftLead } : null} onContinue={() => setStarted(true)} />
+        <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => abrirSalva(id)} onPrint={(id) => abrirSalva(id, true)} busyId={busyId} />
+      </>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -169,7 +208,10 @@ export function ExpansionDre() {
               {t}
             </button>
           ))}
-          <button type="button" onClick={() => setSavedOpen(true)} className="ml-auto flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-050">
+          <button type="button" onClick={() => setConfirmModelo(true)} title="Trocar de modelo" className={cn("ml-auto flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold", S.modelo === "loja" ? "bg-yellow-500 text-blue-900" : "bg-blue-900 text-white")}>
+            {S.modelo === "loja" ? <Store className="h-3.5 w-3.5" /> : <Home className="h-3.5 w-3.5" />} {MODELO_LABEL[S.modelo]} <ArrowLeftRight className="h-3 w-3 opacity-70" />
+          </button>
+          <button type="button" onClick={() => setSavedOpen(true)} className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-050">
             <FolderOpen className="h-3.5 w-3.5" /> Salvas
           </button>
           <button type="button" onClick={() => setConfirmNovo(true)} className="flex shrink-0 flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-gray-500 hover:bg-gray-050 hover:text-blue-900">
@@ -217,6 +259,14 @@ export function ExpansionDre() {
       </div>
       <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => abrirSalva(id)} onPrint={(id) => abrirSalva(id, true)} busyId={busyId} />
       <ConfirmDialog
+        open={confirmModelo}
+        onClose={() => setConfirmModelo(false)}
+        onConfirm={trocarModelo}
+        title={`Trocar para o Modelo ${MODELO_LABEL[outroModelo]}?`}
+        description="Tudo o que você já preencheu é mantido. Mudam apenas os valores que ainda estão no padrão do modelo atual, e os itens que só existem em um dos modelos são adicionados ou removidos."
+        confirmLabel={`Trocar para ${MODELO_LABEL[outroModelo]}`}
+      />
+      <ConfirmDialog
         open={confirmOverwrite}
         onClose={() => setConfirmOverwrite(false)}
         onConfirm={() => {
@@ -236,6 +286,63 @@ export function ExpansionDre() {
         description="Os dados da simulação atual serão apagados e você volta para a primeira etapa."
         confirmLabel="Sim, novo lead"
       />
+    </div>
+  );
+}
+
+function ModeloPicker({ onPick, onSaved, draft, onContinue }: { onPick: (m: Modelo) => void; onSaved: () => void; draft: { lead: string } | null; onContinue: () => void }) {
+  const cards = [
+    { m: "home" as const, title: "Modelo Home Based", desc: "Operação enxuta, a partir de casa ou de uma sala própria.", icon: Home, card: "bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white", chip: "bg-yellow-500 text-blue-900", sub: "text-blue-100", cta: "bg-white/15 text-white group-hover:bg-yellow-500 group-hover:text-blue-900" },
+    { m: "loja" as const, title: "Modelo Loja", desc: "Operação com ponto físico e estrutura própria.", icon: Store, card: "bg-gradient-to-br from-yellow-500 to-amber-400 text-blue-900", chip: "bg-blue-900 text-yellow-500", sub: "text-blue-900/75", cta: "bg-blue-900/10 text-blue-900 group-hover:bg-blue-900 group-hover:text-yellow-500" },
+  ];
+  return (
+    <div className="mx-auto max-w-4xl space-y-5 py-2 sm:py-6">
+      <div className="text-center">
+        <h2 className="font-display text-3xl font-bold text-blue-900 sm:text-4xl">Simular</h2>
+        <p className="mx-auto mt-2 max-w-lg text-sm text-gray-500 sm:text-base">Escolha o modelo de operação do lead. Cada um já vem com valores pré-definidos, e tudo pode ser alterado depois.</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {cards.map(({ m, title, desc, icon: Icon, card, chip, sub, cta }) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => onPick(m)}
+            className={cn("group relative flex min-h-[230px] flex-col items-start justify-between overflow-hidden rounded-3xl p-6 text-left shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] sm:p-7", card)}
+          >
+            <span className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <span className={cn("relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg", chip)}>
+              <Icon className="h-7 w-7" />
+            </span>
+            <span className="relative mt-6">
+              <span className="block font-display text-2xl font-bold">{title}</span>
+              <span className={cn("mt-1 block text-sm", sub)}>{desc}</span>
+            </span>
+            <span className={cn("relative mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors", cta)}>
+              Começar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row">
+        {draft && (
+          <button type="button" onClick={onContinue} className="flex flex-1 items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-left shadow-[var(--shadow-sm)] transition-colors hover:border-blue-900">
+            <span>
+              <span className="block text-sm font-bold text-blue-900">Continuar simulação{draft.lead ? ` de ${draft.lead}` : ""}</span>
+              <span className="block text-xs text-gray-500">Retoma de onde você parou neste navegador</span>
+            </span>
+            <ArrowRight className="h-5 w-5 shrink-0 text-blue-900" />
+          </button>
+        )}
+        <button type="button" onClick={onSaved} className="flex flex-1 items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-left shadow-[var(--shadow-sm)] transition-colors hover:border-blue-900">
+          <span>
+            <span className="block text-sm font-bold text-blue-900">Salvas</span>
+            <span className="block text-xs text-gray-500">Abrir ou gerar o PDF de uma simulação já salva</span>
+          </span>
+          <FolderOpen className="h-5 w-5 shrink-0 text-blue-900" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -381,7 +488,7 @@ function Funnel({ c, S }: { c: DreResult; S: DreInput }) {
           <div className="h-3 rounded-full bg-black/5"><div className="h-full rounded-full" style={{ width: `${Math.max((r.leads / mx) * 100, 1.5)}%`, background: r.col }} /></div>
         </div>
       ))}
-      <p className="pt-1 text-xs opacity-70">Por mês, no ritmo máximo: <b>{f(c.leadsMes)}</b> leads viram <b>{f(c.casosMes)}</b> clientes.</p>
+      <p className="pt-1 text-xs opacity-70">Por mês, no ritmo máximo: <b>{f(c.leadsMes)}</b> leads viram <b>{f(c.casosNovos)}</b> clientes novos, e a recompra soma <b>{f(c.recompraMes)}</b>.</p>
     </div>
   );
 }
@@ -618,8 +725,8 @@ function StepProjecao({ S, c, patch }: StepProps) {
       <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-400 px-5 py-4 text-blue-900">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-sm font-bold text-yellow-500">60d</span>
         <div>
-          <p className="font-display text-sm font-bold">Após 60 dias · recompra</p>
-          <p className="text-sm">De 20% a 30% dos clientes voltam a comprar e indicam novos leads.</p>
+          <p className="font-display text-sm font-bold">Após 60 dias - recompra e indicação</p>
+          <p className="text-sm">20% a 30% volta a comprar e indica novos clientes</p>
         </div>
       </div>
     </Split>
@@ -671,7 +778,7 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
           )}
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-blue-100">
-          Com base em um círculo de {num(c.mercado)} pessoas, projetamos <b className="text-white">{c.casosMes.toFixed(1).replace(".", ",")} clientes por mês</b> e um resultado líquido de{" "}
+          Com base no seu círculo de amigos, parceiros de negócios, tráfego pago, recompra e indicação de amigos, projetamos <b className="text-white">{c.casosMes.toFixed(1).replace(".", ",")} clientes por mês</b> e um resultado líquido de{" "}
           <b className="text-white">{brl(c.pico.resultado)}/mês</b>{S.regiao !== "Brasil" ? ` em ${S.regiao}` : ""}.
         </p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs">
