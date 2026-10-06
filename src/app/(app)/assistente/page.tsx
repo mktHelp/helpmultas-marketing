@@ -422,6 +422,9 @@ function ConversationList(props: ConversationListProps) {
                     style={{ animationDelay: `${Math.min(idx, 8) * 35}ms` }}
                     className={cn(
                       "ast-slide-in-left group relative flex items-start gap-1 rounded-2xl border px-3 py-2.5 transition-all duration-200",
+                      // A animação cria um contexto de empilhamento por item: sem z-index o menu de
+                      // compartilhar ficava por baixo das conversas seguintes.
+                      shareMenuFor === c.id && "z-30",
                       isActive
                         ? "border-yellow-400 bg-yellow-050 shadow-[var(--shadow-sm)]"
                         : "border-transparent hover:border-gray-200 hover:bg-gray-050"
