@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
+import { AccessGuard } from "./AccessGuard";
 import { Topbar } from "./Topbar";
 import { LiveCursors } from "@/components/shared/LiveCursors";
 import { HelpinhoWidget } from "@/components/assistant/HelpinhoWidget";
@@ -94,7 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
         >
-          {children}
+          <AccessGuard>{children}</AccessGuard>
         </main>
       </div>
     </div>

@@ -21,6 +21,8 @@ export async function createUserAction(input: {
   department?: string;
   jobTitle?: string;
   password: string;
+  /** null = acesso padrão do papel */
+  allowedTabs?: string[] | null;
 }) {
   await assertAdmin();
   const admin = createAdminClient();
@@ -34,11 +36,19 @@ export async function createUserAction(input: {
       role: input.role,
       department: input.department,
       job_title: input.jobTitle,
+      allowed_tabs: input.role === "master" ? null : (input.allowedTabs ?? null),
     },
   });
 
   if (error) throw new Error(error.message);
   return data.user;
+}
+
+export async function updateUserTabsAction(userId: string, allowedTabs: string[] | null) {
+  await assertAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ allowed_tabs: allowedTabs }).eq("id", userId);
+  if (error) throw new Error(error.message);
 }
 
 export async function deactivateUserAction(userId: string) {

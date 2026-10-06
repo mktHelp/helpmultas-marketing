@@ -4,9 +4,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { ArrowLeft, ArrowRight, BarChart3, Check, ChevronDown, MapPin, Plus, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Check, ChevronDown, Loader2, MapPin, Plus, Save, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useAuth } from "@/lib/auth-context";
+import { createClient } from "@/lib/supabase/client";
+import { saveDreSimulation } from "@/lib/services/dreSimulations";
 import { DreReport } from "./DreReport";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -47,6 +50,8 @@ export function ExpansionDre() {
   const [filtro, setFiltro] = useState<Filtro>("Todos");
   const [confirmNovo, setConfirmNovo] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const { profile } = useAuth();
+  const [saveState, setSaveState] = useState<{ kind: "idle" | "saving" | "ok" | "error"; msg?: string }>({ kind: "idle" });
 
   useEffect(() => {
     setS(load());
@@ -73,11 +78,28 @@ export function ExpansionDre() {
     setPrinting(true);
     window.setTimeout(() => window.print(), 700);
   }
-  const patch = (p: Partial<DreInput>) => setS((s) => ({ ...s, ...p }));
+  const patch = (p: Partial<DreInput>) => {
+    setS((s) => ({ ...s, ...p }));
+    setSaveState((st) => (st.kind === "idle" ? st : { kind: "idle" }));
+  };
   const go = (n: number) => {
     setStep(n);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  async function salvar() {
+    if (!S.lead.trim()) {
+      setSaveState({ kind: "error", msg: "Informe o nome do lead (etapa Mercado) para salvar." });
+      return;
+    }
+    setSaveState({ kind: "saving" });
+    try {
+      const r = await saveDreSimulation(createClient(), S, c, profile?.id ?? null);
+      setSaveState({ kind: "ok", msg: r === "created" ? `Simulação de ${S.lead.trim()} salva.` : `Simulação de ${S.lead.trim()} atualizada.` });
+    } catch (e) {
+      setSaveState({ kind: "error", msg: e instanceof Error && e.message ? e.message : "Não foi possível salvar. Tente de novo." });
+    }
+  }
 
   function novoLead() {
     setConfirmNovo(false);
@@ -138,7 +160,13 @@ export function ExpansionDre() {
         <Button variant="dark" disabled={step === 0} onClick={() => go(step - 1)}>
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {saveState.msg && (
+            <span className={cn("text-xs font-semibold", saveState.kind === "error" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]")}>{saveState.msg}</span>
+          )}
+          <Button variant="secondary" onClick={salvar} disabled={saveState.kind === "saving"}>
+            {saveState.kind === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
+          </Button>
           {step >= 5 && (
             <Button variant="secondary" onClick={imprimir}>
               <Printer className="h-4 w-4" /> Imprimir / salvar PDF

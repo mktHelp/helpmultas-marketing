@@ -11,6 +11,7 @@ import {
   ChevronDown, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { pathAllowed } from "@/lib/access";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { UserAvatar } from "@/components/shared/UserAvatar";
@@ -233,7 +234,15 @@ export function Sidebar({
   const router = useRouter();
   const { profile } = useAuth();
 
-  const trafficActive = TRAFFIC_NAV.some((i) => isActive(pathname, i));
+  // Abas liberadas para este usuário (profiles.allowed_tabs); null = tudo do papel.
+  const visible = (items: NavItem[]) => items.filter((i) => pathAllowed(profile, i.href));
+  const sections = SECTIONS.map((s) => ({ ...s, items: visible(s.items) })).filter((s) => s.items.length > 0);
+  const trafficNav = visible(TRAFFIC_NAV);
+  const toolsNav = visible(TOOLS_NAV);
+  const showInstagram = pathAllowed(profile, INSTAGRAM_ITEM.href);
+  const showExpansion = pathAllowed(profile, EXPANSION_ITEM.href);
+
+  const trafficActive = trafficNav.some((i) => isActive(pathname, i));
   const [trafficOpenManual, setTrafficOpenManual] = useState<boolean | null>(null);
   const trafficOpen = trafficOpenManual ?? trafficActive;
 
@@ -338,7 +347,7 @@ export function Sidebar({
         className={cn("sb-scroll relative min-h-0 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden pb-3", collapsed ? "px-2" : "px-3")}
         onScroll={tip.hide}
       >
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.title}>
             <SectionTitle title={section.title} dot={section.dot} collapsed={collapsed} />
             <div className="space-y-0.5">
@@ -358,12 +367,13 @@ export function Sidebar({
         ))}
 
         {/* Tráfego Pago: grupo em destaque (sanfona) */}
+        {trafficNav.length > 0 && (
         <div className="pt-3">
           {collapsed ? (
             <>
               <div className="mx-auto mb-2 h-0.5 w-8 rounded-full bg-gradient-to-r from-sky-400 to-indigo-400" aria-hidden />
               <div className="space-y-0.5">
-                {TRAFFIC_NAV.map((item) => (
+                {trafficNav.map((item) => (
                   <NavLink
                     key={item.href}
                     item={item}
@@ -409,7 +419,7 @@ export function Sidebar({
               >
                 <div className="min-h-0 overflow-hidden">
                   <div className="relative ml-[22px] space-y-0.5 border-l border-sky-300/20 py-1 pl-2.5 pr-2">
-                    {TRAFFIC_NAV.map((item) => (
+                    {trafficNav.map((item) => (
                       <NavLink
                         key={item.href}
                         item={item}
@@ -427,11 +437,13 @@ export function Sidebar({
             </div>
           )}
         </div>
+        )}
 
         {/* Instagram + Expansão em destaque */}
+        {(showInstagram || showExpansion) && (
         <div className={cn("space-y-1.5 pt-3", collapsed && "space-y-0.5")}>
           {collapsed && <div className="mx-auto mb-2 h-0.5 w-8 rounded-full bg-gradient-to-r from-pink-400 to-orange-300" aria-hidden />}
-          <FeatureCard
+          {showInstagram && <FeatureCard
             item={INSTAGRAM_ITEM}
             active={isActive(pathname, INSTAGRAM_ITEM)}
             collapsed={collapsed}
@@ -442,8 +454,8 @@ export function Sidebar({
             activeGradient="bg-gradient-to-r from-fuchsia-500 via-pink-500 to-orange-400"
             chip="bg-gradient-to-br from-fuchsia-500 via-pink-500 to-orange-400"
             glow="shadow-pink-500/30"
-          />
-          <FeatureCard
+          />}
+          {showExpansion && <FeatureCard
             item={EXPANSION_ITEM}
             active={isActive(pathname, EXPANSION_ITEM)}
             collapsed={collapsed}
@@ -454,13 +466,14 @@ export function Sidebar({
             activeGradient="bg-gradient-to-r from-emerald-500 to-teal-400"
             chip="bg-gradient-to-br from-emerald-400 to-teal-500"
             glow="shadow-emerald-500/30"
-          />
+          />}
         </div>
+        )}
 
         {/* ferramentas */}
-        <SectionTitle title="Ferramentas" dot="#cbd5e1" collapsed={collapsed} />
+        {toolsNav.length > 0 && <SectionTitle title="Ferramentas" dot="#cbd5e1" collapsed={collapsed} />}
         <div className="space-y-0.5">
-          {TOOLS_NAV.map((item) => (
+          {toolsNav.map((item) => (
             <NavLink
               key={item.href}
               item={item}

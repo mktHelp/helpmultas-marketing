@@ -2,7 +2,7 @@
 
 import { PageHero } from "@/components/shared/PageHero";
 import { ExpansionCreativesTable } from "@/components/expansion/ExpansionCreativesTable";
-import { EXPANSION_SECTIONS, useExpansionSection } from "@/components/expansion/ExpansionNav";
+import { EXPANSION_SECTIONS, useAllowedSections, useExpansionSection } from "@/components/expansion/ExpansionNav";
 import { TrafficAdsTable } from "@/components/ads/TrafficAdsTable";
 import { TrafficDashboard } from "@/components/ads/TrafficDashboard";
 import { TrafficLeads } from "@/components/ads/TrafficLeads";
@@ -13,7 +13,16 @@ import { SyncButton } from "@/components/ads/SyncButton";
 // aqui só se renderiza a seção escolhida na URL.
 export function ExpansionTabs() {
   const section = useExpansionSection();
+  const allowed = useAllowedSections();
   const current = EXPANSION_SECTIONS[section];
+
+  if (allowed.length === 0) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-600">
+        Nenhuma aba foi liberada para o seu usuário. Fale com o Master para pedir acesso.
+      </div>
+    );
+  }
 
   return (
     <div>

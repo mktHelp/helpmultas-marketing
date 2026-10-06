@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Bot, Calculator, Contact, Sparkles, LayoutDashboard, Megaphone, TrendingUp, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import { hasTab } from "@/lib/access";
 
 export const EXPANSION_SECTIONS = {
   dashboard: {
@@ -59,7 +61,7 @@ const NAV_ITEMS = [
   { id: "assistant", label: "Helpinho", icon: Bot as LucideIcon, href: ASSISTANT_PATH },
 ];
 
-const SECTION_ITEMS = NAV_ITEMS.filter((i) => i.id !== "assistant");
+const ALL_SECTION_ITEMS = NAV_ITEMS.filter((i) => i.id !== "assistant");
 const ASSISTANT_ITEM = NAV_ITEMS.find((i) => i.id === "assistant")!;
 
 function useActiveNavId(): string {
@@ -72,12 +74,22 @@ function useActiveNavId(): string {
 // funciona e o cabeçalho e a barra inferior ficam sempre em sincronia.
 export function useExpansionSection(): ExpansionSectionKey {
   const param = useSearchParams().get("aba");
-  return KEYS.includes(param as ExpansionSectionKey) ? (param as ExpansionSectionKey) : "dashboard";
+  const allowed = useAllowedSections();
+  if (KEYS.includes(param as ExpansionSectionKey) && allowed.includes(param as ExpansionSectionKey)) return param as ExpansionSectionKey;
+  return allowed[0] ?? "dashboard";
+}
+
+/** Abas da Expansão liberadas para o usuário logado (profiles.allowed_tabs). */
+export function useAllowedSections(): ExpansionSectionKey[] {
+  const { profile } = useAuth();
+  return KEYS.filter((k) => hasTab(profile, `exp:${k}`));
 }
 
 /** Navegação lateral (desktop): vai dentro da sidebar azul. */
 export function ExpansionSideNav({ collapsed = false }: { collapsed?: boolean }) {
   const active = useActiveNavId();
+  const allowed = useAllowedSections();
+  const SECTION_ITEMS = ALL_SECTION_ITEMS.filter((i) => allowed.includes(i.id as ExpansionSectionKey));
 
   return (
     <nav aria-label="Seções da Expansão" className="flex flex-col gap-1">
@@ -147,6 +159,9 @@ export function ExpansionSideNav({ collapsed = false }: { collapsed?: boolean })
 /** Barra fixa embaixo (celular), com ícone e nome de cada seção. */
 export function ExpansionBottomNav() {
   const active = useActiveNavId();
+  const allowed = useAllowedSections();
+  const SECTION_ITEMS = ALL_SECTION_ITEMS.filter((i) => allowed.includes(i.id as ExpansionSectionKey));
+  const half = Math.ceil(SECTION_ITEMS.length / 2);
 
   return (
     <nav
@@ -154,8 +169,8 @@ export function ExpansionBottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 print:!hidden border-t border-gray-200 bg-white/95 backdrop-blur md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="mx-auto grid max-w-md grid-cols-6 items-end">
-        {[...SECTION_ITEMS.slice(0, 2), ASSISTANT_ITEM, ...SECTION_ITEMS.slice(2)].map(({ id, label, icon: Icon, href }) => {
+      <div className="mx-auto grid max-w-md items-end" style={{ gridTemplateColumns: `repeat(${SECTION_ITEMS.length + 1}, minmax(0, 1fr))` }}>
+        {[...SECTION_ITEMS.slice(0, half), ASSISTANT_ITEM, ...SECTION_ITEMS.slice(half)].map(({ id, label, icon: Icon, href }) => {
           const isActive = id === active;
           if (id === "assistant") {
             return (

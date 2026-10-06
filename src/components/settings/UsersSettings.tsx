@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, UserX, UserCheck } from "lucide-react";
+import { KeyRound, Plus, UserX, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -11,7 +11,8 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { listAllProfiles } from "@/lib/services/profiles";
-import { createUserAction, deactivateUserAction, reactivateUserAction } from "@/app/(app)/settings/actions";
+import { TabAccessPicker } from "./TabAccessPicker";
+import { createUserAction, deactivateUserAction, reactivateUserAction, updateUserTabsAction } from "@/app/(app)/settings/actions";
 import type { Profile, UserRole } from "@/types/database";
 
 const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro", expansao: "Expansão" };
@@ -21,9 +22,11 @@ export function UsersSettings() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<{ email: string; fullName: string; role: UserRole; department: string; jobTitle: string; password: string }>({
-    email: "", fullName: "", role: "membro", department: "", jobTitle: "", password: "",
+  const [form, setForm] = useState<{ email: string; fullName: string; role: UserRole; department: string; jobTitle: string; password: string; allowedTabs: string[] | null }>({
+    email: "", fullName: "", role: "membro", department: "", jobTitle: "", password: "", allowedTabs: null,
   });
+  const [editing, setEditing] = useState<Profile | null>(null);
+  const [editTabs, setEditTabs] = useState<string[] | null>(null);
 
   async function load() {
     setProfiles(await listAllProfiles(supabase));
@@ -41,10 +44,25 @@ export function UsersSettings() {
       await createUserAction(form);
       toast.success("Usuário criado com sucesso");
       setOpen(false);
-      setForm({ email: "", fullName: "", role: "membro", department: "", jobTitle: "", password: "" });
+      setForm({ email: "", fullName: "", role: "membro", department: "", jobTitle: "", password: "", allowedTabs: null });
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar usuário");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveTabs() {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await updateUserTabsAction(editing.id, editTabs);
+      toast.success("Acessos atualizados");
+      setEditing(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar acessos");
     } finally {
       setSaving(false);
     }
@@ -69,6 +87,7 @@ export function UsersSettings() {
               <th className="p-3">Nome</th>
               <th className="p-3">Função</th>
               <th className="p-3">Departamento</th>
+              <th className="p-3">Abas</th>
               <th className="p-3">Status</th>
               <th className="p-3" />
             </tr>
@@ -87,6 +106,21 @@ export function UsersSettings() {
                 </td>
                 <td className="p-3"><Badge tone="neutral">{ROLE_LABEL[p.role]}</Badge></td>
                 <td className="p-3 text-gray-700">{p.department || "-"}</td>
+                <td className="p-3">
+                  {p.role === "master" ? (
+                    <span className="text-xs text-gray-500">Todas</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setEditing(p); setEditTabs(p.allowed_tabs ?? null); }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-800 hover:underline"
+                      title="Escolher as abas liberadas"
+                    >
+                      <KeyRound className="h-3.5 w-3.5" />
+                      {p.allowed_tabs ? `${p.allowed_tabs.length} liberadas` : "Todas"}
+                    </button>
+                  )}
+                </td>
                 <td className="p-3">
                   <Badge tone={p.is_active ? "success" : "danger"}>{p.is_active ? "Ativo" : "Inativo"}</Badge>
                 </td>
@@ -120,14 +154,14 @@ export function UsersSettings() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Função</Label>
-                <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
+                <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole, allowedTabs: null })}>
                   <option value="membro">Membro</option>
                   <option value="gestor">Gestor</option>
                   <option value="master">Master</option>
-                  <option value="expansao">Expansão (só criativos)</option>
+                  <option value="expansao">Expansão (área da Expansão)</option>
                 </Select>
                 {form.role === "expansao" && (
-                  <p className="mt-1 text-xs text-gray-500">Acessa apenas a dash de criativos da Franqueadora.</p>
+                  <p className="mt-1 text-xs text-gray-500">Acessa apenas a área da Expansão, nas abas liberadas abaixo.</p>
                 )}
               </div>
               <div>
@@ -139,12 +173,28 @@ export function UsersSettings() {
               <Label>Cargo</Label>
               <Input value={form.jobTitle} onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} />
             </div>
+            <div>
+              <Label>Abas liberadas</Label>
+              <TabAccessPicker role={form.role} value={form.allowedTabs} onChange={(allowedTabs) => setForm({ ...form, allowedTabs })} />
+            </div>
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? "Criando..." : "Criar usuário"}</Button>
           </DialogFooter>
         </form>
+      </Dialog>
+
+      <Dialog open={!!editing} onClose={() => setEditing(null)}>
+        <DialogHeader title={`Abas de ${editing?.full_name ?? ""}`} onClose={() => setEditing(null)} />
+        <DialogBody className="space-y-3">
+          {editing && <TabAccessPicker role={editing.role} value={editTabs} onChange={setEditTabs} />}
+          <p className="text-xs text-gray-500">A pessoa precisa recarregar a página para ver a mudança.</p>
+        </DialogBody>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => setEditing(null)}>Cancelar</Button>
+          <Button type="button" onClick={handleSaveTabs} disabled={saving}>{saving ? "Salvando..." : "Salvar acessos"}</Button>
+        </DialogFooter>
       </Dialog>
     </div>
   );

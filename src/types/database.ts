@@ -47,6 +47,8 @@ export interface Profile {
   phone: string | null;
   preferences: Record<string, unknown>;
   is_active: boolean;
+  /** abas liberadas (ver lib/access.ts); null = acesso padrão do papel */
+  allowed_tabs: string[] | null;
   created_at: string;
   updated_at: string;
 }
