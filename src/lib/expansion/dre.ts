@@ -63,14 +63,12 @@ export const DEFAULT_INPUT: DreInput = {
     { n: "Taxa de adesão à rede", v: 29900 },
     { n: "Estrutura (home office / sala)", v: 0 },
     { n: "Equipamentos (Computador, Celular)", v: 0 },
-    { n: "Gestor de Tráfego", v: 0 },
-    { n: "Marketing", v: 0 },
     { n: "Capital de giro", v: 0 },
   ],
   desp: [
     { n: "Internet e telefone", v: 0 },
     { n: "Sistemas / CRM", v: 595 },
-    { n: "Marketing e tráfego pago", v: 1000 },
+    { n: "Gestor de Tráfego", v: 1000 },
     { n: "Contador", v: 0 },
     { n: "Pró-labore / retirada", v: 0 },
   ],
@@ -78,7 +76,8 @@ export const DEFAULT_INPUT: DreInput = {
   imposto: 6,
   parceiros: 0,
   indicPorParceiro: 1.5,
-  leadsMkt: 200,
+  // começa zerado: o faturamento só aparece conforme o lead preenche os canais
+  leadsMkt: 0,
   convCirculo: 50,
   convParceiros: 50,
   convMkt: 10,
@@ -93,7 +92,13 @@ const RENAMES: Record<string, string> = {
 
 /** Atualiza nomes antigos de itens em simulações já em andamento ou salvas (os valores são mantidos). */
 export function migrateInput(input: DreInput): DreInput {
-  return { ...input, mercado: (input.mercado ?? []).map((x) => ({ ...x, n: RENAMES[x.n] ?? x.n })) };
+  return {
+    ...input,
+    mercado: (input.mercado ?? []).map((x) => ({ ...x, n: RENAMES[x.n] ?? x.n })),
+    // "Gestor de Tráfego" e "Marketing" saíram do investimento (a despesa mensal cobre isso); só some se estiver zerado.
+    invest: (input.invest ?? []).filter((x) => !(["Gestor de Tráfego", "Marketing"].includes(x.n) && !(+x.v))),
+    desp: (input.desp ?? []).map((x) => (x.n === "Marketing e tráfego pago" ? { ...x, n: "Gestor de Tráfego" } : x)),
+  };
 }
 
 export interface MesDre {

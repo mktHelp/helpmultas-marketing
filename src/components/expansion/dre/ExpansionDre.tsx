@@ -19,7 +19,7 @@ import {
   type Cred, type DreInput, type DreResult, type Item,
 } from "@/lib/expansion/dre";
 
-const STORAGE_KEY = "hm-expansion-dre-v3";
+const STORAGE_KEY = "hm-expansion-dre-v4";
 const STEPS = [
   { t: "Mercado", icon: Users },
   { t: "Ticket médio", icon: Receipt },
