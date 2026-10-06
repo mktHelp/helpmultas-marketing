@@ -4,12 +4,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { ArrowLeft, ArrowRight, BarChart3, Check, ChevronDown, Loader2, MapPin, Plus, Save, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Check, ChevronDown, FolderOpen, Loader2, MapPin, Plus, Save, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
-import { saveDreSimulation } from "@/lib/services/dreSimulations";
+import { DreConflictError, getDreSimulation, saveDreSimulation } from "@/lib/services/dreSimulations";
+import { SavedSimulations } from "./SavedSimulations";
 import { DreReport } from "./DreReport";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,11 @@ export function ExpansionDre() {
   const [filtro, setFiltro] = useState<Filtro>("Todos");
   const [confirmNovo, setConfirmNovo] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  // Simulação salva que esta pessoa abriu (para avisar se outra pessoa salvou por cima).
+  const [loaded, setLoaded] = useState<{ id: string; updatedAt: string } | null>(null);
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const { profile } = useAuth();
   const [saveState, setSaveState] = useState<{ kind: "idle" | "saving" | "ok" | "error"; msg?: string }>({ kind: "idle" });
 
@@ -87,16 +93,42 @@ export function ExpansionDre() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  async function salvar() {
+  async function abrirSalva(id: string, print = false) {
+    setBusyId(id);
+    try {
+      const sim = await getDreSimulation(createClient(), id);
+      setS(sim.input);
+      setLoaded({ id: sim.id, updatedAt: sim.updatedAt });
+      setSaveState({ kind: "idle" });
+      setSavedOpen(false);
+      setStep(0);
+      setFiltro("Todos");
+      window.scrollTo({ top: 0 });
+      if (print) window.setTimeout(imprimir, 150);
+    } catch {
+      setSaveState({ kind: "error", msg: "Não foi possível abrir a simulação. Tente de novo." });
+      setSavedOpen(false);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function salvar(force = false) {
     if (!S.lead.trim()) {
       setSaveState({ kind: "error", msg: "Informe o nome do lead (etapa Mercado) para salvar." });
       return;
     }
     setSaveState({ kind: "saving" });
     try {
-      const r = await saveDreSimulation(createClient(), S, c, profile?.id ?? null);
-      setSaveState({ kind: "ok", msg: r === "created" ? `Simulação de ${S.lead.trim()} salva.` : `Simulação de ${S.lead.trim()} atualizada.` });
+      const r = await saveDreSimulation(createClient(), S, c, profile?.id ?? null, { expectedId: loaded?.id, expectedUpdatedAt: loaded?.updatedAt, force });
+      setLoaded({ id: r.id, updatedAt: r.updatedAt });
+      setSaveState({ kind: "ok", msg: r.kind === "created" ? `Simulação de ${S.lead.trim()} salva.` : `Simulação de ${S.lead.trim()} atualizada.` });
     } catch (e) {
+      if (e instanceof DreConflictError) {
+        setSaveState({ kind: "idle" });
+        setConfirmOverwrite(true);
+        return;
+      }
       setSaveState({ kind: "error", msg: e instanceof Error && e.message ? e.message : "Não foi possível salvar. Tente de novo." });
     }
   }
@@ -104,6 +136,7 @@ export function ExpansionDre() {
   function novoLead() {
     setConfirmNovo(false);
     setS(structuredClone(DEFAULT_INPUT));
+    setLoaded(null);
     setStep(0);
   }
 
@@ -136,7 +169,10 @@ export function ExpansionDre() {
               {t}
             </button>
           ))}
-          <button type="button" onClick={() => setConfirmNovo(true)} className="ml-auto flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-gray-500 hover:bg-gray-050 hover:text-blue-900">
+          <button type="button" onClick={() => setSavedOpen(true)} className="ml-auto flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-050">
+            <FolderOpen className="h-3.5 w-3.5" /> Salvas
+          </button>
+          <button type="button" onClick={() => setConfirmNovo(true)} className="flex shrink-0 flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-gray-500 hover:bg-gray-050 hover:text-blue-900">
             <RotateCcw className="h-3.5 w-3.5" /> Novo lead
           </button>
         </div>
@@ -164,7 +200,7 @@ export function ExpansionDre() {
           {saveState.msg && (
             <span className={cn("text-xs font-semibold", saveState.kind === "error" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]")}>{saveState.msg}</span>
           )}
-          <Button variant="secondary" onClick={salvar} disabled={saveState.kind === "saving"}>
+          <Button variant="secondary" onClick={() => salvar()} disabled={saveState.kind === "saving"}>
             {saveState.kind === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
           </Button>
           {step >= 5 && (
@@ -179,6 +215,19 @@ export function ExpansionDre() {
           )}
         </div>
       </div>
+      <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => abrirSalva(id)} onPrint={(id) => abrirSalva(id, true)} busyId={busyId} />
+      <ConfirmDialog
+        open={confirmOverwrite}
+        onClose={() => setConfirmOverwrite(false)}
+        onConfirm={() => {
+          setConfirmOverwrite(false);
+          salvar(true);
+        }}
+        title="Sobrescrever a simulação?"
+        description="Outra pessoa salvou esta simulação depois que você a abriu. Se continuar, o que ela salvou será substituído pelo que está na sua tela."
+        confirmLabel="Sobrescrever"
+        danger
+      />
       <ConfirmDialog
         open={confirmNovo}
         onClose={() => setConfirmNovo(false)}
