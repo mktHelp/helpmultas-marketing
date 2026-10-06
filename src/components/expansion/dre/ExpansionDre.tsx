@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-import { ArrowLeft, ArrowRight, BarChart3, Plus, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Check, ChevronDown, MapPin, Plus, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DreReport } from "./DreReport";
@@ -341,6 +341,67 @@ function StepMercado({ S, c, patch }: StepProps) {
   );
 }
 
+function RegionSelect({ value, options, onChange }: { value: string; options: string[]; onChange: (r: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex h-12 w-full items-center gap-3 rounded-2xl border bg-white px-3.5 text-left text-sm font-semibold text-blue-900 transition-shadow",
+          open ? "border-yellow-500 ring-2 ring-yellow-500/30" : "border-gray-200 hover:border-blue-900"
+        )}
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-yellow-500 text-blue-900"><MapPin className="h-4 w-4" /></span>
+        <span className="flex-1 truncate">{value}</span>
+        <span className="text-xs font-semibold text-gray-500">{brl(ticketOf(value))}</span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-gray-500", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div role="listbox" className="absolute left-0 right-0 top-full z-20 mt-1.5 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-[var(--shadow-lg)]">
+          {options.map((r) => {
+            const sel = r === value;
+            return (
+              <button
+                key={r}
+                type="button"
+                role="option"
+                aria-selected={sel}
+                onClick={() => {
+                  onChange(r);
+                  setOpen(false);
+                }}
+                className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors", sel ? "bg-yellow-050 font-bold text-blue-900" : "text-blue-900 hover:bg-gray-050")}
+              >
+                <MapPin className={cn("h-4 w-4 shrink-0", sel ? "text-yellow-600" : "text-gray-400")} />
+                <span className="flex-1">{r}</span>
+                <span className="text-xs text-gray-500">{brl(ticketOf(r))}</span>
+                {sel && <Check className="h-4 w-4 shrink-0 text-yellow-600" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StepTicket({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: string) => void }) {
   const ref = ticketOf(S.regiao);
   const regioes = ["Brasil", ...REGIOES];
@@ -359,13 +420,7 @@ function StepTicket({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: s
       }
     >
       <Section title="Região do lead" hint="Brasil = ticket geral">
-        <div className="flex flex-wrap gap-2">
-          {regioes.map((r) => (
-            <button key={r} type="button" onClick={() => pickRegiao(r)} className={cn("rounded-full border-2 px-4 py-1.5 text-sm font-semibold transition-colors", S.regiao === r ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 text-blue-900 hover:border-blue-900")}>
-              {r}
-            </button>
-          ))}
-        </div>
+        <RegionSelect value={S.regiao} options={regioes} onChange={pickRegiao} />
       </Section>
       <Section title="Ticket médio" hint="honorário médio por caso">
         <Field label="Ticket médio" help={`${DRE_DATA.fonteTicket}. Região escolhida: ${brl(ref)}.`}>
