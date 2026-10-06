@@ -9,6 +9,8 @@ export async function saveDreSimulation(supabase: SupabaseClient, input: DreInpu
   const summary = {
     mercado: Math.round(c.mercado),
     casosMes: Number(c.casosMes.toFixed(2)),
+    parceiros: input.parceiros,
+    casosParceiros: Number(c.casosParceiros.toFixed(2)),
     ticket: c.ticket,
     investimento: c.inv,
     despesaFixaMes: c.fixa,

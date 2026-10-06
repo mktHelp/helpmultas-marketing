@@ -14,11 +14,11 @@ import { DreReport } from "./DreReport";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
-  CENARIOS, CRED, DEFAULT_INPUT, DRE_DATA, REGIOES, brl, brlShort, calc, mktOf, num, perfilOf, sum, ticketOf, tot,
+  CENARIOS, CRED, DEFAULT_INPUT, REGIOES, brl, brlShort, calc, num, sum, tot,
   type Cred, type DreInput, type DreResult, type Item,
 } from "@/lib/expansion/dre";
 
-const STORAGE_KEY = "hm-expansion-dre-v1";
+const STORAGE_KEY = "hm-expansion-dre-v2";
 const STEPS = [
   { t: "Mercado", icon: Users },
   { t: "Ticket médio", icon: Receipt },
@@ -108,7 +108,7 @@ export function ExpansionDre() {
   }
 
   function pickRegiao(r: string) {
-    patch({ regiao: r, ticket: ticketOf(r), ...perfilOf(r) });
+    patch({ regiao: r });
   }
 
   if (printing) return <DreReport S={S} c={c} />;
@@ -283,7 +283,7 @@ function Live({ c, children }: { c: DreResult; children?: ReactNode }) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Stat label="Retorno" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} accent />
-        <Stat label="Casos / mês" value={c.casosMes.toFixed(1).replace(".", ",")} />
+        <Stat label="Clientes / mês" value={c.casosMes.toFixed(1).replace(".", ",")} />
         <Stat label="Faturamento / mês" value={brlShort(p.faturamento)} />
         <Stat label="Resultado / mês" value={brlShort(p.resultado)} accent />
       </div>
@@ -320,7 +320,7 @@ function Funnel({ c, mkt }: { c: DreResult; mkt: number }) {
     ["Pessoas no círculo", c.mercado, "#9db0bc"],
     ["Dirigem (têm CNH)", c.dirigem, "#9db0bc"],
     ["Recebem multa por ano", c.comMulta, "#6f93ab"],
-    ["Contratam o recurso", c.fecham, YELLOW],
+    ["Viram clientes", c.fecham, YELLOW],
   ] as const;
   const mx = Math.max(1, c.mercado);
   return (
@@ -331,7 +331,7 @@ function Funnel({ c, mkt }: { c: DreResult; mkt: number }) {
           <div className="h-3 rounded-full bg-black/5"><div className="h-full rounded-full" style={{ width: `${Math.max((v / mx) * 100, 1.5)}%`, background: col }} /></div>
         </div>
       ))}
-      <p className="pt-1 text-xs opacity-70">Além do círculo, o marketing digital soma <b>{mkt}</b> casos por mês.</p>
+      <p className="pt-1 text-xs opacity-70">Além do círculo, o marketing digital soma <b>{mkt}</b> clientes por mês{c.casosParceiros > 0 ? <> e os parceiros, <b>{c.casosParceiros.toFixed(1).replace(".", ",")}</b></> : null}.</p>
     </div>
   );
 }
@@ -355,6 +355,20 @@ function StepMercado({ S, c, patch }: StepProps) {
         </Field>
       </Section>
       <ItemList title="Quem ele alcança" items={S.mercado} onChange={(mercado) => patch({ mercado })} total="Total de pessoas alcançadas" />
+      <Section title="Parceiros" hint="indicações recorrentes">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Quantos parceiros o lead consegue fechar?" help="Contadores, despachantes, autoescolas, oficinas, etc.">
+            <NumInput value={S.parceiros} onChange={(parceiros) => patch({ parceiros })} />
+          </Field>
+          <Field label="Indicações por parceiro, por mês" help="Média de clientes que cada parceiro indica por mês.">
+            <NumInput value={S.indicPorParceiro} onChange={(indicPorParceiro) => patch({ indicPorParceiro })} />
+          </Field>
+        </div>
+        <div className="mt-4 flex items-center justify-between rounded-xl bg-blue-050 px-4 py-3 text-sm">
+          <span className="font-semibold text-blue-800">Clientes por mês via parceiros</span>
+          <b className="font-display text-base text-blue-900">{c.casosParceiros.toFixed(1).replace(".", ",")}</b>
+        </div>
+      </Section>
       <Section title="Credibilidade no meio dele" hint="quanto o círculo confia nele">
         <div className="grid grid-cols-3 gap-2">
           {([["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]] as [Cred, string][]).map(([v, t]) => (
@@ -398,7 +412,6 @@ function RegionSelect({ value, options, onChange }: { value: string; options: st
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-yellow-500 text-blue-900"><MapPin className="h-4 w-4" /></span>
         <span className="flex-1 truncate">{value}</span>
-        <span className="text-xs font-semibold text-gray-500">{brl(ticketOf(value))}</span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-gray-500", open && "rotate-180")} />
       </button>
       {open && (
@@ -419,7 +432,6 @@ function RegionSelect({ value, options, onChange }: { value: string; options: st
               >
                 <MapPin className={cn("h-4 w-4 shrink-0", sel ? "text-yellow-600" : "text-gray-400")} />
                 <span className="flex-1">{r}</span>
-                <span className="text-xs text-gray-500">{brl(ticketOf(r))}</span>
                 {sel && <Check className="h-4 w-4 shrink-0 text-yellow-600" />}
               </button>
             );
@@ -431,7 +443,6 @@ function RegionSelect({ value, options, onChange }: { value: string; options: st
 }
 
 function StepTicket({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: string) => void }) {
-  const ref = ticketOf(S.regiao);
   const regioes = ["Brasil", ...REGIOES];
   return (
     <Split
@@ -439,26 +450,19 @@ function StepTicket({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: s
         <Live c={c}>
           <p className="text-sm font-semibold">Ticket médio</p>
           <p className="mb-4 font-display text-3xl font-bold text-yellow-500">{brl(c.ticket)}</p>
-          <p className="mb-3 text-sm font-semibold">Por região</p>
-          <Bars items={regioes.map((r) => ({ n: r, v: ticketOf(r) }))} />
-          <p className="mt-3 text-xs text-blue-100">
-            Com {c.casosMes.toFixed(1).replace(".", ",")} casos/mês: <b className="text-yellow-500">{brl(c.casosMes * c.ticket)}</b> por mês no ritmo máximo.
+          <p className="text-xs text-blue-100">
+            Com {c.casosMes.toFixed(1).replace(".", ",")} clientes/mês: <b className="text-yellow-500">{brl(c.casosMes * c.ticket)}</b> por mês no ritmo máximo.
           </p>
         </Live>
       }
     >
-      <Section title="Região do lead" hint="Brasil = ticket geral">
+      <Section title="Região do lead" hint="só identifica o lead">
         <RegionSelect value={S.regiao} options={regioes} onChange={pickRegiao} />
       </Section>
-      <Section title="Ticket médio" hint="honorário médio por caso">
-        <Field label="Ticket médio" help={`${DRE_DATA.fonteTicket}. Região escolhida: ${brl(ref)}.`}>
+      <Section title="Ticket médio" hint="receita média por cliente">
+        <Field label="Ticket médio" help="Receita média por cliente fechado. Altere conforme a realidade do lead.">
           <NumInput value={S.ticket} onChange={(ticket) => patch({ ticket })} prefix="R$" />
         </Field>
-        {+S.ticket !== ref && (
-          <button type="button" onClick={() => patch({ ticket: ref })} className="mt-3 text-sm font-semibold text-blue-800 hover:text-blue-900">
-            Restaurar ticket da base ({brl(ref)})
-          </button>
-        )}
       </Section>
     </Split>
   );
@@ -488,7 +492,7 @@ function StepDespesas({ S, c, patch }: StepProps) {
           <p className="mb-3 text-sm font-semibold">Despesas fixas por mês</p>
           <Bars items={S.desp.map((x) => ({ n: x.n, v: +x.v || 0 }))} />
           {c.equilibrio !== null && (
-            <p className="mt-3 text-xs text-blue-100">Para pagar tudo, ele precisa de <b className="text-yellow-500">{c.equilibrio.toFixed(1).replace(".", ",")} casos/mês</b>.</p>
+            <p className="mt-3 text-xs text-blue-100">Para pagar tudo, ele precisa de <b className="text-yellow-500">{c.equilibrio.toFixed(1).replace(".", ",")} clientes/mês</b>.</p>
           )}
         </Live>
       }
@@ -505,34 +509,24 @@ function StepDespesas({ S, c, patch }: StepProps) {
 }
 
 function StepProjecao({ S, c, patch }: StepProps) {
-  const pf = perfilOf(S.regiao);
-  const mk = mktOf(S.regiao);
-  const mod = S.dirige !== pf.dirige || S.multa !== pf.multa || S.mkt !== pf.mkt;
-  const idx = (DRE_DATA.perfil[S.regiao] ?? DRE_DATA.perfil.Brasil).indice;
   return (
     <Split aside={<Live c={c}><p className="mb-3 text-sm font-semibold">Funil do círculo</p><div className="text-white [&_.opacity-60]:text-blue-100"><FunnelDark c={c} mkt={S.mkt} /></div></Live>}>
-      <Section title="Volume do círculo" hint={S.regiao === "Brasil" ? "média nacional" : S.regiao}>
+      <Section title="Volume do círculo" hint="premissas da projeção">
         <div className="space-y-4">
-          <Field label="Dos contatos, quantos % dirigem (têm CNH)" help={`Habilitados ÷ população: ${pf.dirige}% em ${S.regiao}.`}>
+          <Field label="Dos contatos, quantos % dirigem (têm CNH)">
             <NumInput value={S.dirige} onChange={(dirige) => patch({ dirige })} suffix="%" />
           </Field>
-          <Field label="Dos motoristas, quantos % recebem multa por ano" help={`Base nacional ${DRE_DATA.baseMulta}% ajustada pelo índice de infrações de ${S.regiao} (×${idx.toFixed(2).replace(".", ",")}).`}>
+          <Field label="Dos motoristas, quantos % recebem multa por ano">
             <NumInput value={S.multa} onChange={(multa) => patch({ multa })} suffix="%" />
           </Field>
-          <Field label="Dos que recebem multa, quantos % contratam o recurso" help="Premissa do lead; teste valores menores para ver o cenário conservador.">
+          <Field label="Dos que recebem multa, quantos % viram clientes" help="Teste valores menores para ver o cenário conservador.">
             <NumInput value={S.conv} onChange={(conv) => patch({ conv })} suffix="%" />
           </Field>
         </div>
-        {mod && (
-          <button type="button" onClick={() => patch(perfilOf(S.regiao))} className="mt-3 text-sm font-semibold text-blue-800 hover:text-blue-900">
-            Restaurar dados de {S.regiao}
-          </button>
-        )}
-        <p className="mt-3 text-xs text-gray-500">Fonte: {DRE_DATA.perfilFonte}. A região vem da etapa Ticket médio.</p>
       </Section>
       <Section title="Crescimento" hint="marketing e ritmo">
         <div className="space-y-4">
-          <Field label="Casos por mês via marketing digital e indicações" help={`Média da rede em ${S.regiao}: ${num(mk.vendas)} vendas ÷ ${mk.un} unidades ÷ ${mk.meses.toFixed(1).replace(".", ",")} meses (este ano).`}>
+          <Field label="Clientes por mês via marketing digital e indicações">
             <NumInput value={S.mkt} onChange={(mkt) => patch({ mkt })} />
           </Field>
           <Field label="Meses até atingir o ritmo máximo">
@@ -589,7 +583,7 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
           )}
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-blue-100">
-          Com base em um círculo de {num(c.mercado)} pessoas, projetamos <b className="text-white">{c.casosMes.toFixed(1).replace(".", ",")} casos por mês</b> e um resultado líquido de{" "}
+          Com base em um círculo de {num(c.mercado)} pessoas, projetamos <b className="text-white">{c.casosMes.toFixed(1).replace(".", ",")} clientes por mês</b> e um resultado líquido de{" "}
           <b className="text-white">{brl(c.pico.resultado)}/mês</b>{S.regiao !== "Brasil" ? ` em ${S.regiao}` : ""}.
         </p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs">
@@ -604,7 +598,7 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Mercado primário" value={num(c.mercado)} sub="pessoas no círculo" />
         <Kpi label="Motoristas com multa/ano" value={num(c.comMulta)} sub="oportunidades no círculo" />
-        <Kpi label={`Faturamento (${filtro})`} value={brlShort(fat)} sub="honorários dos recursos" />
+        <Kpi label={`Faturamento (${filtro})`} value={brlShort(fat)} sub="receita dos clientes" />
         <Kpi label="Investimento inicial" value={brl(c.inv)} sub="para abrir a operação" />
         <Kpi label="Retorno do investimento" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} sub="saldo acumulado positivo" tone="navy" />
         <Kpi label={`Margem líquida (${filtro})`} value={`${margemPct}%`} sub="resultado ÷ faturamento" tone="yellow" />
@@ -620,9 +614,9 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
         </div>
         <p className="mb-4 text-sm text-gray-500">
           {c.equilibrio !== null && c.folga !== null ? (
-            <>Ponto de equilíbrio: <b className="text-blue-900">{c.equilibrio.toFixed(1).replace(".", ",")} casos/mês</b> para pagar as despesas fixas. A projeção realista tem <b className="text-blue-900">{c.folga.toFixed(1).replace(".", ",")}×</b> essa folga.</>
+            <>Ponto de equilíbrio: <b className="text-blue-900">{c.equilibrio.toFixed(1).replace(".", ",")} clientes/mês</b> para pagar as despesas fixas. A projeção realista tem <b className="text-blue-900">{c.folga.toFixed(1).replace(".", ",")}×</b> essa folga.</>
           ) : (
-            "Sem margem positiva por caso com os custos informados."
+            "Sem margem positiva por cliente com os custos informados."
           )}
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -634,7 +628,7 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
               <p className="font-display text-xl font-bold text-blue-900">{x.r.pay ? `Mês ${x.r.pay}` : "> 36 meses"}</p>
               <p className="mt-2 text-xs text-gray-500">Resultado / mês</p>
               <p className={cn("font-display text-base font-bold", x.r.pico.resultado < 0 ? "text-[color:var(--color-danger)]" : "text-blue-900")}>{brl(x.r.pico.resultado)}</p>
-              <p className="mt-2 text-xs text-gray-500">Casos / mês</p>
+              <p className="mt-2 text-xs text-gray-500">Clientes / mês</p>
               <p className="text-sm font-bold text-blue-900">{x.r.casosMes.toFixed(1).replace(".", ",")}</p>
             </div>
           ))}
@@ -750,7 +744,7 @@ function StepDre({ c, filtro, setFiltro, full }: { S: DreInput; c: DreResult; fi
           <table className="w-full min-w-[560px] border-collapse text-sm text-blue-900">
             <thead><tr className="border-b border-gray-200 text-xs text-gray-500">{["Descrição", "Ano 1", "Ano 2", "Ano 3", "Total 36 meses"].map((h, i) => <th key={h} className={cn("px-3 py-2 font-semibold", i ? "text-right" : "text-left")}>{h}</th>)}</tr></thead>
             <tbody>
-              {line("Faturamento (honorários dos recursos)", "faturamento", "t")}
+              {line("Faturamento (receita dos clientes)", "faturamento", "t")}
               {line("(-) Royalties / repasse à rede", "roy", "n", true)}
               {line("(-) Impostos", "imp", "n", true)}
               {line("= Margem de contribuição", "margem", "t")}
@@ -782,7 +776,7 @@ function StepDre({ c, filtro, setFiltro, full }: { S: DreInput; c: DreResult; fi
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-base font-semibold text-blue-900">Fluxo de caixa mensal</h3>{!full && <Tabs filtro={filtro} setFiltro={setFiltro} />}</div>
         <div className={cn(!full && "max-h-[480px] overflow-auto")}>
           <table className="w-full min-w-[720px] border-collapse text-sm text-blue-900">
-            <thead className={cn(!full && "sticky top-0 bg-white")}><tr className="border-b border-gray-200 text-xs text-gray-500">{["Mês", "Casos", "Faturamento", "Royalties", "Impostos", "Despesas", "Resultado", "Saldo"].map((h, i) => <th key={h} className={cn("px-3 py-2 font-semibold", i ? "text-right" : "text-left")}>{h}</th>)}</tr></thead>
+            <thead className={cn(!full && "sticky top-0 bg-white")}><tr className="border-b border-gray-200 text-xs text-gray-500">{["Mês", "Clientes", "Faturamento", "Royalties", "Impostos", "Despesas", "Resultado", "Saldo"].map((h, i) => <th key={h} className={cn("px-3 py-2 font-semibold", i ? "text-right" : "text-left")}>{h}</th>)}</tr></thead>
             <tbody className="[&>tr:nth-child(even)]:bg-gray-050">
               {r.map((x) => (
                 <tr key={x.m}>

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ReferenceLine, XAxis, YAxis } from "recharts";
-import { CENARIOS, CRED, DRE_DATA, brl, brlShort, calc, num, tot, type DreInput, type DreResult } from "@/lib/expansion/dre";
+import { CENARIOS, CRED, brl, brlShort, calc, num, tot, type DreInput, type DreResult } from "@/lib/expansion/dre";
 
 // Relatório em PDF (A4 retrato). Largura fixa de 190 mm (área útil com margem de 10 mm)
 // e gráficos com tamanho em pixels: o que aparece na tela é exatamente o que imprime.
@@ -135,7 +135,7 @@ function Funnel({ c, mkt }: { c: DreResult; mkt: number }) {
     ["Pessoas no círculo", c.mercado, "#9db0bc"],
     ["Dirigem (têm CNH)", c.dirigem, "#9db0bc"],
     ["Recebem multa por ano", c.comMulta, "#6f93ab"],
-    ["Contratam o recurso", c.fecham, YELLOW],
+    ["Viram clientes", c.fecham, YELLOW],
   ] as const;
   const mx = Math.max(1, c.mercado);
   return (
@@ -146,7 +146,7 @@ function Funnel({ c, mkt }: { c: DreResult; mkt: number }) {
           <div className="h-2.5 rounded-full bg-gray-100"><div className="h-full rounded-full" style={{ width: `${Math.max((v / mx) * 100, 1.5)}%`, background: col }} /></div>
         </div>
       ))}
-      <p className="pt-1 text-[10px] text-gray-500">Além do círculo, o marketing digital soma <b>{mkt}</b> casos por mês (média da rede).</p>
+      <p className="pt-1 text-[10px] text-gray-500">Além do círculo, o marketing digital soma <b>{mkt}</b> clientes por mês{c.casosParceiros > 0 ? <> e os parceiros, <b>{pct1(c.casosParceiros)}</b></> : null}.</p>
     </div>
   );
 }
@@ -178,8 +178,9 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
     ["Credibilidade", `${S.cred[0].toUpperCase()}${S.cred.slice(1)} (peso ${Math.round(CRED[S.cred] * 100)}%)`],
     ["Dirigem (CNH)", `${S.dirige}%`],
     ["Recebem multa por ano", `${S.multa}%`],
-    ["Contratam o recurso", `${S.conv}%`],
-    ["Casos/mês via marketing", String(S.mkt)],
+    ["Viram clientes", `${S.conv}%`],
+    ["Clientes/mês via marketing", String(S.mkt)],
+    ["Parceiros × indicações/mês", `${S.parceiros} × ${pct1(S.indicPorParceiro)} = ${pct1(c.casosParceiros)}`],
     ["Ritmo máximo em", `${S.rampa} meses`],
     ["Ticket médio", brl(c.ticket)],
     ["Royalties / impostos", `${S.royalties}% / ${S.imposto}%`],
@@ -213,19 +214,19 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
             {c.pay ? <>volta no <span className="text-yellow-500">mês {c.pay}</span></> : <>passa de 36 meses de retorno</>}
           </h1>
           <p className="relative mt-2 text-[12px] leading-relaxed text-blue-100">
-            Com um círculo de <b className="text-white">{num(c.mercado)} pessoas</b> {S.regiao !== "Brasil" ? `na região ${S.regiao} ` : ""}projetamos <b className="text-white">{pct1(c.casosMes)} casos por mês</b> e um resultado líquido de <b className="text-white">{brl(c.pico.resultado)}/mês</b> a partir do mês {Math.min(S.rampa, 36)}.
+            Com um círculo de <b className="text-white">{num(c.mercado)} pessoas</b> {S.regiao !== "Brasil" ? `na região ${S.regiao} ` : ""}projetamos <b className="text-white">{pct1(c.casosMes)} clientes por mês</b> e um resultado líquido de <b className="text-white">{brl(c.pico.resultado)}/mês</b> a partir do mês {Math.min(S.rampa, 36)}.
           </p>
-          <p className="relative mt-3 text-[9px] text-blue-200">Emitido em {emitido} · base de ticket e vendas da rede atualizada em {new Date(DRE_DATA.atualizadoEm).toLocaleDateString("pt-BR")}</p>
+          <p className="relative mt-3 text-[9px] text-blue-200">Emitido em {emitido}</p>
         </div>
 
         <div className="mt-4 grid grid-cols-4 gap-2.5">
           <Kpi label="Investimento inicial" value={brl(c.inv)} sub="para abrir a operação" />
           <Kpi label="Retorno" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} sub="saldo acumulado positivo" tone="navy" />
-          <Kpi label="Faturamento 36m" value={brlShort(fat)} sub="honorários dos recursos" />
+          <Kpi label="Faturamento 36m" value={brlShort(fat)} sub="receita dos clientes" />
           <Kpi label="Lucro acumulado 36m" value={brlShort(res)} sub="já descontado tudo" tone="yellow" />
           <Kpi label="Margem líquida" value={`${fat ? pct1((res / fat) * 100) : 0}%`} sub="resultado ÷ faturamento" />
           <Kpi label="Retorno sobre o invest." value={c.roi36 !== null ? `${pct1(c.roi36)}×` : "—"} sub="lucro ÷ investimento" tone="navy" />
-          <Kpi label="Ponto de equilíbrio" value={c.equilibrio !== null ? `${pct1(c.equilibrio)} casos` : "—"} sub="por mês, p/ pagar despesas" />
+          <Kpi label="Ponto de equilíbrio" value={c.equilibrio !== null ? `${pct1(c.equilibrio)} clientes` : "—"} sub="por mês, p/ pagar despesas" />
           <Kpi label="Folga sobre o equilíbrio" value={c.folga !== null ? `${pct1(c.folga)}×` : "—"} sub="projeção ÷ equilíbrio" tone="yellow" />
         </div>
 
@@ -241,7 +242,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
                 <div className="grid grid-cols-3 gap-1 text-[9px] text-gray-500">
                   <div>Retorno<b className="block font-display text-[13px] text-blue-900">{r.pay ? `Mês ${r.pay}` : ">36m"}</b></div>
                   <div>Resultado/mês<b className="block font-display text-[13px]" style={{ color: r.pico.resultado < 0 ? RED : NAVY }}>{brlShort(r.pico.resultado)}</b></div>
-                  <div>Casos/mês<b className="block font-display text-[13px] text-blue-900">{pct1(r.casosMes)}</b></div>
+                  <div>Clientes/mês<b className="block font-display text-[13px] text-blue-900">{pct1(r.casosMes)}</b></div>
                 </div>
               </div>
             );
@@ -272,7 +273,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
             <Hundred c={c} />
           </div>
         </div>
-        <H sub="de onde vêm os casos">Do círculo ao cliente</H>
+        <H sub="de onde vêm os clientes">Do círculo ao cliente</H>
         <Funnel c={c} mkt={S.mkt} />
       </Page>
 
@@ -286,7 +287,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
             </tr>
           </thead>
           <tbody>
-            {line("Faturamento (honorários dos recursos)", "faturamento", "t")}
+            {line("Faturamento (receita dos clientes)", "faturamento", "t")}
             {line("(-) Royalties / repasse à rede", "roy", "n", true)}
             {line("(-) Impostos", "imp", "n", true)}
             {line("= Margem de contribuição", "margem", "t")}
@@ -302,8 +303,8 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
         <ul className="list-disc space-y-1 pl-4 text-[10.5px] leading-relaxed text-gray-600">
           <li>O <b>retorno</b> é o primeiro mês em que o lucro acumulado supera o investimento inicial.</li>
           <li>O volume cresce linearmente até o ritmo máximo ({S.rampa} meses) e depois se mantém constante; não há reajuste de ticket nem de despesas.</li>
-          <li>O ticket médio ({DRE_DATA.fonteTicket.toLowerCase()}) e a média de casos de marketing vêm da base real da rede. O perfil de motoristas vem de {DRE_DATA.perfilFonte}.</li>
-          <li>Os cenários conservador e otimista variam em 40% e 30% os contratos do círculo e os casos de marketing, mantendo todo o resto igual.</li>
+          <li>Ticket médio, investimento, despesas, royalties e impostos são os valores informados para este lead.</li>
+          <li>Os cenários conservador e otimista variam em 40% e 30% os clientes do círculo e os clientes de marketing, mantendo todo o resto igual.</li>
           <li>Trata-se de uma simulação com as premissas informadas pelo lead; <b>não é promessa de resultado</b>.</li>
         </ul>
       </Page>
@@ -314,7 +315,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
         <table className="w-full border-collapse text-[10px]">
           <thead>
             <tr className="border-b border-gray-300 text-[9px] text-gray-500">
-              {["Mês", "Casos", "Faturamento", "Royalties", "Impostos", "Despesas", "Resultado", "Saldo"].map((h, i) => <th key={h} className={`px-2 py-1 font-semibold ${i ? "text-right" : "text-left"}`}>{h}</th>)}
+              {["Mês", "Clientes", "Faturamento", "Royalties", "Impostos", "Despesas", "Resultado", "Saldo"].map((h, i) => <th key={h} className={`px-2 py-1 font-semibold ${i ? "text-right" : "text-left"}`}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
