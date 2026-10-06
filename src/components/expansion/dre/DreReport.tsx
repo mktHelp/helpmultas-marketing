@@ -3,7 +3,7 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ReferenceLine, XAxis, YAxis } from "recharts";
-import { CENARIOS, CRED, brl, brlShort, calc, num, tot, type DreInput, type DreResult } from "@/lib/expansion/dre";
+import { CENARIOS, PERIODOS, brl, brlShort, calc, credPct, num, tot, type DreInput, type DreResult } from "@/lib/expansion/dre";
 
 // Relatório em PDF (A4 retrato). Largura fixa de 190 mm (área útil com margem de 10 mm)
 // e gráficos com tamanho em pixels: o que aparece na tela é exatamente o que imprime.
@@ -62,7 +62,7 @@ function MonthlyChart({ c }: { c: DreResult }) {
       <XAxis dataKey="m" tick={{ fontSize: 9 }} tickLine={false} interval={2} />
       <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={48} tickFormatter={axisMoney} />
       <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
-      <Area isAnimationActive={false} type="monotone" dataKey="margem" name="Margem (após royalties e impostos)" stroke={YELLOW} fill={YELLOW} fillOpacity={0.2} strokeWidth={2} />
+      <Area isAnimationActive={false} type="monotone" dataKey="margem" name="Margem (após taxa de processamento e impostos)" stroke={YELLOW} fill={YELLOW} fillOpacity={0.2} strokeWidth={2} />
       <Area isAnimationActive={false} type="monotone" dataKey="resultado" name="Resultado líquido" stroke={NAVY} fill={NAVY} fillOpacity={0.06} strokeWidth={2} />
       {c.pay && <ReferenceLine x={c.pay} stroke={GREEN} strokeDasharray="4 4" label={{ value: `Retorno: mês ${c.pay}`, fill: GREEN, fontSize: 9, position: "top" }} />}
     </AreaChart>
@@ -83,9 +83,9 @@ function CashChart({ c }: { c: DreResult }) {
 }
 
 function YearChart({ c }: { c: DreResult }) {
-  const data = [1, 2, 3].map((a) => {
-    const r = c.meses.filter((x) => x.ano === a);
-    return { ano: `Ano ${a}`, Faturamento: Math.round(tot(r, "faturamento")), Resultado: Math.round(tot(r, "resultado")) };
+  const data = PERIODOS.map((n) => {
+    const r = c.meses.slice(0, n);
+    return { ano: `${n} meses`, Faturamento: Math.round(tot(r, "faturamento")), Resultado: Math.round(tot(r, "resultado")) };
   });
   return (
     <BarChart width={W / 2 - 8} height={190} data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
@@ -102,7 +102,7 @@ function YearChart({ c }: { c: DreResult }) {
 function Hundred({ c }: { c: DreResult }) {
   const fat = tot(c.meses, "faturamento");
   const parts = [
-    { n: "Royalties à rede", v: tot(c.meses, "roy"), color: "#9db0bc" },
+    { n: "Taxa de processamento", v: tot(c.meses, "roy"), color: "#9db0bc" },
     { n: "Impostos", v: tot(c.meses, "imp"), color: "#4a6a80" },
     { n: "Despesas fixas", v: tot(c.meses, "fixa"), color: NAVY },
     { n: "Resultado líquido", v: Math.max(tot(c.meses, "resultado"), 0), color: YELLOW },
@@ -130,23 +130,22 @@ function Hundred({ c }: { c: DreResult }) {
   );
 }
 
-function Funnel({ c, mkt }: { c: DreResult; mkt: number }) {
+function Funnel({ c, S }: { c: DreResult; S: DreInput }) {
   const rows = [
-    ["Pessoas no círculo", c.mercado, "#9db0bc"],
-    ["Dirigem (têm CNH)", c.dirigem, "#9db0bc"],
-    ["Recebem multa por ano", c.comMulta, "#6f93ab"],
-    ["Viram clientes", c.fecham, YELLOW],
-  ] as const;
-  const mx = Math.max(1, c.mercado);
+    { n: "Círculo", leads: c.leadsCirculo, conv: S.convCirculo, cli: c.casosCirculo, col: "#9db0bc" },
+    { n: "Parceiros", leads: c.leadsParceiros, conv: S.convParceiros, cli: c.casosParceiros, col: "#6f93ab" },
+    { n: "Marketing", leads: c.leadsMkt, conv: S.convMkt, cli: c.casosMkt, col: YELLOW },
+  ];
+  const mx = Math.max(1, ...rows.map((r) => r.leads));
   return (
     <div className="space-y-2">
-      {rows.map(([n, v, col]) => (
-        <div key={n}>
-          <div className="mb-0.5 flex justify-between text-[10px]"><span>{n}</span><span><b>{num(v)}</b> <span className="text-gray-400">{pct1((v / mx) * 100)}%</span></span></div>
-          <div className="h-2.5 rounded-full bg-gray-100"><div className="h-full rounded-full" style={{ width: `${Math.max((v / mx) * 100, 1.5)}%`, background: col }} /></div>
+      {rows.map((r) => (
+        <div key={r.n}>
+          <div className="mb-0.5 flex justify-between text-[10px]"><span className="font-semibold">{r.n}</span><span><b>{pct1(r.leads)}</b> leads × {r.conv}% = <b>{pct1(r.cli)}</b> clientes</span></div>
+          <div className="h-2.5 rounded-full bg-gray-100"><div className="h-full rounded-full" style={{ width: `${Math.max((r.leads / mx) * 100, 1.5)}%`, background: r.col }} /></div>
         </div>
       ))}
-      <p className="pt-1 text-[10px] text-gray-500">Além do círculo, o marketing digital soma <b>{mkt}</b> clientes por mês{c.casosParceiros > 0 ? <> e os parceiros, <b>{pct1(c.casosParceiros)}</b></> : null}.</p>
+      <p className="pt-1 text-[10px] text-gray-500">Por mês, no ritmo máximo: <b>{pct1(c.leadsMes)}</b> leads viram <b>{pct1(c.casosMes)}</b> clientes.</p>
     </div>
   );
 }
@@ -170,26 +169,25 @@ function ItemsTable({ title, items, total }: { title: string; items: { n: string
 export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
   const fat = tot(c.meses, "faturamento");
   const res = tot(c.meses, "resultado");
-  const ys = [1, 2, 3].map((a) => c.meses.filter((x) => x.ano === a));
+  const ys = PERIODOS.map((n) => c.meses.slice(0, n));
   const TOTAL = 4;
   const emitido = new Date().toLocaleDateString("pt-BR");
   const premissas: [string, string][] = [
     ["Pessoas no círculo", num(c.mercado)],
-    ["Credibilidade", `${S.cred[0].toUpperCase()}${S.cred.slice(1)} (peso ${Math.round(CRED[S.cred] * 100)}%)`],
-    ["Dirigem (CNH)", `${S.dirige}%`],
-    ["Recebem multa por ano", `${S.multa}%`],
-    ["Viram clientes", `${S.conv}%`],
-    ["Clientes/mês via marketing", String(S.mkt)],
-    ["Parceiros × indicações/mês", `${S.parceiros} × ${pct1(S.indicPorParceiro)} = ${pct1(c.casosParceiros)}`],
+    ["Credibilidade", `${credPct(S)}% do círculo em 12 meses`],
+    ["Leads/mês do círculo", `${pct1(c.leadsCirculo)} · conversão ${S.convCirculo}%`],
+    ["Parceiros × indicações/mês", `${S.parceiros} × ${pct1(S.indicPorParceiro)} = ${pct1(c.leadsParceiros)} · conversão ${S.convParceiros}%`],
+    ["Leads/mês do marketing", `${pct1(c.leadsMkt)} · conversão ${S.convMkt}%`],
+    ["Clientes/mês (ritmo máximo)", pct1(c.casosMes)],
     ["Ritmo máximo em", `${S.rampa} meses`],
     ["Ticket médio", brl(c.ticket)],
-    ["Royalties / impostos", `${S.royalties}% / ${S.imposto}%`],
+    ["Taxa de processamento / impostos", `${S.royalties}% / ${S.imposto}%`],
     ["Despesas fixas / mês", brl(c.fixa)],
   ];
   const line = (label: string, k: "faturamento" | "roy" | "imp" | "margem" | "fixa" | "resultado", kind: "n" | "t" | "r" = "n", neg = false) => (
     <tr className={kind === "t" ? "bg-gray-100 font-bold" : kind === "r" ? "font-bold text-white" : ""} style={kind === "r" ? { background: NAVY } : undefined}>
       <td className={`px-2.5 py-1.5 ${kind === "n" ? "pl-5 text-gray-700" : ""}`}>{label}</td>
-      {[...ys, c.meses].map((y, i) => {
+      {ys.map((y, i) => {
         const v = tot(y, k);
         return <td key={i} className="whitespace-nowrap px-2.5 py-1.5 text-right" style={v < 0 && kind !== "r" ? { color: RED } : undefined}>{brl(neg ? -v : v)}</td>;
       })}
@@ -255,6 +253,10 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
             <div key={k} className="flex justify-between border-b border-gray-100 py-1"><span className="text-gray-600">{k}</span><b>{v}</b></div>
           ))}
         </div>
+        <div className="mt-4 flex items-center gap-3 rounded-xl px-4 py-3 text-blue-900" style={{ background: "linear-gradient(90deg,#fcbf00,#fbbf24)" }}>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-[11px] font-bold text-yellow-500">60d</span>
+          <p className="text-[11px]"><b className="font-display">Após 60 dias · recompra.</b> De 20% a 30% dos clientes voltam a comprar e indicam novos leads.</p>
+        </div>
       </Page>
 
       {/* ---------- Página 2: gráficos ---------- */}
@@ -265,7 +267,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
         <CashChart c={c} />
         <div className="mt-5 flex gap-4">
           <div>
-            <H sub="faturamento x resultado">Evolução por ano</H>
+            <H sub="acumulado, faturamento x resultado">Evolução em 12, 24 e 36 meses</H>
             <YearChart c={c} />
           </div>
           <div>
@@ -273,22 +275,22 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
             <Hundred c={c} />
           </div>
         </div>
-        <H sub="de onde vêm os clientes">Do círculo ao cliente</H>
-        <Funnel c={c} mkt={S.mkt} />
+        <H sub="de onde vêm os clientes">Dos leads aos clientes</H>
+        <Funnel c={c} S={S} />
       </Page>
 
       {/* ---------- Página 3: DRE ---------- */}
       <Page title="Demonstração do Resultado do Exercício" S={S} n={3} total={TOTAL}>
-        <H sub="Demonstração do Resultado do Exercício">DRE anual</H>
+        <H sub="acumulado · Demonstração do Resultado do Exercício">DRE em 12, 24 e 36 meses</H>
         <table className="w-full border-collapse overflow-hidden rounded-lg text-[10.5px]">
           <thead>
             <tr className="border-b border-gray-200 text-[9.5px] text-gray-500">
-              {["Descrição", "Ano 1", "Ano 2", "Ano 3", "Total 36 meses"].map((h, i) => <th key={h} className={`px-2.5 py-1.5 font-semibold ${i ? "text-right" : "text-left"}`}>{h}</th>)}
+              {["Descrição", "12 meses", "24 meses", "36 meses"].map((h, i) => <th key={h} className={`px-2.5 py-1.5 font-semibold ${i ? "text-right" : "text-left"}`}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {line("Faturamento (receita dos clientes)", "faturamento", "t")}
-            {line("(-) Royalties / repasse à rede", "roy", "n", true)}
+            {line("(-) Taxa de processamento", "roy", "n", true)}
             {line("(-) Impostos", "imp", "n", true)}
             {line("= Margem de contribuição", "margem", "t")}
             {line("(-) Despesas fixas", "fixa", "n", true)}
@@ -303,8 +305,8 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
         <ul className="list-disc space-y-1 pl-4 text-[10.5px] leading-relaxed text-gray-600">
           <li>O <b>retorno</b> é o primeiro mês em que o lucro acumulado supera o investimento inicial.</li>
           <li>O volume cresce linearmente até o ritmo máximo ({S.rampa} meses) e depois se mantém constante; não há reajuste de ticket nem de despesas.</li>
-          <li>Ticket médio, investimento, despesas, royalties e impostos são os valores informados para este lead.</li>
-          <li>Os cenários conservador e otimista variam em 40% e 30% os clientes do círculo e os clientes de marketing, mantendo todo o resto igual.</li>
+          <li>Ticket médio, investimento, despesas, taxa de processamento e impostos são os valores informados para este lead.</li>
+          <li>Os cenários conservador e otimista variam em 40% e 30% os clientes vindos do círculo, dos parceiros e do marketing, mantendo todo o resto igual.</li>
           <li>Trata-se de uma simulação com as premissas informadas pelo lead; <b>não é promessa de resultado</b>.</li>
         </ul>
       </Page>
@@ -315,7 +317,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
         <table className="w-full border-collapse text-[10px]">
           <thead>
             <tr className="border-b border-gray-300 text-[9px] text-gray-500">
-              {["Mês", "Clientes", "Faturamento", "Royalties", "Impostos", "Despesas", "Resultado", "Saldo"].map((h, i) => <th key={h} className={`px-2 py-1 font-semibold ${i ? "text-right" : "text-left"}`}>{h}</th>)}
+              {["Mês", "Clientes", "Faturamento", "Taxa proc.", "Impostos", "Despesas", "Resultado", "Saldo"].map((h, i) => <th key={h} className={`px-2 py-1 font-semibold ${i ? "text-right" : "text-left"}`}>{h}</th>)}
             </tr>
           </thead>
           <tbody>

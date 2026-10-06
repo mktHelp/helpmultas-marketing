@@ -15,11 +15,11 @@ import { DreReport } from "./DreReport";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
-  CENARIOS, CRED, DEFAULT_INPUT, REGIOES, brl, brlShort, calc, num, sum, tot,
+  CENARIOS, CRED_PCT, DEFAULT_INPUT, PERIODOS, REGIOES, brl, brlShort, calc, credPct, num, sum, tot,
   type Cred, type DreInput, type DreResult, type Item,
 } from "@/lib/expansion/dre";
 
-const STORAGE_KEY = "hm-expansion-dre-v2";
+const STORAGE_KEY = "hm-expansion-dre-v3";
 const STEPS = [
   { t: "Mercado", icon: Users },
   { t: "Ticket médio", icon: Receipt },
@@ -33,7 +33,7 @@ const NAVY = "#243746";
 const YELLOW = "#fcbf00";
 const GREEN = "#2f8f5b";
 
-type Filtro = "Todos" | "Ano 1" | "Ano 2" | "Ano 3";
+type Filtro = "12 meses" | "24 meses" | "36 meses";
 
 function load(): DreInput {
   try {
@@ -48,7 +48,7 @@ export function ExpansionDre() {
   const [S, setS] = useState<DreInput>(DEFAULT_INPUT);
   const [ready, setReady] = useState(false);
   const [step, setStep] = useState(0);
-  const [filtro, setFiltro] = useState<Filtro>("Todos");
+  const [filtro, setFiltro] = useState<Filtro>("36 meses");
   const [confirmNovo, setConfirmNovo] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
@@ -102,7 +102,7 @@ export function ExpansionDre() {
       setSaveState({ kind: "idle" });
       setSavedOpen(false);
       setStep(0);
-      setFiltro("Todos");
+      setFiltro("36 meses");
       window.scrollTo({ top: 0 });
       if (print) window.setTimeout(imprimir, 150);
     } catch {
@@ -331,10 +331,11 @@ function Live({ c, children }: { c: DreResult; children?: ReactNode }) {
         <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-500" /> Sua DRE ao vivo
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Stat label="Retorno" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} accent />
-        <Stat label="Clientes / mês" value={c.casosMes.toFixed(1).replace(".", ",")} />
         <Stat label="Faturamento / mês" value={brlShort(p.faturamento)} />
         <Stat label="Resultado / mês" value={brlShort(p.resultado)} accent />
+        <Stat label="Clientes / mês" value={c.casosMes.toFixed(1).replace(".", ",")} />
+        <Stat label="Ticket médio" value={brl(c.ticket)} />
+        <div className="col-span-2"><Stat label="Retorno" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} accent /></div>
       </div>
       {children && <div className="mt-4 border-t border-white/15 pt-4">{children}</div>}
     </div>
@@ -364,23 +365,23 @@ function Bars({ items }: { items: { n: string; v: number; fmt?: (n: number) => s
   );
 }
 
-function Funnel({ c, mkt }: { c: DreResult; mkt: number }) {
+function Funnel({ c, S }: { c: DreResult; S: DreInput }) {
   const rows = [
-    ["Pessoas no círculo", c.mercado, "#9db0bc"],
-    ["Dirigem (têm CNH)", c.dirigem, "#9db0bc"],
-    ["Recebem multa por ano", c.comMulta, "#6f93ab"],
-    ["Viram clientes", c.fecham, YELLOW],
-  ] as const;
-  const mx = Math.max(1, c.mercado);
+    { n: "Círculo", leads: c.leadsCirculo, conv: S.convCirculo, cli: c.casosCirculo, col: "#9db0bc" },
+    { n: "Parceiros", leads: c.leadsParceiros, conv: S.convParceiros, cli: c.casosParceiros, col: "#6f93ab" },
+    { n: "Marketing", leads: c.leadsMkt, conv: S.convMkt, cli: c.casosMkt, col: YELLOW },
+  ];
+  const mx = Math.max(1, ...rows.map((r) => r.leads));
+  const f = (n: number) => n.toFixed(1).replace(".", ",");
   return (
     <div className="space-y-3">
-      {rows.map(([n, v, col]) => (
-        <div key={n}>
-          <div className="mb-1 flex justify-between text-xs"><span>{n}</span><span><b>{num(v)}</b> <span className="opacity-60">{((v / mx) * 100).toFixed(v / mx < 0.1 ? 1 : 0).replace(".", ",")}%</span></span></div>
-          <div className="h-3 rounded-full bg-black/5"><div className="h-full rounded-full" style={{ width: `${Math.max((v / mx) * 100, 1.5)}%`, background: col }} /></div>
+      {rows.map((r) => (
+        <div key={r.n}>
+          <div className="mb-1 flex justify-between text-xs"><span className="font-semibold">{r.n}</span><span><b>{f(r.leads)}</b> leads × {r.conv}% = <b>{f(r.cli)}</b> clientes</span></div>
+          <div className="h-3 rounded-full bg-black/5"><div className="h-full rounded-full" style={{ width: `${Math.max((r.leads / mx) * 100, 1.5)}%`, background: r.col }} /></div>
         </div>
       ))}
-      <p className="pt-1 text-xs opacity-70">Além do círculo, o marketing digital soma <b>{mkt}</b> clientes por mês{c.casosParceiros > 0 ? <> e os parceiros, <b>{c.casosParceiros.toFixed(1).replace(".", ",")}</b></> : null}.</p>
+      <p className="pt-1 text-xs opacity-70">Por mês, no ritmo máximo: <b>{f(c.leadsMes)}</b> leads viram <b>{f(c.casosMes)}</b> clientes.</p>
     </div>
   );
 }
@@ -406,27 +407,39 @@ function StepMercado({ S, c, patch }: StepProps) {
       <ItemList title="Quem ele alcança" items={S.mercado} onChange={(mercado) => patch({ mercado })} total="Total de pessoas alcançadas" />
       <Section title="Parceiros" hint="indicações recorrentes">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Quantos parceiros o lead consegue fechar?" help="Contadores, despachantes, autoescolas, oficinas, etc.">
+          <Field label="Quantos parceiros você consegue fazer na sua região?" help="Contadores, despachantes, autoescolas, oficinas, etc.">
             <NumInput value={S.parceiros} onChange={(parceiros) => patch({ parceiros })} />
           </Field>
-          <Field label="Indicações por parceiro, por mês" help="Média de clientes que cada parceiro indica por mês.">
+          <Field label="Indicações por parceiro, por mês" help="Média de leads que cada parceiro indica por mês.">
             <NumInput value={S.indicPorParceiro} onChange={(indicPorParceiro) => patch({ indicPorParceiro })} />
           </Field>
         </div>
         <div className="mt-4 flex items-center justify-between rounded-xl bg-blue-050 px-4 py-3 text-sm">
-          <span className="font-semibold text-blue-800">Clientes por mês via parceiros</span>
-          <b className="font-display text-base text-blue-900">{c.casosParceiros.toFixed(1).replace(".", ",")}</b>
+          <span className="font-semibold text-blue-800">Leads por mês via parceiros</span>
+          <b className="font-display text-base text-blue-900">{c.leadsParceiros.toFixed(1).replace(".", ",")}</b>
         </div>
       </Section>
-      <Section title="Credibilidade no meio dele" hint="quanto o círculo confia nele">
-        <div className="grid grid-cols-3 gap-2">
-          {([["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]] as [Cred, string][]).map(([v, t]) => (
-            <button key={v} type="button" onClick={() => patch({ cred: v })} className={cn("rounded-xl border-2 py-2.5 text-sm font-bold transition-colors", S.cred === v ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 text-blue-900 hover:border-blue-900")}>
+      <Section title="Credibilidade no meio dele" hint="% do círculo que vira lead em 12 meses">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {([["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]] as [Exclude<Cred, "livre">, string][]).map(([v, t]) => (
+            <button key={v} type="button" onClick={() => patch({ cred: v })} className={cn("rounded-xl border-2 py-2 text-sm font-bold transition-colors", S.cred === v ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 text-blue-900 hover:border-blue-900")}>
               {t}
+              <span className={cn("block text-xs font-semibold", S.cred === v ? "text-yellow-500" : "text-gray-500")}>{CRED_PCT[v]}%</span>
             </button>
           ))}
+          <button type="button" onClick={() => patch({ cred: "livre" })} className={cn("rounded-xl border-2 py-2 text-sm font-bold transition-colors", S.cred === "livre" ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 text-blue-900 hover:border-blue-900")}>
+            Livre
+            <span className={cn("block text-xs font-semibold", S.cred === "livre" ? "text-yellow-500" : "text-gray-500")}>{S.credLivre}%</span>
+          </button>
         </div>
-        <p className="mt-2 text-xs text-gray-500">Peso aplicado ao círculo: {Math.round(CRED[S.cred] * 100)}%.</p>
+        {S.cred === "livre" && (
+          <Field label="Porcentagem personalizada">
+            <NumInput value={S.credLivre} onChange={(credLivre) => patch({ credLivre })} suffix="%" className="mt-2 max-w-[180px]" />
+          </Field>
+        )}
+        <p className="mt-3 text-xs text-gray-500">
+          {num(c.mercado)} pessoas × {credPct(S)}% = {num((c.mercado * credPct(S)) / 100)} leads em 12 meses, ou <b>{c.leadsCirculo.toFixed(1).replace(".", ",")} por mês</b>.
+        </p>
       </Section>
     </Split>
   );
@@ -549,7 +562,7 @@ function StepDespesas({ S, c, patch }: StepProps) {
       <ItemList title="Despesas fixas por mês" items={S.desp} onChange={(desp) => patch({ desp })} total="Despesa fixa mensal" unit="R$" />
       <Section title="Custos sobre o faturamento" hint="variáveis">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Royalties à rede"><NumInput value={S.royalties} onChange={(royalties) => patch({ royalties })} suffix="%" /></Field>
+          <Field label="Taxa de Processamento (média)"><NumInput value={S.royalties} onChange={(royalties) => patch({ royalties })} suffix="%" /></Field>
           <Field label="Impostos"><NumInput value={S.imposto} onChange={(imposto) => patch({ imposto })} suffix="%" /></Field>
         </div>
       </Section>
@@ -558,37 +571,67 @@ function StepDespesas({ S, c, patch }: StepProps) {
 }
 
 function StepProjecao({ S, c, patch }: StepProps) {
+  const f = (n: number) => n.toFixed(1).replace(".", ",");
+  const canais = [
+    { n: "Círculo", desc: `${num(c.mercado)} pessoas × ${credPct(S)}% ÷ 12 meses`, leads: c.leadsCirculo, key: "convCirculo" as const, cli: c.casosCirculo },
+    { n: "Parceiros", desc: `${S.parceiros} parceiros × ${f(S.indicPorParceiro)} indicações/mês`, leads: c.leadsParceiros, key: "convParceiros" as const, cli: c.casosParceiros },
+    { n: "Marketing", desc: "leads gerados por mês pelo marketing", leads: c.leadsMkt, key: "convMkt" as const, cli: c.casosMkt },
+  ];
   return (
-    <Split aside={<Live c={c}><p className="mb-3 text-sm font-semibold">Funil do círculo</p><div className="text-white [&_.opacity-60]:text-blue-100"><FunnelDark c={c} mkt={S.mkt} /></div></Live>}>
-      <Section title="Volume do círculo" hint="premissas da projeção">
-        <div className="space-y-4">
-          <Field label="Dos contatos, quantos % dirigem (têm CNH)">
-            <NumInput value={S.dirige} onChange={(dirige) => patch({ dirige })} suffix="%" />
-          </Field>
-          <Field label="Dos motoristas, quantos % recebem multa por ano">
-            <NumInput value={S.multa} onChange={(multa) => patch({ multa })} suffix="%" />
-          </Field>
-          <Field label="Dos que recebem multa, quantos % viram clientes" help="Teste valores menores para ver o cenário conservador.">
-            <NumInput value={S.conv} onChange={(conv) => patch({ conv })} suffix="%" />
-          </Field>
+    <Split aside={<Live c={c}><p className="mb-3 text-sm font-semibold">Dos leads aos clientes</p><div className="text-white"><FunnelDark c={c} S={S} /></div></Live>}>
+      <Section title="Leads por canal" hint="por mês, no ritmo máximo">
+        <div className="space-y-3">
+          {canais.map((x) => (
+            <div key={x.n} className="rounded-2xl border border-gray-200 p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-display text-sm font-bold text-blue-900">{x.n}</span>
+                <span className="text-[11px] text-gray-500">{x.desc}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-3 items-end gap-3">
+                <div>
+                  <span className="text-[11px] font-semibold text-gray-500">Leads / mês</span>
+                  {x.n === "Marketing" ? (
+                    <NumInput value={S.leadsMkt} onChange={(leadsMkt) => patch({ leadsMkt })} />
+                  ) : (
+                    <p className="flex h-10 items-center font-display text-lg font-bold text-blue-900">{f(x.leads)}</p>
+                  )}
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-gray-500">Conversão</span>
+                  <NumInput value={S[x.key]} onChange={(v) => patch({ [x.key]: v } as Partial<DreInput>)} suffix="%" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-semibold text-gray-500">Clientes / mês</span>
+                  <p className="flex h-10 items-center font-display text-lg font-bold text-blue-900">{f(x.cli)}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 rounded-xl bg-blue-050 px-4 py-3 text-sm">
+          <div><span className="block text-[11px] text-blue-800">Total de leads / mês</span><b className="font-display text-base text-blue-900">{f(c.leadsMes)}</b></div>
+          <div><span className="block text-[11px] text-blue-800">Total de clientes / mês</span><b className="font-display text-base text-blue-900">{f(c.casosMes)}</b></div>
+          <div><span className="block text-[11px] text-blue-800">× ticket {brl(c.ticket)}</span><b className="font-display text-base text-blue-900">{brl(c.casosMes * c.ticket)}/mês</b></div>
         </div>
       </Section>
-      <Section title="Crescimento" hint="marketing e ritmo">
-        <div className="space-y-4">
-          <Field label="Clientes por mês via marketing digital e indicações">
-            <NumInput value={S.mkt} onChange={(mkt) => patch({ mkt })} />
-          </Field>
-          <Field label="Meses até atingir o ritmo máximo">
-            <NumInput value={S.rampa} onChange={(rampa) => patch({ rampa })} suffix="meses" />
-          </Field>
-        </div>
+      <Section title="Ritmo" hint="crescimento até o máximo">
+        <Field label="Meses até atingir o ritmo máximo">
+          <NumInput value={S.rampa} onChange={(rampa) => patch({ rampa })} suffix="meses" />
+        </Field>
       </Section>
+      <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-400 px-5 py-4 text-blue-900">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-sm font-bold text-yellow-500">60d</span>
+        <div>
+          <p className="font-display text-sm font-bold">Após 60 dias · recompra</p>
+          <p className="text-sm">De 20% a 30% dos clientes voltam a comprar e indicam novos leads.</p>
+        </div>
+      </div>
     </Split>
   );
 }
 
-function FunnelDark({ c, mkt }: { c: DreResult; mkt: number }) {
-  return <div className="rounded-xl bg-white p-4 text-blue-900"><Funnel c={c} mkt={mkt} /></div>;
+function FunnelDark({ c, S }: { c: DreResult; S: DreInput }) {
+  return <div className="rounded-xl bg-white p-4 text-blue-900"><Funnel c={c} S={S} /></div>;
 }
 
 /* ---------------- resumo + DRE ---------------- */
@@ -596,7 +639,7 @@ function FunnelDark({ c, mkt }: { c: DreResult; mkt: number }) {
 function Tabs({ filtro, setFiltro }: { filtro: Filtro; setFiltro: (f: Filtro) => void }) {
   return (
     <div className="inline-flex rounded-full bg-gray-100 p-1 print:hidden">
-      {(["Todos", "Ano 1", "Ano 2", "Ano 3"] as Filtro[]).map((t) => (
+      {(["12 meses", "24 meses", "36 meses"] as Filtro[]).map((t) => (
         <button key={t} type="button" onClick={() => setFiltro(t)} className={cn("rounded-full px-3.5 py-1 text-xs font-bold transition-colors", filtro === t ? "bg-blue-900 text-white" : "text-gray-500 hover:text-blue-900")}>
           {t}
         </button>
@@ -605,7 +648,7 @@ function Tabs({ filtro, setFiltro }: { filtro: Filtro; setFiltro: (f: Filtro) =>
   );
 }
 
-const rowsOf = (c: DreResult, f: Filtro) => (f === "Todos" ? c.meses : c.meses.filter((x) => x.ano === Number(f.slice(-1))));
+const rowsOf = (c: DreResult, f: Filtro) => c.meses.slice(0, parseInt(f, 10));
 const tooltipStyle = { borderRadius: 12, border: "1px solid #e6ecf0", fontSize: 12 };
 
 function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; filtro: Filtro; setFiltro: (f: Filtro) => void }) {
@@ -613,9 +656,9 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
   const fat = tot(r, "faturamento");
   const res = tot(r, "resultado");
   const margemPct = fat ? ((res / fat) * 100).toFixed(1).replace(".", ",") : "0";
-  const anual = [1, 2, 3].map((a) => {
-    const rs = c.meses.filter((x) => x.ano === a);
-    return { ano: `Ano ${a}`, Faturamento: Math.round(tot(rs, "faturamento")), Resultado: Math.round(tot(rs, "resultado")) };
+  const anual = PERIODOS.map((n) => {
+    const rs = c.meses.slice(0, n);
+    return { ano: `${n} meses`, Faturamento: Math.round(tot(rs, "faturamento")), Resultado: Math.round(tot(rs, "resultado")) };
   });
   const cenarios = CENARIOS.map((cn_) => ({ ...cn_, r: calc(S, cn_.ajuste) }));
 
@@ -636,7 +679,7 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
           <b className="text-white">{brl(c.pico.resultado)}/mês</b>{S.regiao !== "Brasil" ? ` em ${S.regiao}` : ""}.
         </p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs">
-          {[["Investimento", brl(c.inv)], ["Ticket médio", brl(c.ticket)], ["Credibilidade", S.cred]].map(([k, v]) => (
+          {[["Investimento", brl(c.inv)], ["Ticket médio", brl(c.ticket)], ["Credibilidade", `${credPct(S)}% do círculo`]].map(([k, v]) => (
             <span key={k} className="rounded-full bg-white/10 px-3 py-1.5 text-blue-100">{k} <b className="text-white">{v}</b></span>
           ))}
         </div>
@@ -646,7 +689,7 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Mercado primário" value={num(c.mercado)} sub="pessoas no círculo" />
-        <Kpi label="Motoristas com multa/ano" value={num(c.comMulta)} sub="oportunidades no círculo" />
+        <Kpi label="Leads por mês" value={c.leadsMes.toFixed(1).replace(".", ",")} sub="círculo + parceiros + marketing" />
         <Kpi label={`Faturamento (${filtro})`} value={brlShort(fat)} sub="receita dos clientes" />
         <Kpi label="Investimento inicial" value={brl(c.inv)} sub="para abrir a operação" />
         <Kpi label="Retorno do investimento" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} sub="saldo acumulado positivo" tone="navy" />
@@ -694,9 +737,9 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
               <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={64} tickFormatter={(v) => brlShort(v).replace("R$ ", "")} />
               <Tooltip contentStyle={tooltipStyle} labelFormatter={(m) => `Mês ${m}`} formatter={(v) => brl(Number(v))} />
               <Legend />
-              <Area type="monotone" dataKey="margem" name="Margem (após royalties e impostos)" stroke={YELLOW} fill={YELLOW} fillOpacity={0.18} strokeWidth={2.5} />
+              <Area type="monotone" dataKey="margem" name="Margem (após taxa de processamento e impostos)" stroke={YELLOW} fill={YELLOW} fillOpacity={0.18} strokeWidth={2.5} />
               <Area type="monotone" dataKey="resultado" name="Resultado líquido" stroke={NAVY} fill={NAVY} fillOpacity={0.05} strokeWidth={2.5} />
-              {c.pay && filtro === "Todos" && <ReferenceLine x={c.pay} stroke={GREEN} strokeDasharray="4 4" label={{ value: `Retorno: mês ${c.pay}`, fill: GREEN, fontSize: 11, position: "top" }} />}
+              {c.pay && c.pay <= r.length && <ReferenceLine x={c.pay} stroke={GREEN} strokeDasharray="4 4" label={{ value: `Retorno: mês ${c.pay}`, fill: GREEN, fontSize: 11, position: "top" }} />}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -726,8 +769,8 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
       </div>
 
       <Card className="p-5">
-        <h3 className="mb-4 font-display text-base font-semibold text-blue-900">Do círculo ao cliente</h3>
-        <Funnel c={c} mkt={S.mkt} />
+        <h3 className="mb-4 font-display text-base font-semibold text-blue-900">Dos leads aos clientes</h3>
+        <Funnel c={c} S={S} />
       </Card>
     </div>
   );
@@ -735,7 +778,7 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
 
 function Split100({ fat, roy, imp, fx, res }: { fat: number; roy: number; imp: number; fx: number; res: number }) {
   const items = [
-    { n: "Royalties à rede", v: roy, color: "#9db0bc" },
+    { n: "Taxa de processamento", v: roy, color: "#9db0bc" },
     { n: "Impostos", v: imp, color: "#4a6a80" },
     { n: "Despesas fixas", v: fx, color: NAVY },
     { n: "Resultado líquido", v: Math.max(res, 0), color: YELLOW },
@@ -774,12 +817,12 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub: s
 }
 
 function StepDre({ c, filtro, setFiltro, full }: { S: DreInput; c: DreResult; filtro: Filtro; setFiltro: (f: Filtro) => void; full?: boolean }) {
-  const ys = [1, 2, 3].map((a) => c.meses.filter((x) => x.ano === a));
+  const ys = PERIODOS.map((n) => c.meses.slice(0, n));
   const r = rowsOf(c, filtro);
   const line = (label: string, k: "faturamento" | "roy" | "imp" | "margem" | "fixa" | "resultado", kind: "t" | "r" | "n" = "n", neg = false) => (
     <tr className={cn(kind === "t" && "bg-gray-050 font-bold", kind === "r" && "bg-blue-900 font-bold text-white")}>
       <td className={cn("px-3 py-2", kind === "n" && "pl-6 text-gray-700")}>{label}</td>
-      {[...ys, c.meses].map((y, i) => {
+      {ys.map((y, i) => {
         const v = tot(y, k);
         return <td key={i} className={cn("whitespace-nowrap px-3 py-2 text-right", v < 0 && kind !== "r" && "text-[color:var(--color-danger)]")}>{brl(neg ? -v : v)}</td>;
       })}
@@ -791,10 +834,10 @@ function StepDre({ c, filtro, setFiltro, full }: { S: DreInput; c: DreResult; fi
         <div className="mb-3 flex items-baseline justify-between"><h3 className="font-display text-base font-semibold text-blue-900">DRE anual</h3><span className="text-xs text-gray-500">Demonstração do Resultado do Exercício</span></div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] border-collapse text-sm text-blue-900">
-            <thead><tr className="border-b border-gray-200 text-xs text-gray-500">{["Descrição", "Ano 1", "Ano 2", "Ano 3", "Total 36 meses"].map((h, i) => <th key={h} className={cn("px-3 py-2 font-semibold", i ? "text-right" : "text-left")}>{h}</th>)}</tr></thead>
+            <thead><tr className="border-b border-gray-200 text-xs text-gray-500">{["Descrição", "12 meses", "24 meses", "36 meses"].map((h, i) => <th key={h} className={cn("px-3 py-2 font-semibold", i ? "text-right" : "text-left")}>{h}</th>)}</tr></thead>
             <tbody>
               {line("Faturamento (receita dos clientes)", "faturamento", "t")}
-              {line("(-) Royalties / repasse à rede", "roy", "n", true)}
+              {line("(-) Taxa de processamento", "roy", "n", true)}
               {line("(-) Impostos", "imp", "n", true)}
               {line("= Margem de contribuição", "margem", "t")}
               {line("(-) Despesas fixas", "fixa", "n", true)}

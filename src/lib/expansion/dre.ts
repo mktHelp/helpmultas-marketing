@@ -5,8 +5,12 @@
 export const REGIOES = ["Sul", "Sudeste", "Centro-Oeste", "Nordeste", "Norte"] as const;
 export type Regiao = "Brasil" | (typeof REGIOES)[number];
 
-export const CRED = { alta: 1, media: 0.7, baixa: 0.4 } as const;
-export type Cred = keyof typeof CRED;
+/** % do círculo que vira lead por ano, conforme a credibilidade do lead no meio dele. */
+export const CRED_PCT = { alta: 20, media: 10, baixa: 5 } as const;
+export type Cred = keyof typeof CRED_PCT | "livre";
+
+export const PERIODOS = [12, 24, 36] as const;
+export type Periodo = (typeof PERIODOS)[number];
 
 export interface Item {
   n: string;
@@ -17,21 +21,28 @@ export interface DreInput {
   lead: string;
   mercado: Item[];
   cred: Cred;
+  /** % usado quando cred === "livre" */
+  credLivre: number;
   regiao: string;
   ticket: number;
   invest: Item[];
   desp: Item[];
+  /** Taxa de processamento (média), % sobre o faturamento */
   royalties: number;
   imposto: number;
-  dirige: number;
-  multa: number;
-  mkt: number;
-  /** parceiros que o lead consegue fechar e quantos casos cada um indica por mês */
+  /** parceiros que o lead consegue fazer na região e leads que cada um indica por mês */
   parceiros: number;
   indicPorParceiro: number;
-  conv: number;
+  /** leads por mês vindos do marketing */
+  leadsMkt: number;
+  /** taxa de conversão (lead -> cliente) de cada canal, em % */
+  convCirculo: number;
+  convParceiros: number;
+  convMkt: number;
   rampa: number;
 }
+
+export const credPct = (S: Pick<DreInput, "cred" | "credLivre">) => (S.cred === "livre" ? Math.max(+S.credLivre || 0, 0) : CRED_PCT[S.cred] ?? CRED_PCT.media);
 
 export const DEFAULT_INPUT: DreInput = {
   lead: "",
@@ -39,42 +50,43 @@ export const DEFAULT_INPUT: DreInput = {
   mercado: [
     { n: "Família (tios, primos, parentes)", v: 0 },
     { n: "Amigos próximos", v: 0 },
-    { n: "Empresas onde já trabalhou", v: 0 },
+    { n: "Pessoas com quem você trabalhou", v: 0 },
     { n: "Contatos de WhatsApp", v: 0 },
     { n: "Seguidores no Facebook", v: 0 },
     { n: "Seguidores no Instagram", v: 0 },
   ],
   cred: "media",
+  credLivre: 10,
   regiao: "Brasil",
   ticket: 1000,
   invest: [
     { n: "Taxa de adesão à rede", v: 29900 },
-    { n: "Estrutura (home office / sala)", v: 2000 },
-    { n: "Equipamentos e sistemas", v: 4500 },
-    { n: "Marketing de lançamento", v: 3000 },
-    { n: "Capital de giro", v: 3000 },
+    { n: "Estrutura (home office / sala)", v: 0 },
+    { n: "Equipamentos (Computador, Celular)", v: 0 },
+    { n: "Gestor de Tráfego", v: 0 },
+    { n: "Marketing", v: 0 },
+    { n: "Capital de giro", v: 0 },
   ],
   desp: [
-    { n: "Internet e telefone", v: 200 },
+    { n: "Internet e telefone", v: 0 },
     { n: "Sistemas / CRM", v: 595 },
     { n: "Marketing e tráfego pago", v: 1000 },
-    { n: "Contador", v: 300 },
+    { n: "Contador", v: 0 },
     { n: "Pró-labore / retirada", v: 0 },
   ],
-  royalties: 45,
+  royalties: 50,
   imposto: 6,
-  dirige: 75,
-  multa: 30,
-  conv: 24,
-  mkt: 20,
   parceiros: 0,
   indicPorParceiro: 1.5,
+  leadsMkt: 200,
+  convCirculo: 50,
+  convParceiros: 50,
+  convMkt: 10,
   rampa: 6,
 };
 
 export interface MesDre {
   m: number;
-  ano: number;
   casos: number;
   faturamento: number;
   roy: number;
@@ -88,13 +100,18 @@ export interface MesDre {
 
 export interface DreResult {
   mercado: number;
-  dirigem: number;
-  comMulta: number;
-  fecham: number;
+  /** % do círculo que vira lead por ano */
+  pctCirculo: number;
+  /** leads por mês de cada canal */
+  leadsCirculo: number;
+  leadsParceiros: number;
+  leadsMkt: number;
+  leadsMes: number;
+  /** clientes por mês de cada canal (leads × conversão) */
   casosCirculo: number;
-  casosMkt: number;
-  /** indicações dos parceiros por mês (parceiros × média por parceiro) */
   casosParceiros: number;
+  casosMkt: number;
+  /** clientes por mês no ritmo máximo */
   casosMes: number;
   ticket: number;
   inv: number;
@@ -116,14 +133,15 @@ export const tot = (rows: MesDre[], k: keyof MesDre) => rows.reduce((s, x) => s 
 
 export function calc(S: DreInput, ajuste = { conv: 1, mkt: 1 }): DreResult {
   const mercado = sum(S.mercado);
-  const cf = CRED[S.cred];
-  const dirigem = (mercado * S.dirige) / 100;
-  const comMulta = (dirigem * S.multa) / 100 * cf;
-  const fecham = ((comMulta * S.conv) / 100) * ajuste.conv;
-  const casosCirculo = fecham / 12;
-  const casosMkt = (+S.mkt || 0) * ajuste.mkt;
-  const casosParceiros = (+S.parceiros || 0) * (+S.indicPorParceiro || 0) * ajuste.mkt;
-  const casosMes = casosCirculo + casosMkt + casosParceiros;
+  const pctCirculo = credPct(S);
+  // O círculo vira lead ao longo de 12 meses: 4.000 pessoas × 10% = 400 leads ÷ 12 por mês.
+  const leadsCirculo = (mercado * pctCirculo) / 100 / 12;
+  const leadsParceiros = (+S.parceiros || 0) * (+S.indicPorParceiro || 0);
+  const leadsMkt = +S.leadsMkt || 0;
+  const casosCirculo = (leadsCirculo * (+S.convCirculo || 0)) / 100 * ajuste.conv;
+  const casosParceiros = (leadsParceiros * (+S.convParceiros || 0)) / 100 * ajuste.mkt;
+  const casosMkt = (leadsMkt * (+S.convMkt || 0)) / 100 * ajuste.mkt;
+  const casosMes = casosCirculo + casosParceiros + casosMkt;
   const ticket = +S.ticket || 0;
   const inv = sum(S.invest);
   const fixa = sum(S.desp);
@@ -142,13 +160,14 @@ export function calc(S: DreInput, ajuste = { conv: 1, mkt: 1 }): DreResult {
     acc += resultado;
     const saldo = acc - inv;
     if (pay === null && saldo >= 0) pay = m;
-    meses.push({ m, ano: Math.ceil(m / 12), casos, faturamento, roy, imp, margem, fixa, resultado, acc, saldo });
+    meses.push({ m, casos, faturamento, roy, imp, margem, fixa, resultado, acc, saldo });
   }
 
-  const margemPorCaso = ticket * (1 - (S.royalties + S.imposto) / 100);
-  const equilibrio = margemPorCaso > 0 ? fixa / margemPorCaso : null;
+  const margemPorCliente = ticket * (1 - (S.royalties + S.imposto) / 100);
+  const equilibrio = margemPorCliente > 0 ? fixa / margemPorCliente : null;
   return {
-    mercado, dirigem, comMulta, fecham, casosCirculo, casosMkt, casosParceiros, casosMes, ticket, inv, fixa, meses, pay,
+    mercado, pctCirculo, leadsCirculo, leadsParceiros, leadsMkt, leadsMes: leadsCirculo + leadsParceiros + leadsMkt,
+    casosCirculo, casosParceiros, casosMkt, casosMes, ticket, inv, fixa, meses, pay,
     pico: meses[35],
     equilibrio,
     folga: equilibrio ? casosMes / equilibrio : null,
