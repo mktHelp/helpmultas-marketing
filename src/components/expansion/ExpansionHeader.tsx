@@ -59,11 +59,11 @@ export function ExpansionShell({
   );
 
   return (
-    <div className="min-h-screen md:flex">
+    <div className="min-h-screen md:flex print:!block print:min-h-0">
       {/* Desktop */}
       <aside
         className={cn(
-          "relative z-30 hidden shrink-0 flex-col overflow-hidden bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 py-5 text-white transition-[width] duration-300 md:sticky md:top-0 md:flex md:h-screen",
+          "relative z-30 hidden shrink-0 print:!hidden flex-col overflow-hidden bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 py-5 text-white transition-[width] duration-300 md:sticky md:top-0 md:flex md:h-screen",
           collapsed ? "w-[76px] px-3" : "w-64 px-4"
         )}
       >
@@ -118,10 +118,10 @@ export function ExpansionShell({
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 print:!block">
         {/* Celular */}
         <header
-          className="sticky top-0 z-50 bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 shadow-md md:hidden"
+          className="sticky top-0 z-50 print:!hidden bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 shadow-md md:hidden"
           style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
           <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -138,7 +138,7 @@ export function ExpansionShell({
           </div>
         </header>
 
-        <main className="p-4 pb-24 md:pb-8 lg:p-8">
+        <main className="p-4 pb-24 md:pb-8 lg:p-8 print:p-0">
           <div className="mx-auto max-w-[1400px]">{children}</div>
         </main>
       </div>

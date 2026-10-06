@@ -26,7 +26,7 @@ export default async function ExpansionLayout({ children }: { children: React.Re
   return (
     <AuthProvider initialProfile={profile}>
       <TaskStatusProvider initialStatuses={(statuses as TaskStatusRow[]) || []}>
-        <div className="bg-gray-100/50">
+        <div className="bg-gray-100/50 print:bg-white">
           <ExpansionShell userName={profile?.full_name ?? ""} canReturnToHub={profile?.role !== "expansao"}>
             {children}
           </ExpansionShell>

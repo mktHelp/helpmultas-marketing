@@ -246,7 +246,7 @@ export function HelpinhoWidget() {
     <>
       {/* Botão flutuante */}
       {!open && (
-        <div className="fixed right-4 z-30 sm:right-5" style={{ bottom, marginBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="fixed right-4 z-30 print:hidden sm:right-5" style={{ bottom, marginBottom: "env(safe-area-inset-bottom)" }}>
           {greeting && (
             <div className="hw-bubble-in absolute bottom-full right-0 mb-3 w-max max-w-[220px] rounded-2xl rounded-br-md bg-white px-3.5 py-2.5 text-sm font-semibold text-blue-900 shadow-[var(--shadow-lg)] ring-1 ring-gray-200">
               Oi{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}! Posso ajudar? 👋
@@ -326,7 +326,7 @@ export function HelpinhoWidget() {
         <section
           role="dialog"
           aria-label="Conversa com o Helpinho"
-          className="hw-pop-in fixed inset-x-2 bottom-2 top-16 z-[45] flex flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-lg)] sm:inset-x-auto sm:bottom-5 sm:right-5 sm:top-auto sm:h-[min(640px,calc(100dvh-2.5rem))] sm:w-[400px]"
+          className="hw-pop-in print:hidden fixed inset-x-2 bottom-2 top-16 z-[45] flex flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-lg)] sm:inset-x-auto sm:bottom-5 sm:right-5 sm:top-auto sm:h-[min(640px,calc(100dvh-2.5rem))] sm:w-[400px]"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
           {/* Cabeçalho */}

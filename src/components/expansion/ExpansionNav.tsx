@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bot, Contact, Sparkles, LayoutDashboard, Megaphone, TrendingUp, type LucideIcon } from "lucide-react";
+import { Bot, Calculator, Contact, Sparkles, LayoutDashboard, Megaphone, TrendingUp, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const EXPANSION_SECTIONS = {
@@ -33,6 +33,13 @@ export const EXPANSION_SECTIONS = {
     title: "Leads",
     description: "Leads recebidos da Landing Page com rastreamento de anúncio de origem via UTM.",
     tone: "traffic",
+  },
+  dre: {
+    label: "DRE",
+    icon: Calculator,
+    title: "DRE do Franqueado",
+    description: "Simule a DRE com a realidade do lead — mercado, ticket, investimento e despesas — e mostre o retorno em 36 meses.",
+    tone: "blue",
   },
 } as const satisfies Record<string, { label: string; icon: LucideIcon; title: string; description: string; tone: "blue" | "traffic" }>;
 
@@ -144,10 +151,10 @@ export function ExpansionBottomNav() {
   return (
     <nav
       aria-label="Seções da Expansão"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 print:!hidden border-t border-gray-200 bg-white/95 backdrop-blur md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 items-end">
+      <div className="mx-auto grid max-w-md grid-cols-6 items-end">
         {[...SECTION_ITEMS.slice(0, 2), ASSISTANT_ITEM, ...SECTION_ITEMS.slice(2)].map(({ id, label, icon: Icon, href }) => {
           const isActive = id === active;
           if (id === "assistant") {

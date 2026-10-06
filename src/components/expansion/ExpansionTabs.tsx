@@ -6,6 +6,7 @@ import { EXPANSION_SECTIONS, useExpansionSection } from "@/components/expansion/
 import { TrafficAdsTable } from "@/components/ads/TrafficAdsTable";
 import { TrafficDashboard } from "@/components/ads/TrafficDashboard";
 import { TrafficLeads } from "@/components/ads/TrafficLeads";
+import { ExpansionDre } from "@/components/expansion/dre/ExpansionDre";
 import { SyncButton } from "@/components/ads/SyncButton";
 
 // A navegação fica no cabeçalho (desktop) e na barra inferior (celular);
@@ -16,19 +17,22 @@ export function ExpansionTabs() {
 
   return (
     <div>
+      <div className={section === "dre" ? "print:hidden" : undefined}>
       <PageHero
         tone={current.tone}
         icon={current.icon}
         title={current.title}
         description={current.description}
-        action={section !== "creatives" ? <SyncButton /> : undefined}
+        action={section !== "creatives" && section !== "dre" ? <SyncButton /> : undefined}
       />
+      </div>
 
       <div key={section} className="ast-fade-up">
         {section === "creatives" && <ExpansionCreativesTable />}
         {section === "traffic" && <TrafficAdsTable />}
         {section === "dashboard" && <TrafficDashboard />}
         {section === "leads" && <TrafficLeads />}
+        {section === "dre" && <ExpansionDre />}
       </div>
     </div>
   );

@@ -127,6 +127,23 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
 }
 
+/* O preflight do Tailwind v4 deixa botões com cursor padrão; elementos clicáveis ganham a mãozinha. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="option"],
+  summary,
+  select:not(:disabled),
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="range"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled { cursor: not-allowed; }
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--gray-300) transparent;
