@@ -536,6 +536,21 @@ export function TrafficLeads() {
   const [previewAd, setPreviewAd] = useState<{ name: string; metaAdId: string } | null>(null);
   const [showUtms, setShowUtms] = useState(false);
 
+  // Link vindo do assistente (?busca=Nome): preenche a busca e abre o período
+  // pra trás (o padrão de 7 dias esconderia leads mais antigos).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    // ?anuncio=<id do anúncio no Meta>[&nome=...] abre direto o preview do criativo.
+    const anuncio = params.get("anuncio")?.trim();
+    if (anuncio) setPreviewAd({ name: params.get("nome")?.trim() || "Anúncio", metaAdId: anuncio });
+    const busca = params.get("busca")?.trim();
+    if (!busca) return;
+    const until = defaultDateRange().until;
+    setDateRange({ since: `${Number(until.slice(0, 4)) - 1}${until.slice(4)}`, until });
+    setSearchInput(busca);
+    setSearch(busca);
+  }, []);
+
   useEffect(() => {
     Promise.all([
       supabase.from("meta_campaigns").select("id, name").order("name"),

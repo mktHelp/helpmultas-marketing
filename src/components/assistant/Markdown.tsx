@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -10,6 +11,52 @@ import { cn } from "@/lib/utils";
 // outro esquema (javascript:, data:) é descartado pelo urlTransform.
 function safeUrl(url: string) {
   return /^(https?:|mailto:|tel:|#|\/)/i.test(url) ? url : "";
+}
+
+// Links /trafego-pago/leads?anuncio=<metaAdId> viram um preview do criativo
+// dentro do chat (carrega ao clicar, pra não chamar a Meta à toa).
+function adIdFromHref(href?: string) {
+  if (!href?.startsWith("/trafego-pago/leads?")) return null;
+  return new URLSearchParams(href.split("?")[1]).get("anuncio")?.trim() || null;
+}
+
+function InlineAdPreview({ metaAdId, label, href }: { metaAdId: string; label: ReactNode; href: string }) {
+  const [state, setState] = useState<{ open: boolean; url: string | null; loading: boolean; error: string | null }>({ open: false, url: null, loading: false, error: null });
+
+  function toggle() {
+    if (state.open) return setState((s) => ({ ...s, open: false }));
+    if (state.url) return setState((s) => ({ ...s, open: true }));
+    setState({ open: true, url: null, loading: true, error: null });
+    fetch(`/api/meta-ads/preview?metaAdId=${encodeURIComponent(metaAdId)}`)
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Erro ao gerar preview");
+        setState({ open: true, url: json.previewUrl, loading: false, error: null });
+      })
+      .catch((err) => setState({ open: true, url: null, loading: false, error: err instanceof Error ? err.message : "Erro ao gerar preview" }));
+  }
+
+  return (
+    <span className="my-1 block">
+      <button
+        type="button"
+        onClick={toggle}
+        className="font-semibold text-blue-800 underline decoration-yellow-500 decoration-2 underline-offset-2 hover:text-blue-900"
+      >
+        {state.open ? "Ocultar preview" : label}
+      </button>
+      {state.open && (
+        <span className="mt-2 block">
+          {state.loading && <span className="text-xs text-gray-500">Carregando preview...</span>}
+          {state.error && <span className="text-xs text-[color:var(--color-danger)]">{state.error}</span>}
+          {state.url && <iframe src={state.url} title="Preview do anúncio" className="h-[560px] w-full max-w-[340px] rounded-xl border border-gray-200 bg-white" />}
+          <Link href={href} className="mt-1 block text-xs text-gray-500 underline">
+            Abrir na aba de leads
+          </Link>
+        </span>
+      )}
+    </span>
+  );
 }
 
 export function Markdown({ children, reveal = false, className }: { children: string; reveal?: boolean; className?: string }) {
@@ -24,6 +71,8 @@ export function Markdown({ children, reveal = false, className }: { children: st
           em: ({ children }) => <em className="italic">{children}</em>,
           a: ({ href, children }) => {
             const className = "font-semibold text-blue-800 underline decoration-yellow-500 decoration-2 underline-offset-2 hover:text-blue-900";
+            const adId = adIdFromHref(href);
+            if (href && adId) return <InlineAdPreview metaAdId={adId} label={children} href={href} />;
             // Links internos do app (ex.: /teleprompter?roteiro=…) navegam sem abrir outra aba.
             if (href && href.startsWith("/") && !href.startsWith("//")) {
               return (
