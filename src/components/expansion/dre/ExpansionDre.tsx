@@ -15,7 +15,7 @@ import { DreReport } from "./DreReport";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
-  CENARIOS, CRED_PCT, DEFAULT_INPUT, PERIODOS, REGIOES, brl, brlShort, calc, credPct, num, sum, tot,
+  CENARIOS, CRED_PCT, DEFAULT_INPUT, migrateInput, PERIODOS, REGIOES, brl, brlShort, calc, credPct, num, sum, tot,
   type Cred, type DreInput, type DreResult, type Item,
 } from "@/lib/expansion/dre";
 
@@ -38,7 +38,7 @@ type Filtro = "12 meses" | "24 meses" | "36 meses";
 function load(): DreInput {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...structuredClone(DEFAULT_INPUT), ...JSON.parse(raw) } : structuredClone(DEFAULT_INPUT);
+    return raw ? migrateInput({ ...structuredClone(DEFAULT_INPUT), ...JSON.parse(raw) }) : structuredClone(DEFAULT_INPUT);
   } catch {
     return structuredClone(DEFAULT_INPUT);
   }
@@ -404,7 +404,7 @@ function StepMercado({ S, c, patch }: StepProps) {
           <input value={S.lead} onChange={(e) => patch({ lead: e.target.value })} placeholder="Ex.: Roberson Alvarenga" className={inputCls} />
         </Field>
       </Section>
-      <ItemList title="Quem ele alcança" items={S.mercado} onChange={(mercado) => patch({ mercado })} total="Total de pessoas alcançadas" />
+      <ItemList title="Quem você alcança" items={S.mercado} onChange={(mercado) => patch({ mercado })} total="Total de pessoas alcançadas" />
       <Section title="Parceiros" hint="indicações recorrentes">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Quantos parceiros você consegue fazer na sua região?" help="Contadores, despachantes, autoescolas, oficinas, etc.">
@@ -419,7 +419,7 @@ function StepMercado({ S, c, patch }: StepProps) {
           <b className="font-display text-base text-blue-900">{c.leadsParceiros.toFixed(1).replace(".", ",")}</b>
         </div>
       </Section>
-      <Section title="Credibilidade no meio dele" hint="% do círculo que vira lead em 12 meses">
+      <Section title="Sua credibilidade no seu meio" hint="% do círculo que vira lead em 12 meses">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {([["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]] as [Exclude<Cred, "livre">, string][]).map(([v, t]) => (
             <button key={v} type="button" onClick={() => patch({ cred: v })} className={cn("rounded-xl border-2 py-2 text-sm font-bold transition-colors", S.cred === v ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 text-blue-900 hover:border-blue-900")}>
@@ -518,11 +518,11 @@ function StepTicket({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: s
         </Live>
       }
     >
-      <Section title="Região do lead" hint="só identifica o lead">
+      <Section title="Sua região" hint="só identifica a simulação">
         <RegionSelect value={S.regiao} options={regioes} onChange={pickRegiao} />
       </Section>
       <Section title="Ticket médio" hint="receita média por cliente">
-        <Field label="Ticket médio" help="Receita média por cliente fechado. Altere conforme a realidade do lead.">
+        <Field label="Ticket médio" help="Receita média por cliente fechado. Altere conforme a sua realidade.">
           <NumInput value={S.ticket} onChange={(ticket) => patch({ ticket })} prefix="R$" />
         </Field>
       </Section>
@@ -554,7 +554,7 @@ function StepDespesas({ S, c, patch }: StepProps) {
           <p className="mb-3 text-sm font-semibold">Despesas fixas por mês</p>
           <Bars items={S.desp.map((x) => ({ n: x.n, v: +x.v || 0 }))} />
           {c.equilibrio !== null && (
-            <p className="mt-3 text-xs text-blue-100">Para pagar tudo, ele precisa de <b className="text-yellow-500">{c.equilibrio.toFixed(1).replace(".", ",")} clientes/mês</b>.</p>
+            <p className="mt-3 text-xs text-blue-100">Para pagar tudo, você precisa de <b className="text-yellow-500">{c.equilibrio.toFixed(1).replace(".", ",")} clientes/mês</b>.</p>
           )}
         </Live>
       }
@@ -713,7 +713,7 @@ function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; fi
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {cenarios.map((x) => (
-            <div key={x.id} className={cn("rounded-2xl border p-4", x.id === "realista" ? "border-yellow-500 bg-yellow-050" : "border-gray-200")}>
+            <div key={x.id} className={cn("rounded-2xl border p-4", x.id === "conservador" && "border-orange-400 bg-orange-50", x.id === "realista" && "border-yellow-500 bg-yellow-050", x.id === "otimista" && "border-[color:var(--color-success)] bg-[color:var(--color-success-bg)]")}>
               <p className="font-display text-sm font-bold text-blue-900">{x.label}</p>
               <p className="mb-3 text-[11px] leading-snug text-gray-500">{x.desc}</p>
               <p className="text-xs text-gray-500">Retorno</p>

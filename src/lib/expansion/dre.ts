@@ -52,8 +52,8 @@ export const DEFAULT_INPUT: DreInput = {
     { n: "Amigos próximos", v: 0 },
     { n: "Pessoas com quem você trabalhou", v: 0 },
     { n: "Contatos de WhatsApp", v: 0 },
-    { n: "Seguidores no Facebook", v: 0 },
-    { n: "Seguidores no Instagram", v: 0 },
+    { n: "Amigos do Facebook", v: 0 },
+    { n: "Amigos do Instagram", v: 0 },
   ],
   cred: "media",
   credLivre: 10,
@@ -84,6 +84,17 @@ export const DEFAULT_INPUT: DreInput = {
   convMkt: 10,
   rampa: 6,
 };
+
+const RENAMES: Record<string, string> = {
+  "Seguidores no Facebook": "Amigos do Facebook",
+  "Seguidores no Instagram": "Amigos do Instagram",
+  "Empresas onde já trabalhou": "Pessoas com quem você trabalhou",
+};
+
+/** Atualiza nomes antigos de itens em simulações já em andamento ou salvas (os valores são mantidos). */
+export function migrateInput(input: DreInput): DreInput {
+  return { ...input, mercado: (input.mercado ?? []).map((x) => ({ ...x, n: RENAMES[x.n] ?? x.n })) };
+}
 
 export interface MesDre {
   m: number;

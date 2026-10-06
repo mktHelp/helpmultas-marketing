@@ -232,9 +232,9 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
         <div className="grid grid-cols-3 gap-2.5">
           {CENARIOS.map((x) => {
             const r = calc(S, x.ajuste);
-            const real = x.id === "realista";
+            const tone = { conservador: ["#fb923c", "#fff4e8"], realista: [YELLOW, "#fff9e6"], otimista: [GREEN, "#e6f5ec"] }[x.id];
             return (
-              <div key={x.id} className="rounded-xl border p-3" style={{ borderColor: real ? YELLOW : "#e5e7eb", background: real ? "#fff9e6" : "#fff" }}>
+              <div key={x.id} className="rounded-xl border p-3" style={{ borderColor: tone[0], background: tone[1] }}>
                 <div className="font-display text-[12px] font-bold">{x.label}</div>
                 <div className="mb-2 text-[9px] leading-snug text-gray-500">{x.desc}</div>
                 <div className="grid grid-cols-3 gap-1 text-[9px] text-gray-500">

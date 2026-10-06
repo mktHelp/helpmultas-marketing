@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { DEFAULT_INPUT, type DreInput, type DreResult } from "@/lib/expansion/dre";
+import { DEFAULT_INPUT, migrateInput, type DreInput, type DreResult } from "@/lib/expansion/dre";
 
 export interface DreSimulationRow {
   id: string;
@@ -44,7 +44,7 @@ export async function getDreSimulation(supabase: SupabaseClient, id: string) {
   return {
     id: data.id as string,
     updatedAt: data.updated_at as string,
-    input: { ...structuredClone(DEFAULT_INPUT), ...(data.inputs as Partial<DreInput>) } as DreInput,
+    input: migrateInput({ ...structuredClone(DEFAULT_INPUT), ...(data.inputs as Partial<DreInput>) } as DreInput),
   };
 }
 
