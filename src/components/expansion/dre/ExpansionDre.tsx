@@ -570,6 +570,8 @@ function StepDespesas({ S, c, patch }: StepProps) {
   );
 }
 
+const ROW = "grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)] items-center gap-3";
+
 function StepProjecao({ S, c, patch }: StepProps) {
   const f = (n: number) => n.toFixed(1).replace(".", ",");
   const canais = [
@@ -579,45 +581,39 @@ function StepProjecao({ S, c, patch }: StepProps) {
   ];
   return (
     <Split aside={<Live c={c}><p className="mb-3 text-sm font-semibold">Dos leads aos clientes</p><div className="text-white"><FunnelDark c={c} S={S} /></div></Live>}>
-      <Section title="Leads por canal" hint="por mês, no ritmo máximo">
-        <div className="space-y-3">
-          {canais.map((x) => (
-            <div key={x.n} className="rounded-2xl border border-gray-200 p-3">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="font-display text-sm font-bold text-blue-900">{x.n}</span>
-                <span className="text-[11px] text-gray-500">{x.desc}</span>
-              </div>
-              <div className="mt-2 grid grid-cols-3 items-end gap-3">
-                <div>
-                  <span className="text-[11px] font-semibold text-gray-500">Leads / mês</span>
-                  {x.n === "Marketing" ? (
-                    <NumInput value={S.leadsMkt} onChange={(leadsMkt) => patch({ leadsMkt })} />
-                  ) : (
-                    <p className="flex h-10 items-center font-display text-lg font-bold text-blue-900">{f(x.leads)}</p>
-                  )}
-                </div>
-                <div>
-                  <span className="text-[11px] font-semibold text-gray-500">Conversão</span>
-                  <NumInput value={S[x.key]} onChange={(v) => patch({ [x.key]: v } as Partial<DreInput>)} suffix="%" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-semibold text-gray-500">Clientes / mês</span>
-                  <p className="flex h-10 items-center font-display text-lg font-bold text-blue-900">{f(x.cli)}</p>
-                </div>
-              </div>
+      <Section title="Leads e clientes por mês" hint="no ritmo máximo">
+        <div className="overflow-x-auto">
+          <div className="min-w-[480px]">
+            <div className={cn(ROW, "pb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500")}>
+              <span>Canal</span><span>Leads</span><span>Conversão</span><span className="text-right">Clientes</span>
             </div>
-          ))}
+            {canais.map((x) => (
+              <div key={x.n} className={cn(ROW, "border-t border-gray-100 py-2.5")}>
+                <div className="min-w-0">
+                  <p className="font-display text-sm font-bold text-blue-900">{x.n}</p>
+                  <p className="truncate text-[11px] text-gray-500" title={x.desc}>{x.desc}</p>
+                </div>
+                {x.n === "Marketing" ? (
+                  <NumInput value={S.leadsMkt} onChange={(leadsMkt) => patch({ leadsMkt })} className="[&_input]:h-9" />
+                ) : (
+                  <p className="font-display text-base font-bold text-blue-900">{f(x.leads)}</p>
+                )}
+                <NumInput value={S[x.key]} onChange={(v) => patch({ [x.key]: v } as Partial<DreInput>)} suffix="%" className="[&_input]:h-9" />
+                <p className="text-right font-display text-base font-bold text-blue-900">{f(x.cli)}</p>
+              </div>
+            ))}
+            <div className={cn(ROW, "rounded-xl bg-blue-050 px-3 py-2.5 text-blue-900")}>
+              <span className="font-display text-sm font-bold">Total</span>
+              <b className="font-display text-base">{f(c.leadsMes)}</b>
+              <span className="text-[11px] text-blue-800">× ticket {brl(c.ticket)}</span>
+              <span className="text-right"><b className="font-display text-base">{f(c.casosMes)}</b><span className="block text-[11px] text-blue-800">{brl(c.casosMes * c.ticket)}/mês</span></span>
+            </div>
+          </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3 rounded-xl bg-blue-050 px-4 py-3 text-sm">
-          <div><span className="block text-[11px] text-blue-800">Total de leads / mês</span><b className="font-display text-base text-blue-900">{f(c.leadsMes)}</b></div>
-          <div><span className="block text-[11px] text-blue-800">Total de clientes / mês</span><b className="font-display text-base text-blue-900">{f(c.casosMes)}</b></div>
-          <div><span className="block text-[11px] text-blue-800">× ticket {brl(c.ticket)}</span><b className="font-display text-base text-blue-900">{brl(c.casosMes * c.ticket)}/mês</b></div>
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
+          <span className="text-sm font-semibold text-blue-900">Meses até atingir o ritmo máximo</span>
+          <NumInput value={S.rampa} onChange={(rampa) => patch({ rampa })} suffix="meses" className="w-36 shrink-0 [&_input]:h-9" />
         </div>
-      </Section>
-      <Section title="Ritmo" hint="crescimento até o máximo">
-        <Field label="Meses até atingir o ritmo máximo">
-          <NumInput value={S.rampa} onChange={(rampa) => patch({ rampa })} suffix="meses" />
-        </Field>
       </Section>
       <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-400 px-5 py-4 text-blue-900">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-sm font-bold text-yellow-500">60d</span>
