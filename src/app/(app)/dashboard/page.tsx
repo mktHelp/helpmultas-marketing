@@ -104,9 +104,10 @@ export default async function DashboardPage() {
         slots={{
           panels: (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <GoalsPanel goals={goals} tasks={tasks} statuses={statuses} areas={areas} profiles={profiles} canManage={canManageGoals} />
-              <TimeManagementCard rows={timeRows} />
+              <GoalsPanel key="goals" goals={goals} tasks={tasks} statuses={statuses} areas={areas} profiles={profiles} canManage={canManageGoals} />
+              <TimeManagementCard key="time" rows={timeRows} />
               <SocialFollowersCard
+                key="social"
                 accounts={socialAccounts}
                 snapshots={socialSnapshots}
                 linkClicks={socialLinkClicks}

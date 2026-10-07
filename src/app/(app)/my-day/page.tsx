@@ -57,9 +57,9 @@ function ProgressRing({ percent, size = 84 }: { percent: number; size?: number }
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <div className="relative shrink-0 text-blue-900" style={{ width: size, height: size }} role="img" aria-label={`${percent}% do dia concluído`}>
+    <div className="relative shrink-0 text-white" style={{ width: size, height: size }} role="img" aria-label={`${percent}% do dia concluído`}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(36,55,70,0.10)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -74,8 +74,8 @@ function ProgressRing({ percent, size = 84 }: { percent: number; size?: number }
         />
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className="font-display text-xl font-bold tabular-nums">{percent}%</span>
-        <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">do dia</span>
+        <span className="font-display text-xl font-bold tabular-nums text-white">{percent}%</span>
+        <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-blue-100">do dia</span>
       </span>
     </div>
   );

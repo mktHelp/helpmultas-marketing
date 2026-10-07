@@ -109,7 +109,7 @@ export default function CalendarPage() {
             <Button size="icon" variant="secondary" onClick={() => setMonth(subMonths(month, 1))} aria-label="Mês anterior">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="w-36 text-center font-display text-sm font-bold capitalize text-blue-900">
+            <span className="w-36 text-center font-display text-sm font-bold capitalize text-white">
               {format(month, "MMMM yyyy", { locale: ptBR })}
             </span>
             <Button size="icon" variant="secondary" onClick={() => setMonth(addMonths(month, 1))} aria-label="Próximo mês">
