@@ -5,11 +5,10 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   AlertTriangle, CalendarClock, CalendarDays, Check, CheckCircle2, CheckSquare, ChevronDown, Flame, Hourglass, ListTodo,
-  Search, Target, X,
+  Target, X,
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Card } from "@/components/ui/Card";
-import { Select } from "@/components/ui/Select";
 import { Tabs } from "@/components/ui/Tabs";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -29,6 +28,8 @@ import {
 } from "@/lib/home-analytics";
 import { cn, toDateKey } from "@/lib/utils";
 import type { Profile, TaskWithRelations } from "@/types/database";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterSelect } from "@/components/ui/FilterBar";
 
 // "Minhas Tarefas": visão pessoal no mesmo padrão das dashboards (KPIs com
 // comparação, gráficos, filtros rápidos), com três visões da mesma lista —
@@ -420,41 +421,25 @@ export function MyTasksDashboard({
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <div className="relative w-64 max-w-full">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por título, projeto ou área"
-              className="h-9 w-full rounded-[14px] border border-gray-200 bg-white pl-9 pr-3 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
-            />
-          </div>
-          <div className="w-40">
-            <Select className="h-9" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <SearchInput value={search} onChange={setSearch} placeholder="Buscar por título, projeto ou área" />
+          <FilterSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">Todos os status</option>
               {activeStatuses.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-            </Select>
-          </div>
-          <div className="w-36">
-            <Select className="h-9" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+            </FilterSelect>
+          <FilterSelect value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
               <option value="">Prioridade</option>
               {(["urgente", "alta", "media", "baixa"] as const).map((p) => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
-            </Select>
-          </div>
-          <div className="w-40">
-            <Select className="h-9" value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)}>
+            </FilterSelect>
+          <FilterSelect value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)}>
               <option value="">Todas as áreas</option>
               {areaOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </Select>
-          </div>
+            </FilterSelect>
           {view !== "board" && (
-            <div className="w-44">
-              <Select className="h-9" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <FilterSelect value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
                 <option value="due">Ordenar: prazo</option>
                 <option value="priority">Ordenar: prioridade</option>
                 <option value="recent">Ordenar: mais recentes</option>
-              </Select>
-            </div>
+              </FilterSelect>
           )}
           {hasFilter && (
             <button onClick={clearFilters} className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:border-blue-900">

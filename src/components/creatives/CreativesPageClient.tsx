@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Image as ImageIcon, Plus } from "lucide-react";
-import { PageHero } from "@/components/shared/PageHero";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { CreativesTable } from "@/components/creatives/CreativesTable";
 import { createClient } from "@/lib/supabase/client";
@@ -21,8 +21,7 @@ export function CreativesPageClient() {
 
   return (
     <div>
-      <PageHero
-        tone="traffic"
+      <PageHeader
         icon={ImageIcon}
         title="Criativos"
         description="Controle de entrega de criativos, em tempo real."

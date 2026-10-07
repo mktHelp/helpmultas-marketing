@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from "recharts";
-import { ArrowLeft, ArrowLeftRight, ArrowRight, BarChart3, Check, ChevronDown, FolderOpen, Home, Loader2, MapPin, Store, Plus, Save, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, ArrowRight, BarChart3, Check, ChevronDown, FolderOpen, Home, Loader2, MapPin, Settings2, Store, Plus, Save, Printer, Receipt, RotateCcw, Trash2, TrendingUp, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/lib/auth-context";
@@ -12,30 +9,31 @@ import { createClient } from "@/lib/supabase/client";
 import { DreConflictError, getDreSimulation, saveDreSimulation } from "@/lib/services/dreSimulations";
 import { SavedSimulations } from "./SavedSimulations";
 import { DreReport } from "./DreReport";
-import { DreDetalhada } from "./DreDetalhada";
+import { StepDre, StepResumo } from "./DreVisual";
+import { InsightsCard } from "./InsightsCard";
+import { TrocarModelo } from "./TrocarModelo";
+import { NovoLead } from "./NovoLead";
+import { normalizar, pendentesDeIA } from "@/lib/expansion/categoria";
+import { PreencherTexto } from "./PreencherTexto";
+import { Funnel, type Filtro } from "./parts";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
-  CENARIOS, CRED_PCT, DEFAULT_INPUT, MODELO_LABEL, inputForModelo, migrateInput, switchModelo, PERIODOS, REGIOES, brl, brlShort, calc, credPct, num, sum, tot,
+  CRED_PCT, DEFAULT_INPUT, MODELO_LABEL, inputForModelo, migrateInput, switchModelo, PRESETS, REGIOES, brl, brlShort, calc, credPct, num, sum,
   type Cred, type DreInput, type DreResult, type Item, type Modelo,
 } from "@/lib/expansion/dre";
 
 const STORAGE_KEY = "hm-expansion-dre-v5";
+const UI_KEY = "hm-expansion-dre-ui-v1";
 const STEPS = [
-  { t: "Mercado", icon: Users },
-  { t: "Ticket médio", icon: Receipt },
-  { t: "Investimento", icon: Wallet },
-  { t: "Despesas", icon: Receipt },
-  { t: "Projeção", icon: TrendingUp },
-  { t: "Resumo", icon: BarChart3 },
-  { t: "DRE", icon: Receipt },
+  { t: "Mercado", icon: Users, sub: "Quem o lead alcança: círculo de contatos, parceiros e credibilidade no meio dele." },
+  { t: "Ticket médio", icon: Receipt, sub: "Quanto cada cliente fechado deixa de receita." },
+  { t: "Investimento", icon: Wallet, sub: "O que o lead precisa colocar para abrir a operação." },
+  { t: "Despesas", icon: Receipt, sub: "Custos fixos mensais e o que é descontado do faturamento." },
+  { t: "Projeção", icon: TrendingUp, sub: "Dos leads aos clientes: quanto cada canal entrega por mês." },
+  { t: "Resumo", icon: BarChart3, sub: "A visão geral da viabilidade, pronta para mostrar ao lead." },
+  { t: "DRE", icon: Receipt, sub: "A demonstração do resultado em 12, 24 e 36 meses." },
 ] as const;
-const NAVY = "#243746";
-const YELLOW = "#fcbf00";
-const GREEN = "#2f8f5b";
-
-type Filtro = "12 meses" | "24 meses" | "36 meses";
-
 function load(): DreInput {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -48,12 +46,11 @@ function load(): DreInput {
   }
 }
 
-export function ExpansionDre() {
+export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => void } = {}) {
   const [S, setS] = useState<DreInput>(DEFAULT_INPUT);
   const [ready, setReady] = useState(false);
   const [step, setStep] = useState(0);
   const [filtro, setFiltro] = useState<Filtro>("36 meses");
-  const [confirmNovo, setConfirmNovo] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -61,15 +58,42 @@ export function ExpansionDre() {
   const [loaded, setLoaded] = useState<{ id: string; updatedAt: string } | null>(null);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [confirmModelo, setConfirmModelo] = useState(false);
+  const [confirmNovo, setConfirmNovo] = useState(false);
+  // alterações feitas depois do último salvar/abrir (protege o trabalho ao abrir outra simulação)
+  const [dirty, setDirty] = useState(false);
+  const [pendingOpen, setPendingOpen] = useState<{ id: string; print: boolean } | null>(null);
   // A primeira tela é sempre a escolha do modelo; "started" vira true ao escolher, continuar ou abrir uma salva.
   const [started, setStarted] = useState(false);
   const { profile } = useAuth();
   const [saveState, setSaveState] = useState<{ kind: "idle" | "saving" | "ok" | "error"; msg?: string }>({ kind: "idle" });
 
   useEffect(() => {
-    setS(load());
+    const saved = load();
+    setS(saved);
+    // Retoma exatamente de onde parou (etapa, período e simulação salva aberta) após recarregar a página.
+    try {
+      const raw = window.localStorage.getItem(UI_KEY);
+      if (raw && saved.modelo) {
+        const ui = JSON.parse(raw) as { started?: boolean; step?: number; filtro?: Filtro; loaded?: { id: string; updatedAt: string } | null; dirty?: boolean };
+        if (ui.started) setStarted(true);
+        if (typeof ui.step === "number" && ui.step >= 0 && ui.step < STEPS.length) setStep(ui.step);
+        if (ui.filtro && ["12 meses", "24 meses", "36 meses"].includes(ui.filtro)) setFiltro(ui.filtro);
+        if (ui.loaded?.id) setLoaded(ui.loaded);
+        if (ui.dirty) setDirty(true);
+      }
+    } catch {
+      // sem localStorage ou dado inválido: começa na tela inicial
+    }
     setReady(true);
   }, []);
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      window.localStorage.setItem(UI_KEY, JSON.stringify({ started, step, filtro, loaded, dirty }));
+    } catch {
+      // sem localStorage: segue sem salvar
+    }
+  }, [started, step, filtro, loaded, dirty, ready]);
   useEffect(() => {
     if (!ready) return;
     try {
@@ -80,6 +104,33 @@ export function ExpansionDre() {
   }, [S, ready]);
 
   const c = useMemo(() => calc(S), [S]);
+
+  // Despesas com nome novo (que nenhuma regra reconhece) são classificadas pela IA em segundo plano.
+  // Espera o nome parar de mudar, tenta cada nome uma vez por sessão e grava o resultado no item.
+  const tentadas = useRef(new Set<string>());
+  useEffect(() => {
+    if (!ready || !started) return;
+    const nomes = pendentesDeIA(S.desp).filter((n) => !tentadas.current.has(normalizar(n)));
+    if (!nomes.length) return;
+    const t = window.setTimeout(async () => {
+      nomes.forEach((n) => tentadas.current.add(normalizar(n)));
+      try {
+        const r = await fetch("/api/expansao/categoria", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nomes }) });
+        if (!r.ok) return;
+        const { categorias } = (await r.json()) as { categorias?: Record<string, "cac" | "oper" | "pessoal"> };
+        if (!categorias || !Object.keys(categorias).length) return;
+        setS((s) => ({ ...s, desp: s.desp.map((x) => (!x.cat && categorias[x.n.trim()] ? { ...x, cat: categorias[x.n.trim()] } : x)) }));
+      } catch {
+        // sem resposta da IA: o item fica em "operação"
+      }
+    }, 1500);
+    return () => window.clearTimeout(t);
+  }, [S.desp, ready, started]);
+
+  // Informa o modelo ao banner da página (só depois que a simulação começou).
+  useEffect(() => {
+    onModelo?.(ready && started ? S.modelo : null);
+  }, [onModelo, ready, started, S.modelo]);
 
   // Relatório impresso: monta Resumo + DRE completos (sem rolagem interna) e só então abre o diálogo.
   useEffect(() => {
@@ -92,14 +143,17 @@ export function ExpansionDre() {
     window.setTimeout(() => window.print(), 700);
   }
   const patch = (p: Partial<DreInput>) => {
+    setDirty(true);
     setS((s) => ({ ...s, ...p }));
     setSaveState((st) => (st.kind === "idle" ? st : { kind: "idle" }));
   };
   const patchAll = (next: DreInput) => {
+    setDirty(true);
     setS(next);
     setSaveState((st) => (st.kind === "idle" ? st : { kind: "idle" }));
   };
   const go = (n: number) => {
+    if (n === step) return; // clicar na etapa em que já está não rola a página
     setStep(n);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -110,6 +164,7 @@ export function ExpansionDre() {
       const sim = await getDreSimulation(createClient(), id);
       setS(sim.input);
       setLoaded({ id: sim.id, updatedAt: sim.updatedAt });
+      setDirty(false);
       setSaveState({ kind: "idle" });
       setSavedOpen(false);
       setStarted(true);
@@ -125,32 +180,55 @@ export function ExpansionDre() {
     }
   }
 
-  async function salvar(force = false) {
+  /** Devolve true só quando a simulação foi gravada. */
+  /** Abrir uma salva substitui o que está na tela: confirma se há trabalho em andamento não salvo. */
+  function pedirAbrirSalva(id: string, print = false) {
+    const emAndamento = !!S.modelo && (!!S.lead.trim() || sum(S.mercado) > 0 || S.parceiros > 0 || S.leadsMkt !== DEFAULT_INPUT.leadsMkt);
+    const protegido = !!loaded && !dirty; // a que está aberta já foi salva e não mudou
+    if (emAndamento && !protegido) {
+      setSavedOpen(false);
+      setPendingOpen({ id, print });
+      return;
+    }
+    void abrirSalva(id, print);
+  }
+
+  async function salvar(force = false): Promise<boolean> {
     if (!S.lead.trim()) {
       setSaveState({ kind: "error", msg: "Informe o nome do lead (etapa Mercado) para salvar." });
-      return;
+      return false;
     }
     setSaveState({ kind: "saving" });
     try {
       const r = await saveDreSimulation(createClient(), S, c, profile?.id ?? null, { expectedId: loaded?.id, expectedUpdatedAt: loaded?.updatedAt, force });
       setLoaded({ id: r.id, updatedAt: r.updatedAt });
+      setDirty(false);
       setSaveState({ kind: "ok", msg: r.kind === "created" ? `Simulação de ${S.lead.trim()} salva.` : `Simulação de ${S.lead.trim()} atualizada.` });
+      return true;
     } catch (e) {
       if (e instanceof DreConflictError) {
         setSaveState({ kind: "idle" });
+        setConfirmNovo(false);
         setConfirmOverwrite(true);
-        return;
+        return false;
       }
       setSaveState({ kind: "error", msg: e instanceof Error && e.message ? e.message : "Não foi possível salvar. Tente de novo." });
+      return false;
     }
   }
 
-  function novoLead() {
-    setConfirmNovo(false);
-    setS(structuredClone(DEFAULT_INPUT));
-    setLoaded(null);
+  async function salvarENovo() {
+    if (await salvar()) {
+      setConfirmNovo(false);
+      irParaInicio();
+    }
+  }
+
+  /** Volta à tela inicial para começar outro lead; o rascunho atual continua lá em "Continuar". */
+  function irParaInicio() {
     setStarted(false);
     setStep(0);
+    window.scrollTo({ top: 0 });
   }
 
   function pickRegiao(r: string) {
@@ -177,55 +255,51 @@ export function ExpansionDre() {
 
   if (!started || !S.modelo) {
     const draftLead = S.lead.trim();
-    const hasDraft = !!S.modelo && (!!draftLead || sum(S.mercado) > 0 || S.parceiros > 0 || S.leadsMkt > 0);
+    const hasDraft = !!S.modelo && (!!draftLead || sum(S.mercado) > 0 || S.parceiros > 0 || S.leadsMkt !== DEFAULT_INPUT.leadsMkt);
     return (
       <>
         <ModeloPicker onPick={escolherModelo} onSaved={() => setSavedOpen(true)} draft={hasDraft ? { lead: draftLead } : null} onContinue={() => setStarted(true)} />
-        <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => abrirSalva(id)} onPrint={(id) => abrirSalva(id, true)} busyId={busyId} />
+        <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => pedirAbrirSalva(id)} onPrint={(id) => pedirAbrirSalva(id, true)} busyId={busyId} />
       </>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Etapas */}
-      <Card className="p-2 print:hidden">
-        <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {STEPS.map(({ t, icon: Icon }, i) => (
-            <button
-              key={t}
-              type="button"
-              ref={i === step ? (el) => el?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }) : undefined}
-              onClick={() => go(i)}
-              className={cn(
-                "flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors sm:text-sm",
-                i === step ? "bg-blue-900 text-white" : i < step ? "text-blue-800 hover:bg-blue-050" : "text-gray-500 hover:bg-gray-050"
-              )}
-            >
-              <span className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[11px]", i === step ? "bg-yellow-500 text-blue-900" : "bg-gray-100")}>
-                {i + 1}
-              </span>
-              <Icon className="hidden h-4 w-4 sm:block" />
-              {t}
-            </button>
-          ))}
-          <button type="button" onClick={() => setConfirmModelo(true)} title="Trocar de modelo" className={cn("ml-auto flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold", S.modelo === "loja" ? "bg-yellow-500 text-blue-900" : "bg-blue-900 text-white")}>
-            {S.modelo === "loja" ? <Store className="h-3.5 w-3.5" /> : <Home className="h-3.5 w-3.5" />} {MODELO_LABEL[S.modelo]} <ArrowLeftRight className="h-3 w-3 opacity-70" />
-          </button>
-          <button type="button" onClick={() => setSavedOpen(true)} className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-050">
-            <FolderOpen className="h-3.5 w-3.5" /> Salvas
-          </button>
-          <button type="button" onClick={() => setConfirmNovo(true)} className="flex shrink-0 flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-gray-500 hover:bg-gray-050 hover:text-blue-900">
-            <RotateCcw className="h-3.5 w-3.5" /> Novo lead
-          </button>
+      {/* Cabeçalho: etapa atual, ações da simulação e progresso */}
+      <header className="space-y-4 print:hidden">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-widest text-yellow-600">
+              Etapa {step + 1} de {STEPS.length} · {MODELO_LABEL[S.modelo]}{S.lead ? ` · ${S.lead}` : ""}
+            </p>
+            <h2 className="mt-0.5 font-display text-2xl font-bold text-blue-900 sm:text-3xl">{STEPS[step].t}</h2>
+            <p className="mt-1 max-w-xl text-sm text-gray-500">{STEPS[step].sub}</p>
+          </div>
+          <MenuSimulacao
+            outroModelo={MODELO_LABEL[outroModelo]}
+            onTrocarModelo={() => setConfirmModelo(true)}
+            onSalvas={() => setSavedOpen(true)}
+            onNovo={() => setConfirmNovo(true)}
+          />
         </div>
-      </Card>
 
-      {S.lead && step !== 5 && (
-        <p className="px-1 text-sm text-gray-500">
-          Simulação para <b className="text-blue-900">{S.lead}</b>
-        </p>
-      )}
+        <nav aria-label="Etapas da simulação">
+          <ol className="grid grid-cols-7 gap-1.5 sm:gap-2">
+            {STEPS.map(({ t, icon: Icon }, i) => (
+              <li key={t}>
+                <button type="button" onClick={() => go(i)} aria-current={i === step ? "step" : undefined} className="group block w-full text-left">
+                  <span className={cn("block h-1.5 rounded-full transition-colors", i <= step ? "bg-yellow-500" : "bg-gray-200 group-hover:bg-gray-300")} />
+                  <span className={cn("mt-2 hidden items-center gap-1.5 text-xs font-bold sm:flex md:hidden lg:flex", i === step ? "text-blue-900" : i < step ? "text-blue-800" : "text-gray-400 group-hover:text-gray-500")}>
+                    {i < step ? <Check className="h-3.5 w-3.5 text-[color:var(--color-success)]" /> : <Icon className="h-3.5 w-3.5" />}
+                    <span className="truncate">{t}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      </header>
 
       {step === 0 && <StepMercado S={S} c={c} patch={patch} />}
       {step === 1 && <StepTicket S={S} c={c} patch={patch} pickRegiao={pickRegiao} />}
@@ -235,20 +309,20 @@ export function ExpansionDre() {
       {step === 5 && <StepResumo S={S} c={c} filtro={filtro} setFiltro={setFiltro} />}
       {step === 6 && <StepDre S={S} c={c} filtro={filtro} setFiltro={setFiltro} />}
 
-      <div className="flex items-center justify-between gap-3 print:hidden">
-        <Button variant="dark" disabled={step === 0} onClick={() => go(step - 1)}>
-          <ArrowLeft className="h-4 w-4" /> Voltar
+      <div className="sticky bottom-3 z-10 flex items-center justify-between gap-3 rounded-2xl bg-white/90 p-2.5 shadow-[var(--shadow-lg)] ring-1 ring-gray-200 backdrop-blur print:hidden">
+        <Button variant="ghost" disabled={step === 0} onClick={() => go(step - 1)}>
+          <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Voltar</span>
         </Button>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
           {saveState.msg && (
-            <span className={cn("text-xs font-semibold", saveState.kind === "error" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]")}>{saveState.msg}</span>
+            <span className={cn("hidden truncate text-xs font-semibold md:block", saveState.kind === "error" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]")}>{saveState.msg}</span>
           )}
           <Button variant="secondary" onClick={() => salvar()} disabled={saveState.kind === "saving"}>
             {saveState.kind === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
           </Button>
           {step >= 5 && (
             <Button variant="secondary" onClick={imprimir}>
-              <Printer className="h-4 w-4" /> Imprimir / salvar PDF
+              <Printer className="h-4 w-4" /> <span className="hidden sm:inline">PDF</span>
             </Button>
           )}
           {step < STEPS.length - 1 && (
@@ -258,14 +332,37 @@ export function ExpansionDre() {
           )}
         </div>
       </div>
-      <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => abrirSalva(id)} onPrint={(id) => abrirSalva(id, true)} busyId={busyId} />
+      {saveState.msg && (
+        <p className={cn("px-1 text-center text-xs font-semibold md:hidden print:hidden", saveState.kind === "error" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]")}>{saveState.msg}</p>
+      )}
+      <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => pedirAbrirSalva(id)} onPrint={(id) => pedirAbrirSalva(id, true)} busyId={busyId} />
       <ConfirmDialog
-        open={confirmModelo}
-        onClose={() => setConfirmModelo(false)}
-        onConfirm={trocarModelo}
-        title={`Trocar para o Modelo ${MODELO_LABEL[outroModelo]}?`}
-        description="Tudo o que você já preencheu é mantido. Mudam apenas os valores que ainda estão no padrão do modelo atual, e os itens que só existem em um dos modelos são adicionados ou removidos."
-        confirmLabel={`Trocar para ${MODELO_LABEL[outroModelo]}`}
+        open={!!pendingOpen}
+        onClose={() => setPendingOpen(null)}
+        onConfirm={() => {
+          const p = pendingOpen;
+          setPendingOpen(null);
+          if (p) void abrirSalva(p.id, p.print);
+        }}
+        title="Abrir a simulação salva?"
+        description={`Você tem uma simulação em andamento${S.lead.trim() ? ` (${S.lead.trim()})` : ""} com alterações que ainda não foram salvas. Abrir a salva substitui o que está na tela. Cancele e use Salvar antes se quiser guardar o que você fez.`}
+        confirmLabel="Sim, abrir a salva"
+        danger
+      />
+      <TrocarModelo open={confirmModelo} atual={S.modelo} onClose={() => setConfirmModelo(false)} onConfirm={trocarModelo} />
+      <NovoLead
+        open={confirmNovo}
+        onClose={() => setConfirmNovo(false)}
+        S={S}
+        c={c}
+        jaSalva={saveState.kind === "ok"}
+        salvando={saveState.kind === "saving"}
+        erro={saveState.kind === "error" ? saveState.msg : undefined}
+        onSalvarENovo={salvarENovo}
+        onNovo={() => {
+          setConfirmNovo(false);
+          irParaInicio();
+        }}
       />
       <ConfirmDialog
         open={confirmOverwrite}
@@ -279,69 +376,118 @@ export function ExpansionDre() {
         confirmLabel="Sobrescrever"
         danger
       />
-      <ConfirmDialog
-        open={confirmNovo}
-        onClose={() => setConfirmNovo(false)}
-        onConfirm={novoLead}
-        title="Iniciar novo lead?"
-        description="Os dados da simulação atual serão apagados e você volta para a primeira etapa."
-        confirmLabel="Sim, novo lead"
-      />
+    </div>
+  );
+}
+
+function MenuSimulacao({ outroModelo, onTrocarModelo, onSalvas, onNovo }: { outroModelo: string; onTrocarModelo: () => void; onSalvas: () => void; onNovo: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  const itens = [
+    { icon: Plus, label: "Novo lead", sub: "Volta ao início para escolher o modelo", tile: "bg-yellow-500 text-blue-900", on: onNovo },
+    { icon: FolderOpen, label: "Simulações salvas", sub: "Abrir, comparar ou gerar PDF", tile: "bg-blue-050 text-blue-900", on: onSalvas },
+    { icon: ArrowLeftRight, label: `Trocar para ${outroModelo}`, sub: "Compare os modelos; o que você preencheu é mantido", tile: "bg-blue-050 text-blue-900", on: onTrocarModelo },
+  ];
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={cn("flex h-10 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-blue-900 shadow-[var(--shadow-sm)] ring-1 transition-colors", open ? "ring-blue-900" : "ring-gray-200 hover:ring-blue-900")}
+      >
+        <Settings2 className="h-4 w-4" /> Opções <ChevronDown className={cn("h-4 w-4 text-gray-500 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-full z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-[var(--shadow-lg)]">
+          <p className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-widest text-gray-400">Esta simulação</p>
+          {itens.map(({ icon: Icon, label, sub, tile, on }) => (
+            <button key={label} type="button" role="menuitem" onClick={() => { setOpen(false); on(); }} className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-gray-050">
+              <span className={cn("mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", tile)}><Icon className="h-4 w-4" /></span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-blue-900">{label}</span>
+                <span className="block text-xs leading-snug text-gray-500">{sub}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 function ModeloPicker({ onPick, onSaved, draft, onContinue }: { onPick: (m: Modelo) => void; onSaved: () => void; draft: { lead: string } | null; onContinue: () => void }) {
   const cards = [
-    { m: "home" as const, title: "Modelo Home Based", desc: "Operação enxuta, a partir de casa ou de uma sala própria.", icon: Home, card: "bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white", chip: "bg-yellow-500 text-blue-900", sub: "text-blue-100", cta: "bg-white/15 text-white group-hover:bg-yellow-500 group-hover:text-blue-900" },
-    { m: "loja" as const, title: "Modelo Loja", desc: "Operação com ponto físico e estrutura própria.", icon: Store, card: "bg-gradient-to-br from-yellow-500 to-amber-400 text-blue-900", chip: "bg-blue-900 text-yellow-500", sub: "text-blue-900/75", cta: "bg-blue-900/10 text-blue-900 group-hover:bg-blue-900 group-hover:text-yellow-500" },
+    { m: "home" as const, title: "Home Based", desc: "Operação enxuta, a partir de casa ou de uma sala própria.", icon: Home, tags: ["Sem ponto físico", "Custo fixo baixo"], card: "bg-gradient-to-br from-blue-900 via-blue-800 to-[#2c5a73] text-white", chip: "bg-yellow-500 text-blue-900", sub: "text-blue-100", tag: "bg-white/10 text-blue-100", cta: "bg-yellow-500 text-blue-900" },
+    { m: "loja" as const, title: "Loja", desc: "Operação com ponto físico e estrutura própria.", icon: Store, tags: ["Ponto físico", "DRE detalhada"], card: "bg-white text-blue-900 ring-1 ring-gray-200", chip: "bg-blue-900 text-yellow-500", sub: "text-gray-500", tag: "bg-blue-050 text-blue-800", cta: "bg-blue-900 text-white" },
   ];
   return (
-    <div className="mx-auto max-w-4xl space-y-5 py-2 sm:py-6">
+    <div className="mx-auto max-w-4xl space-y-8 py-4 sm:py-10">
       <div className="text-center">
-        <h2 className="font-display text-3xl font-bold text-blue-900 sm:text-4xl">Simular</h2>
-        <p className="mx-auto mt-2 max-w-lg text-sm text-gray-500 sm:text-base">Escolha o modelo de operação do lead. Cada um já vem com valores pré-definidos, e tudo pode ser alterado depois.</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-yellow-600">Simulador de viabilidade</p>
+        <h2 className="mt-2 font-display text-3xl font-bold text-blue-900 sm:text-4xl lg:text-5xl">Qual modelo vamos simular?</h2>
+        <p className="mx-auto mt-3 max-w-lg text-base text-gray-500">Cada modelo já vem com valores pré-definidos. Tudo pode ser ajustado durante a reunião.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {cards.map(({ m, title, desc, icon: Icon, card, chip, sub, cta }) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => onPick(m)}
-            className={cn("group relative flex min-h-[230px] flex-col items-start justify-between overflow-hidden rounded-3xl p-6 text-left shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] sm:p-7", card)}
-          >
-            <span className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
-            <span className={cn("relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg", chip)}>
-              <Icon className="h-7 w-7" />
-            </span>
-            <span className="relative mt-6">
-              <span className="block font-display text-2xl font-bold">{title}</span>
-              <span className={cn("mt-1 block text-sm", sub)}>{desc}</span>
-            </span>
-            <span className={cn("relative mt-5 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors", cta)}>
-              Começar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </button>
-        ))}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        {cards.map(({ m, title, desc, icon: Icon, tags, card, chip, sub, tag, cta }) => {
+          const p = PRESETS[m];
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onPick(m)}
+              className={cn("group relative flex min-h-[300px] flex-col items-start overflow-hidden rounded-3xl p-7 text-left shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]", card)}
+            >
+              <span className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
+              <span className={cn("relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg", chip)}><Icon className="h-7 w-7" /></span>
+              <span className="relative mt-6 block font-display text-3xl font-bold">{title}</span>
+              <span className={cn("relative mt-1 block text-sm", sub)}>{desc}</span>
+              <span className="relative mb-6 mt-4 flex flex-wrap gap-1.5">
+                {tags.map((t) => <span key={t} className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold", tag)}>{t}</span>)}
+              </span>
+              <span className="relative mt-auto grid w-full grid-cols-2 gap-3 border-t border-current/10 pt-5">
+                <span><span className={cn("block text-[11px] font-semibold", sub)}>Adesão</span><b className="font-display text-lg">{brl(p.invest[0].v)}</b></span>
+                <span><span className={cn("block text-[11px] font-semibold", sub)}>Taxa de processamento</span><b className="font-display text-lg">{p.royalties}%</b></span>
+              </span>
+              <span className={cn("relative mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-transform group-hover:translate-x-0.5", cta)}>
+                Começar simulação <ArrowRight className="h-4 w-4" />
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex flex-col items-stretch gap-3 sm:flex-row">
         {draft && (
-          <button type="button" onClick={onContinue} className="flex flex-1 items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-left shadow-[var(--shadow-sm)] transition-colors hover:border-blue-900">
-            <span>
-              <span className="block text-sm font-bold text-blue-900">Continuar simulação{draft.lead ? ` de ${draft.lead}` : ""}</span>
-              <span className="block text-xs text-gray-500">Retoma de onde você parou neste navegador</span>
+          <button type="button" onClick={onContinue} className="flex flex-1 items-center gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-[var(--shadow-sm)] ring-1 ring-gray-200 transition-all hover:ring-blue-900">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-050 text-yellow-600"><RotateCcw className="h-5 w-5" /></span>
+            <span className="flex-1">
+              <span className="block text-sm font-bold text-blue-900">Continuar{draft.lead ? ` a simulação de ${draft.lead}` : " de onde parou"}</span>
+              <span className="block text-xs text-gray-500">Retoma o rascunho deste navegador. Escolher um modelo acima começa um lead novo e o substitui.</span>
             </span>
             <ArrowRight className="h-5 w-5 shrink-0 text-blue-900" />
           </button>
         )}
-        <button type="button" onClick={onSaved} className="flex flex-1 items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-left shadow-[var(--shadow-sm)] transition-colors hover:border-blue-900">
-          <span>
-            <span className="block text-sm font-bold text-blue-900">Salvas</span>
-            <span className="block text-xs text-gray-500">Abrir ou gerar o PDF de uma simulação já salva</span>
+        <button type="button" onClick={onSaved} className="flex flex-1 items-center gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-[var(--shadow-sm)] ring-1 ring-gray-200 transition-all hover:ring-blue-900">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-050 text-blue-900"><FolderOpen className="h-5 w-5" /></span>
+          <span className="flex-1">
+            <span className="block text-sm font-bold text-blue-900">Simulações salvas</span>
+            <span className="block text-xs text-gray-500">Abrir, comparar ou gerar o PDF de um lead</span>
           </span>
-          <FolderOpen className="h-5 w-5 shrink-0 text-blue-900" />
+          <ArrowRight className="h-5 w-5 shrink-0 text-blue-900" />
         </button>
       </div>
     </div>
@@ -352,21 +498,21 @@ function ModeloPicker({ onPick, onSaved, draft, onContinue }: { onPick: (m: Mode
 
 type StepProps = { S: DreInput; c: DreResult; patch: (p: Partial<DreInput>) => void };
 
-function Split({ children, aside }: { children: ReactNode; aside: ReactNode }) {
+function Split({ children, aside, insights }: { children: ReactNode; aside: ReactNode; insights?: ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="space-y-4">{children}</div>
-      <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">{aside}</div>
+      <div className="space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto lg:pr-0.5 lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">{aside}{insights}</div>
     </div>
   );
 }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
-    <Card className="p-5">
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h3 className="font-display text-base font-semibold text-blue-900">{title}</h3>
-        {hint && <span className="text-xs text-gray-500">{hint}</span>}
+    <Card className="p-5 sm:p-6">
+      <div className="mb-5">
+        <h3 className="font-display text-lg font-bold text-blue-900">{title}</h3>
+        {hint && <p className="mt-0.5 text-sm text-gray-500">{hint}</p>}
       </div>
       {children}
     </Card>
@@ -374,7 +520,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 }
 
 const inputCls =
-  "h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none transition-colors focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/30";
+  "h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-blue-900 outline-none transition-colors placeholder:text-gray-300 hover:border-gray-300 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500/30";
 
 function NumInput({ value, onChange, prefix, suffix, className }: { value: number; onChange: (n: number) => void; prefix?: string; suffix?: string; className?: string }) {
   return (
@@ -406,7 +552,8 @@ function Field({ label, help, children }: { label: string; help?: ReactNode; chi
 }
 
 function ItemList({ title, items, onChange, total, unit = "" }: { title: string; items: Item[]; onChange: (i: Item[]) => void; total: string; unit?: string }) {
-  const set = (i: number, p: Partial<Item>) => onChange(items.map((x, k) => (k === i ? { ...x, ...p } : x)));
+  // renomear apaga a categoria gravada para o nome antigo; a IA classifica de novo o nome novo
+  const set = (i: number, p: Partial<Item>) => onChange(items.map((x, k) => (k === i ? { ...x, ...p, ...(p.n !== undefined ? { cat: undefined } : {}) } : x)));
   return (
     <Section title={title} hint={`${items.length} itens`}>
       <div className="space-y-2">
@@ -434,18 +581,22 @@ function ItemList({ title, items, onChange, total, unit = "" }: { title: string;
 function Live({ c, children }: { c: DreResult; children?: ReactNode }) {
   const p = c.pico;
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 p-5 text-white shadow-[var(--shadow-md)]">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-[#2c5a73] p-5 text-white shadow-[var(--shadow-md)] sm:p-6">
+      <div className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
+      <p className="relative flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-100">
         <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-500" /> Sua DRE ao vivo
+      </p>
+      <div className="relative mt-3">
+        <p className="text-xs text-blue-100">Retorno do investimento</p>
+        <p className="font-display text-4xl font-bold text-yellow-500">{c.pay ? `Mês ${c.pay}` : "> 36 meses"}</p>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="relative mt-4 grid grid-cols-2 gap-3">
+        <Stat label="Faturamento líquido / mês" value={brlShort(p.resultado)} accent />
         <Stat label="Faturamento / mês" value={brlShort(p.faturamento)} />
-        <Stat label="Resultado / mês" value={brlShort(p.resultado)} accent />
         <Stat label="Clientes / mês" value={c.casosMes.toFixed(1).replace(".", ",")} />
         <Stat label="Ticket médio" value={brl(c.ticket)} />
-        <div className="col-span-2"><Stat label="Retorno" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} accent /></div>
       </div>
-      {children && <div className="mt-4 border-t border-white/15 pt-4">{children}</div>}
+      {children && <div className="relative mt-5 border-t border-white/15 pt-5">{children}</div>}
     </div>
   );
 }
@@ -473,32 +624,12 @@ function Bars({ items }: { items: { n: string; v: number; fmt?: (n: number) => s
   );
 }
 
-function Funnel({ c, S }: { c: DreResult; S: DreInput }) {
-  const rows = [
-    { n: "Círculo", leads: c.leadsCirculo, conv: S.convCirculo, cli: c.casosCirculo, col: "#9db0bc" },
-    { n: "Parceiros", leads: c.leadsParceiros, conv: S.convParceiros, cli: c.casosParceiros, col: "#6f93ab" },
-    { n: "Marketing", leads: c.leadsMkt, conv: S.convMkt, cli: c.casosMkt, col: YELLOW },
-  ];
-  const mx = Math.max(1, ...rows.map((r) => r.leads));
-  const f = (n: number) => n.toFixed(1).replace(".", ",");
-  return (
-    <div className="space-y-3">
-      {rows.map((r) => (
-        <div key={r.n}>
-          <div className="mb-1 flex justify-between text-xs"><span className="font-semibold">{r.n}</span><span><b>{f(r.leads)}</b> leads × {r.conv}% = <b>{f(r.cli)}</b> clientes</span></div>
-          <div className="h-3 rounded-full bg-black/5"><div className="h-full rounded-full" style={{ width: `${Math.max((r.leads / mx) * 100, 1.5)}%`, background: r.col }} /></div>
-        </div>
-      ))}
-      <p className="pt-1 text-xs opacity-70">Por mês, no ritmo máximo: <b>{f(c.leadsMes)}</b> leads viram <b>{f(c.casosNovos)}</b> clientes novos, e a recompra soma <b>{f(c.recompraMes)}</b>.</p>
-    </div>
-  );
-}
-
 /* ---------------- etapas ---------------- */
 
 function StepMercado({ S, c, patch }: StepProps) {
   return (
     <Split
+      insights={<InsightsCard step={0} S={S} c={c} />}
       aside={
         <Live c={c}>
           <p className="mb-3 text-sm font-semibold">Composição do mercado</p>
@@ -507,6 +638,7 @@ function StepMercado({ S, c, patch }: StepProps) {
         </Live>
       }
     >
+      <PreencherTexto S={S} onApply={patch} />
       <Section title="Quem é o lead?">
         <Field label="Nome do lead">
           <input value={S.lead} onChange={(e) => patch({ lead: e.target.value })} placeholder="Ex.: Roberson Alvarenga" className={inputCls} />
@@ -616,6 +748,7 @@ function StepTicket({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: s
   const regioes = ["Brasil", ...REGIOES];
   return (
     <Split
+      insights={<InsightsCard step={1} S={S} c={c} />}
       aside={
         <Live c={c}>
           <p className="text-sm font-semibold">Ticket médio</p>
@@ -641,6 +774,7 @@ function StepTicket({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: s
 function StepInvest({ S, c, patch }: StepProps) {
   return (
     <Split
+      insights={<InsightsCard step={2} S={S} c={c} />}
       aside={
         <Live c={c}>
           <p className="mb-3 text-sm font-semibold">Para onde vai o investimento</p>
@@ -657,6 +791,7 @@ function StepInvest({ S, c, patch }: StepProps) {
 function StepDespesas({ S, c, patch }: StepProps) {
   return (
     <Split
+      insights={<InsightsCard step={3} S={S} c={c} />}
       aside={
         <Live c={c}>
           <p className="mb-3 text-sm font-semibold">Despesas fixas por mês</p>
@@ -688,7 +823,7 @@ function StepProjecao({ S, c, patch }: StepProps) {
     { n: "Marketing", desc: "leads gerados por mês pelo marketing", leads: c.leadsMkt, key: "convMkt" as const, cli: c.casosMkt },
   ];
   return (
-    <Split aside={<Live c={c}><p className="mb-3 text-sm font-semibold">Dos leads aos clientes</p><div className="text-white"><FunnelDark c={c} S={S} /></div></Live>}>
+    <Split insights={<InsightsCard step={4} S={S} c={c} />} aside={<Live c={c}><p className="mb-3 text-sm font-semibold">Dos leads aos clientes</p><div className="text-white"><FunnelDark c={c} S={S} /></div></Live>}>
       <Section title="Leads e clientes por mês" hint="no ritmo máximo">
         <div className="overflow-x-auto">
           <div className="min-w-[480px]">
@@ -736,262 +871,4 @@ function StepProjecao({ S, c, patch }: StepProps) {
 
 function FunnelDark({ c, S }: { c: DreResult; S: DreInput }) {
   return <div className="rounded-xl bg-white p-4 text-blue-900"><Funnel c={c} S={S} /></div>;
-}
-
-/* ---------------- resumo + DRE ---------------- */
-
-function Tabs({ filtro, setFiltro }: { filtro: Filtro; setFiltro: (f: Filtro) => void }) {
-  return (
-    <div className="inline-flex rounded-full bg-gray-100 p-1 print:hidden">
-      {(["12 meses", "24 meses", "36 meses"] as Filtro[]).map((t) => (
-        <button key={t} type="button" onClick={() => setFiltro(t)} className={cn("rounded-full px-3.5 py-1 text-xs font-bold transition-colors", filtro === t ? "bg-blue-900 text-white" : "text-gray-500 hover:text-blue-900")}>
-          {t}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-const rowsOf = (c: DreResult, f: Filtro) => c.meses.slice(0, parseInt(f, 10));
-const tooltipStyle = { borderRadius: 12, border: "1px solid #e6ecf0", fontSize: 12 };
-
-function StepResumo({ S, c, filtro, setFiltro }: { S: DreInput; c: DreResult; filtro: Filtro; setFiltro: (f: Filtro) => void }) {
-  const r = rowsOf(c, filtro);
-  const fat = tot(r, "faturamento");
-  const res = tot(r, "resultado");
-  const margemPct = fat ? ((res / fat) * 100).toFixed(1).replace(".", ",") : "0";
-  const anual = PERIODOS.map((n) => {
-    const rs = c.meses.slice(0, n);
-    return { ano: `${n} meses`, Faturamento: Math.round(tot(rs, "faturamento")), Resultado: Math.round(tot(rs, "resultado")) };
-  });
-  const cenarios = CENARIOS.map((cn_) => ({ ...cn_, r: calc(S, cn_.ajuste) }));
-
-  return (
-    <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-[#2c5a73] p-6 text-white sm:p-8">
-        <div className="pointer-events-none absolute -right-10 -top-12 h-52 w-52 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
-        <p className="text-xs font-bold uppercase tracking-wider text-yellow-500">Resumo executivo</p>
-        <h2 className="mt-1 font-display text-2xl font-bold sm:text-3xl">
-          {c.pay ? (
-            <>{S.lead ? `${S.lead}, seu` : "Seu"} investimento volta no <span className="text-yellow-500">mês {c.pay}</span></>
-          ) : (
-            "O retorno passa de 36 meses com estas premissas"
-          )}
-        </h2>
-        <p className="mt-2 max-w-2xl text-sm text-blue-100">
-          Com base no seu círculo de amigos, parceiros de negócios, tráfego pago, recompra e indicação de amigos, projetamos <b className="text-white">{c.casosMes.toFixed(1).replace(".", ",")} clientes por mês</b> e um resultado líquido de{" "}
-          <b className="text-white">{brl(c.pico.resultado)}/mês</b>{S.regiao !== "Brasil" ? ` em ${S.regiao}` : ""}.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs">
-          {[["Investimento", brl(c.inv)], ["Ticket médio", brl(c.ticket)], ["Credibilidade", `${credPct(S)}% do círculo`]].map(([k, v]) => (
-            <span key={k} className="rounded-full bg-white/10 px-3 py-1.5 text-blue-100">{k} <b className="text-white">{v}</b></span>
-          ))}
-        </div>
-      </div>
-
-      <Tabs filtro={filtro} setFiltro={setFiltro} />
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Mercado primário" value={num(c.mercado)} sub="pessoas no círculo" />
-        <Kpi label="Leads por mês" value={c.leadsMes.toFixed(1).replace(".", ",")} sub="círculo + parceiros + marketing" />
-        <Kpi label={`Faturamento (${filtro})`} value={brlShort(fat)} sub="receita dos clientes" />
-        <Kpi label="Investimento inicial" value={brl(c.inv)} sub="para abrir a operação" />
-        <Kpi label="Retorno do investimento" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} sub="saldo acumulado positivo" tone="navy" />
-        <Kpi label={`Margem líquida (${filtro})`} value={`${margemPct}%`} sub="resultado ÷ faturamento" tone="yellow" />
-        <Kpi label={`Lucro acumulado (${filtro})`} value={brlShort(res)} sub="já descontado tudo" tone="yellow" />
-        <Kpi label="Retorno em 36 meses" value={c.roi36 !== null ? `${c.roi36.toFixed(1).replace(".", ",")}×` : "—"} sub="lucro ÷ investimento" tone="navy" />
-      </div>
-
-      {/* Prova de viabilidade */}
-      <Card className="p-5">
-        <div className="mb-1 flex items-baseline justify-between gap-3">
-          <h3 className="font-display text-base font-semibold text-blue-900">E se der menos certo do que o esperado?</h3>
-          <span className="text-xs text-gray-500">mesma operação, três cenários</span>
-        </div>
-        <p className="mb-4 text-sm text-gray-500">
-          {c.equilibrio !== null && c.folga !== null ? (
-            <>Ponto de equilíbrio: <b className="text-blue-900">{c.equilibrio.toFixed(1).replace(".", ",")} clientes/mês</b> para pagar as despesas fixas. A projeção realista tem <b className="text-blue-900">{c.folga.toFixed(1).replace(".", ",")}×</b> essa folga.</>
-          ) : (
-            "Sem margem positiva por cliente com os custos informados."
-          )}
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {cenarios.map((x) => (
-            <div key={x.id} className={cn("rounded-2xl border p-4", x.id === "conservador" && "border-orange-400 bg-orange-50", x.id === "realista" && "border-yellow-500 bg-yellow-050", x.id === "otimista" && "border-[color:var(--color-success)] bg-[color:var(--color-success-bg)]")}>
-              <p className="font-display text-sm font-bold text-blue-900">{x.label}</p>
-              <p className="mb-3 text-[11px] leading-snug text-gray-500">{x.desc}</p>
-              <p className="text-xs text-gray-500">Retorno</p>
-              <p className="font-display text-xl font-bold text-blue-900">{x.r.pay ? `Mês ${x.r.pay}` : "> 36 meses"}</p>
-              <p className="mt-2 text-xs text-gray-500">Resultado / mês</p>
-              <p className={cn("font-display text-base font-bold", x.r.pico.resultado < 0 ? "text-[color:var(--color-danger)]" : "text-blue-900")}>{brl(x.r.pico.resultado)}</p>
-              <p className="mt-2 text-xs text-gray-500">Clientes / mês</p>
-              <p className="text-sm font-bold text-blue-900">{x.r.casosMes.toFixed(1).replace(".", ",")}</p>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="p-5">
-        <div className="mb-3 flex items-baseline justify-between"><h3 className="font-display text-base font-semibold text-blue-900">Margem e resultado mensal</h3><span className="text-xs text-gray-500">passe o mouse sobre o gráfico</span></div>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={r} margin={{ left: 0, right: 8, top: 8 }}>
-              <CartesianGrid stroke="#e6ecf0" vertical={false} />
-              <XAxis dataKey="m" tick={{ fontSize: 11 }} tickLine={false} />
-              <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={64} tickFormatter={(v) => brlShort(v).replace("R$ ", "")} />
-              <Tooltip contentStyle={tooltipStyle} labelFormatter={(m) => `Mês ${m}`} formatter={(v) => brl(Number(v))} />
-              <Legend />
-              <Area type="monotone" dataKey="margem" name="Margem (após taxa de processamento e impostos)" stroke={YELLOW} fill={YELLOW} fillOpacity={0.18} strokeWidth={2.5} />
-              <Area type="monotone" dataKey="resultado" name="Resultado líquido" stroke={NAVY} fill={NAVY} fillOpacity={0.05} strokeWidth={2.5} />
-              {c.pay && c.pay <= r.length && <ReferenceLine x={c.pay} stroke={GREEN} strokeDasharray="4 4" label={{ value: `Retorno: mês ${c.pay}`, fill: GREEN, fontSize: 11, position: "top" }} />}
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="p-5">
-          <h3 className="mb-3 font-display text-base font-semibold text-blue-900">Para onde vai cada R$ 100 <span className="text-xs font-normal text-gray-500">({filtro})</span></h3>
-          <Split100 fat={fat} roy={tot(r, "roy")} imp={tot(r, "imp")} fx={tot(r, "fixa")} res={res} />
-        </Card>
-        <Card className="p-5">
-          <h3 className="mb-3 font-display text-base font-semibold text-blue-900">Evolução por ano</h3>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={anual} margin={{ left: 0, right: 8, top: 8 }}>
-                <CartesianGrid stroke="#e6ecf0" vertical={false} />
-                <XAxis dataKey="ano" tick={{ fontSize: 12 }} tickLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={64} tickFormatter={(v) => brlShort(v).replace("R$ ", "")} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => brl(Number(v))} />
-                <Legend />
-                <Bar dataKey="Faturamento" fill={NAVY} radius={[8, 8, 0, 0]} />
-                <Bar dataKey="Resultado" fill={YELLOW} radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
-
-      <Card className="p-5">
-        <h3 className="mb-4 font-display text-base font-semibold text-blue-900">Dos leads aos clientes</h3>
-        <Funnel c={c} S={S} />
-      </Card>
-    </div>
-  );
-}
-
-function Split100({ fat, roy, imp, fx, res }: { fat: number; roy: number; imp: number; fx: number; res: number }) {
-  const items = [
-    { n: "Taxa de processamento", v: roy, color: "#9db0bc" },
-    { n: "Impostos", v: imp, color: "#4a6a80" },
-    { n: "Despesas fixas", v: fx, color: NAVY },
-    { n: "Resultado líquido", v: Math.max(res, 0), color: YELLOW },
-  ];
-  const T = items.reduce((s, x) => s + x.v, 0) || 1;
-  return (
-    <div>
-      <div className="mb-4 flex h-5 overflow-hidden rounded-full bg-gray-100">
-        {items.map((x) => <div key={x.n} style={{ width: `${(x.v / T) * 100}%`, background: x.color }} title={x.n} />)}
-      </div>
-      <div className="space-y-2.5">
-        {items.map((x) => (
-          <div key={x.n} className="flex items-center gap-2 text-sm">
-            <i className="h-3 w-3 shrink-0 rounded-sm" style={{ background: x.color }} />
-            <span className="flex-1 text-blue-900">{x.n}</span>
-            <b className="text-blue-900">{Math.round((x.v / T) * 100)}%</b>
-            <span className="w-24 text-right text-xs text-gray-500">{brlShort(x.v)}</span>
-          </div>
-        ))}
-      </div>
-      <p className="mt-4 rounded-xl bg-yellow-050 px-3 py-2 text-sm text-blue-900">
-        {fat > 0 ? <>De cada R$ 100 faturados, <b>R$ {Math.round((res / fat) * 100)}</b> ficam com o franqueado.</> : "Sem faturamento no período."}
-      </p>
-    </div>
-  );
-}
-
-function Kpi({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: "navy" | "yellow" }) {
-  return (
-    <div className={cn("rounded-2xl border p-4", tone === "navy" ? "border-blue-900 bg-blue-900 text-white" : tone === "yellow" ? "border-yellow-500 bg-yellow-500 text-blue-900" : "border-gray-200 bg-white text-blue-900")}>
-      <small className={cn("block text-[11px] font-semibold", tone === "navy" ? "text-blue-100" : "opacity-70")}>{label}</small>
-      <div className="font-display text-xl font-bold sm:text-2xl">{value}</div>
-      <div className={cn("text-[11px]", tone === "navy" ? "text-blue-100" : "opacity-70")}>{sub}</div>
-    </div>
-  );
-}
-
-function StepDre({ S, c, filtro, setFiltro, full }: { S: DreInput; c: DreResult; filtro: Filtro; setFiltro: (f: Filtro) => void; full?: boolean }) {
-  const ys = PERIODOS.map((n) => c.meses.slice(0, n));
-  const r = rowsOf(c, filtro);
-  const line = (label: string, k: "faturamento" | "roy" | "imp" | "margem" | "fixa" | "resultado", kind: "t" | "r" | "n" = "n", neg = false) => (
-    <tr className={cn(kind === "t" && "bg-gray-050 font-bold", kind === "r" && "bg-blue-900 font-bold text-white")}>
-      <td className={cn("px-3 py-2", kind === "n" && "pl-6 text-gray-700")}>{label}</td>
-      {ys.map((y, i) => {
-        const v = tot(y, k);
-        return <td key={i} className={cn("whitespace-nowrap px-3 py-2 text-right", v < 0 && kind !== "r" && "text-[color:var(--color-danger)]")}>{brl(neg ? -v : v)}</td>;
-      })}
-    </tr>
-  );
-  return (
-    <div className="space-y-4">
-      <Card className="p-5">
-        <div className="mb-3 flex items-baseline justify-between"><h3 className="font-display text-base font-semibold text-blue-900">DRE anual</h3><span className="text-xs text-gray-500">Demonstração do Resultado do Exercício</span></div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] border-collapse text-sm text-blue-900">
-            <thead><tr className="border-b border-gray-200 text-xs text-gray-500">{["Descrição", "12 meses", "24 meses", "36 meses"].map((h, i) => <th key={h} className={cn("px-3 py-2 font-semibold", i ? "text-right" : "text-left")}>{h}</th>)}</tr></thead>
-            <tbody>
-              {line("Faturamento (receita dos clientes)", "faturamento", "t")}
-              {line("(-) Taxa de processamento", "roy", "n", true)}
-              {line("(-) Impostos", "imp", "n", true)}
-              {line("= Margem de contribuição", "margem", "t")}
-              {line("(-) Despesas fixas", "fixa", "n", true)}
-              {line("= Resultado líquido", "resultado", "r")}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {S.modelo === "loja" && <DreDetalhada S={S} c={c} meses={parseInt(filtro, 10)} tabs={<Tabs filtro={filtro} setFiltro={setFiltro} />} />}
-
-      <Card className="p-5">
-        <div className="mb-3 flex items-baseline justify-between"><h3 className="font-display text-base font-semibold text-blue-900">Saldo de caixa acumulado</h3><span className="text-xs text-gray-500">após o investimento inicial de {brl(c.inv)}</span></div>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={c.meses} margin={{ left: 0, right: 8, top: 8 }}>
-              <CartesianGrid stroke="#e6ecf0" vertical={false} />
-              <XAxis dataKey="m" tick={{ fontSize: 11 }} tickLine={false} />
-              <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={64} tickFormatter={(v) => brlShort(v).replace("R$ ", "")} />
-              <Tooltip contentStyle={tooltipStyle} labelFormatter={(m) => `Mês ${m}`} formatter={(v) => brl(Number(v))} />
-              <ReferenceLine y={0} stroke={NAVY} />
-              {c.pay && <ReferenceLine x={c.pay} stroke={GREEN} strokeDasharray="4 4" label={{ value: `Retorno: mês ${c.pay}`, fill: GREEN, fontSize: 11, position: "top" }} />}
-              <Area type="monotone" dataKey="saldo" name="Saldo acumulado" stroke={NAVY} fill={NAVY} fillOpacity={0.14} strokeWidth={2.5} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      <Card className={cn("p-5", full && "print:break-inside-auto")}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-base font-semibold text-blue-900">Fluxo de caixa mensal</h3>{!full && <Tabs filtro={filtro} setFiltro={setFiltro} />}</div>
-        <div className={cn(!full && "max-h-[480px] overflow-auto")}>
-          <table className="w-full min-w-[720px] border-collapse text-sm text-blue-900">
-            <thead className={cn(!full && "sticky top-0 bg-white")}><tr className="border-b border-gray-200 text-xs text-gray-500">{["Mês", "Clientes", "Faturamento", "Royalties", "Impostos", "Despesas", "Resultado", "Saldo"].map((h, i) => <th key={h} className={cn("px-3 py-2 font-semibold", i ? "text-right" : "text-left")}>{h}</th>)}</tr></thead>
-            <tbody className="[&>tr:nth-child(even)]:bg-gray-050">
-              {r.map((x) => (
-                <tr key={x.m}>
-                  <td className="px-3 py-1.5 font-bold">{x.m}</td>
-                  <td className="px-3 py-1.5 text-right">{x.casos.toFixed(1).replace(".", ",")}</td>
-                  <td className="px-3 py-1.5 text-right">{brl(x.faturamento)}</td>
-                  <td className="px-3 py-1.5 text-right">{brl(x.roy)}</td>
-                  <td className="px-3 py-1.5 text-right">{brl(x.imp)}</td>
-                  <td className="px-3 py-1.5 text-right">{brl(x.fixa)}</td>
-                  <td className={cn("px-3 py-1.5 text-right font-bold", x.resultado < 0 ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]")}>{brl(x.resultado)}</td>
-                  <td className={cn("px-3 py-1.5 text-right", x.saldo < 0 && "text-[color:var(--color-danger)]")}>{brl(x.saldo)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
 }

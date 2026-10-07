@@ -88,30 +88,7 @@ export default function BirthdaysPage() {
       <PageHeader
         title="Aniversários"
         description="Aniversário de vida e de casa da equipe, com data e fotos para postar nos stories."
-        action={
-          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-gray-100 p-1" role="tablist">
-            {KINDS.map((k) => {
-              const Icon = k.icon;
-              const active = kind === k.key;
-              return (
-                <button
-                  key={k.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setKind(k.key)}
-                  className={cn(
-                    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-200",
-                    active ? "bg-blue-900 text-white shadow-sm" : "text-gray-700 hover:text-blue-900"
-                  )}
-                >
-                  <Icon className={cn("h-4 w-4 transition-transform duration-200", active && "scale-110 text-yellow-400")} />
-                  {k.label}
-                </button>
-              );
-            })}
-          </div>
-        }
+        action={<Tabs tabs={KINDS.map((k) => ({ key: k.key, label: k.label, icon: k.icon }))} active={kind} onChange={(k) => setKind(k as typeof kind)} />}
       />
       <div key={kind} className="ast-fade-up">
         {kind === "life" ? <LifeBirthdays profiles={profiles} /> : <WorkAnniversaries profiles={profiles} />}

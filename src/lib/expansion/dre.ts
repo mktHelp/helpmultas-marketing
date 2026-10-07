@@ -15,6 +15,8 @@ export type Periodo = (typeof PERIODOS)[number];
 export interface Item {
   n: string;
   v: number;
+  /** categoria na DRE detalhada, gravada pela IA quando o nome não é reconhecido por regra (ver categoria.ts) */
+  cat?: "cac" | "oper" | "pessoal";
 }
 
 export interface DreInput {
@@ -85,8 +87,8 @@ export const DEFAULT_INPUT: DreInput = {
   imposto: 3,
   parceiros: 0,
   indicPorParceiro: 1.5,
-  // começa zerado: o faturamento só aparece conforme o lead preenche os canais
-  leadsMkt: 0,
+  // pré-definido em 200 leads/mês do marketing (o consultor pode alterar)
+  leadsMkt: 200,
   convCirculo: 50,
   convParceiros: 50,
   convMkt: 10,
@@ -108,8 +110,8 @@ const pickPreset = (src: DreInput): ModeloPreset => structuredClone(Object.fromE
 
 export const PRESETS: Record<Modelo, ModeloPreset> = {
   home: pickPreset(DEFAULT_INPUT),
-  // Modelo Loja: parte do Home Based e muda só o que já foi definido (investimento de R$ 110.000 de adesão,
-  // estrutura de sala, despesas de ponto físico e taxa de processamento de 33%). Impostos e demais premissas
+  // Modelo Loja: parte do Home Based e muda só o que já foi definido (investimento de R$ 139.900: adesão de
+  // R$ 59.900, sala de R$ 60.000 e capital de giro de R$ 20.000; despesas de ponto físico e taxa de processamento de 33%). Impostos e demais premissas
   // seguem iguais ao Home Based até serem definidas.
   loja: lojaPreset(),
 };
@@ -117,10 +119,9 @@ export const PRESETS: Record<Modelo, ModeloPreset> = {
 function lojaPreset(): ModeloPreset {
   const p = pickPreset(DEFAULT_INPUT);
   p.invest = [
-    { n: "Taxa de adesão à rede", v: 110000 },
-    { n: "Estrutura (sala)", v: 0 },
-    { n: "Equipamentos (Computador, Celular)", v: 0 },
-    { n: "Capital de giro", v: 0 },
+    { n: "Taxa de adesão à rede", v: 59900 },
+    { n: "Estrutura (sala, computador, celular e equipamentos em geral)", v: 60000 },
+    { n: "Capital de giro", v: 20000 },
   ];
   p.desp = [
     { n: "Internet e telefone", v: 0 },

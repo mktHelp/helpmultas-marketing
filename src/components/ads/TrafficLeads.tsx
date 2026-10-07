@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Crown, Eye, FileText, Info, Link2, MapPin, MousePointerClick, Phone, Search, Target, Trophy, UserX, Users, X } from "lucide-react";
+import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Crown, Eye, FileText, Info, Link2, MapPin, MousePointerClick, Phone, Target, Trophy, UserX, Users, X } from "lucide-react";
 import Link from "next/link";
 import { ScriptLinkDialog } from "./ScriptLinkDialog";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Select } from "@/components/ui/Select";
 import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -22,6 +21,9 @@ import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { currencyFormatter, numberFormatter } from "@/lib/format";
 import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterSelect } from "@/components/ui/FilterBar";
+import { Tabs } from "@/components/ui/Tabs";
 
 const PAGE_SIZE = 25;
 
@@ -687,45 +689,19 @@ export function TrafficLeads() {
           {/* Filtros */}
           <div className="mb-4 space-y-3 rounded-3xl border border-gray-100 bg-gray-050/80 p-3 sm:p-4">
             <div className="flex flex-wrap items-center gap-3">
-              <div className="relative min-w-[240px] flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Buscar por nome, e-mail, telefone ou UTM..."
-                  className="h-11 w-full rounded-full border border-gray-200 bg-white pl-10 pr-9 text-sm text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10"
-                />
-                {searchInput && (
-                  <button
-                    onClick={() => setSearchInput("")}
-                    aria-label="Limpar busca"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-blue-900"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5">
-                {([[1, "Hoje"], [7, "7 dias"], [30, "30 dias"]] as const).map(([d, label]) => (
-                  <button
-                    key={d}
-                    onClick={() => quickRange(d)}
-                    className={cn(
-                      "rounded-full border px-3.5 py-2 text-xs font-bold transition-all active:scale-95 sm:py-1.5",
-                      rangeDays === d ? "border-transparent bg-blue-900 text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:border-blue-900 hover:text-blue-900"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <SearchInput value={searchInput} onChange={setSearchInput} placeholder="Buscar por nome, e-mail, telefone ou UTM..." className="sm:max-w-md" />
+              <Tabs
+                tabs={[{ key: "1", label: "Hoje" }, { key: "7", label: "7 dias" }, { key: "30", label: "30 dias" }]}
+                active={rangeDays === null ? "" : String(rangeDays)}
+                onChange={(k) => quickRange(Number(k))}
+              />
               <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
                 <input
                   type="date"
                   value={dateRange.since}
                   max={dateRange.until}
                   onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, since: e.target.value }))}
-                  className="h-10 rounded-full border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)]"
+                  className="h-11 rounded-full border border-gray-200 bg-white px-3 text-base text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10 sm:text-sm"
                 />
                 até
                 <input
@@ -733,36 +709,30 @@ export function TrafficLeads() {
                   value={dateRange.until}
                   min={dateRange.since}
                   onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, until: e.target.value }))}
-                  className="h-10 rounded-full border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)]"
+                  className="h-11 rounded-full border border-gray-200 bg-white px-3 text-base text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10 sm:text-sm"
                 />
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-52">
-                <Select className="h-9" value={campaignId} onChange={(e) => setCampaignId(e.target.value)} aria-label="Campanha">
+              <FilterSelect value={campaignId} onChange={(e) => setCampaignId(e.target.value)} aria-label="Campanha">
                   <option value="">Todas as campanhas</option>
                   {campaigns.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
-                </Select>
-              </div>
-              <div className="w-52">
-                <Select className="h-9" value={adId} onChange={(e) => setAdId(e.target.value)} aria-label="Anúncio">
+                </FilterSelect>
+              <FilterSelect value={adId} onChange={(e) => setAdId(e.target.value)} aria-label="Anúncio">
                   <option value="">Todos os anúncios</option>
                   {ads.map((a) => (
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
-                </Select>
-              </div>
-              <div className="w-44">
-                <Select className="h-9" value={pageOrigin} onChange={(e) => setPageOrigin(e.target.value)} aria-label="Página de origem">
+                </FilterSelect>
+              <FilterSelect value={pageOrigin} onChange={(e) => setPageOrigin(e.target.value)} aria-label="Página de origem">
                   <option value="">Todas as páginas</option>
                   {Object.entries(PAGE_ORIGIN_LABEL).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
-                </Select>
-              </div>
+                </FilterSelect>
               <div className="flex items-center rounded-full bg-white p-0.5 ring-1 ring-gray-200">
                 {([["", "Todos"], ["matched", "Vinculados"], ["unmatched", "Sem vínculo"]] as const).map(([value, label]) => (
                   <button

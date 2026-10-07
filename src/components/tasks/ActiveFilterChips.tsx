@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { FilterChips } from "@/components/ui/FilterBar";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { formatDate } from "@/lib/utils";
 import type { Area, Profile } from "@/types/database";
@@ -66,31 +66,5 @@ export function ActiveFilterChips({
     });
   }
 
-  if (chips.length === 0) return null;
-
-  return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
-      {chips.map((c) => (
-        <span
-          key={c.key}
-          className="ast-pop inline-flex items-center gap-1.5 rounded-full border bg-white py-1 pl-2.5 pr-1.5 text-xs font-semibold text-blue-900 shadow-[var(--shadow-sm)]"
-          style={{ borderColor: `${c.color}66` }}
-        >
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
-          {c.label}
-          <button
-            type="button"
-            onClick={c.remove}
-            aria-label={`Remover filtro ${c.label}`}
-            className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-blue-900"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </span>
-      ))}
-      <button type="button" onClick={() => onChange({})} className="px-1 text-xs font-bold text-gray-500 hover:text-[color:var(--color-danger)]">
-        Limpar tudo
-      </button>
-    </div>
-  );
+  return <FilterChips chips={chips} onClear={() => onChange({})} />;
 }

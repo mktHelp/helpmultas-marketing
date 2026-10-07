@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
-import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Pagination } from "@/components/ui/Pagination";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +10,8 @@ import { listCreatives } from "@/lib/services/creatives";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { cn } from "@/lib/utils";
 import type { Creative } from "@/types/database";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterDate, FilterSelect } from "@/components/ui/FilterBar";
 
 // Read-only view of the "Criativos" sheet for the expansion team: only the
 // franchisor's own ads (unit = "Franqueadora"), never the per-unit ones.
@@ -42,8 +42,6 @@ const EMPTY_FILTERS = {
   topAd: "",
 };
 
-const DATE_INPUT_CLASS =
-  "h-9 rounded-[14px] border border-gray-200 bg-white px-2.5 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent";
 
 // "YYYY-MM-DD" date columns → "dd/mm/aaaa", read directly to avoid any timezone shift.
 function formatDay(date: string | null) {
@@ -126,76 +124,25 @@ export function ExpansionCreativesTable() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <FilterField label="Nome">
-          <Input
-            className="h-9 w-48"
-            value={filters.name}
-            onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
-            placeholder="Buscar anúncio..."
-          />
-        </FilterField>
-        <FilterField label="Entregue por">
-          <div className="w-44">
-            <Select
-              className="h-9"
-              value={filters.deliveredBy}
-              onChange={(e) => setFilters((f) => ({ ...f, deliveredBy: e.target.value }))}
-            >
-              <option value="">Todos</option>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <SearchInput value={filters.name} onChange={(name) => setFilters((f) => ({ ...f, name }))} placeholder="Buscar anúncio..." />
+        <FilterSelect label="Entregue por" value={filters.deliveredBy} onChange={(e) => setFilters((f) => ({ ...f, deliveredBy: e.target.value }))}>
+          <option value="">Entregue por: todos</option>
               {deliverers.map(([id, name]) => (
                 <option key={id} value={id}>
                   {name}
                 </option>
               ))}
-            </Select>
-          </div>
-        </FilterField>
-        <FilterField label="Entrega de">
-          <input
-            type="date"
-            value={filters.dateFrom}
-            onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
-            className={DATE_INPUT_CLASS}
-          />
-        </FilterField>
-        <FilterField label="até">
-          <input
-            type="date"
-            value={filters.dateTo}
-            onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
-            className={DATE_INPUT_CLASS}
-          />
-        </FilterField>
-        <FilterField label="Subido de">
-          <input
-            type="date"
-            value={filters.uploadedFrom}
-            onChange={(e) => setFilters((f) => ({ ...f, uploadedFrom: e.target.value }))}
-            className={DATE_INPUT_CLASS}
-          />
-        </FilterField>
-        <FilterField label="até">
-          <input
-            type="date"
-            value={filters.uploadedTo}
-            onChange={(e) => setFilters((f) => ({ ...f, uploadedTo: e.target.value }))}
-            className={DATE_INPUT_CLASS}
-          />
-        </FilterField>
-        <FilterField label="Top Ads">
-          <div className="w-28">
-            <Select
-              className="h-9"
-              value={filters.topAd}
-              onChange={(e) => setFilters((f) => ({ ...f, topAd: e.target.value }))}
-            >
-              <option value="">Todos</option>
+            </FilterSelect>
+        <FilterDate label="Entrega de" value={filters.dateFrom} onChange={(v) => setFilters((f) => ({ ...f, dateFrom: v }))} />
+        <FilterDate label="até" value={filters.dateTo} onChange={(v) => setFilters((f) => ({ ...f, dateTo: v }))} />
+        <FilterDate label="Subido de" value={filters.uploadedFrom} onChange={(v) => setFilters((f) => ({ ...f, uploadedFrom: v }))} />
+        <FilterDate label="até" value={filters.uploadedTo} onChange={(v) => setFilters((f) => ({ ...f, uploadedTo: v }))} />
+        <FilterSelect label="Top Ads" value={filters.topAd} onChange={(e) => setFilters((f) => ({ ...f, topAd: e.target.value }))}>
+          <option value="">Top Ads: todos</option>
               <option value="sim">Sim</option>
               <option value="nao">Não</option>
-            </Select>
-          </div>
-        </FilterField>
+            </FilterSelect>
         {hasActiveFilters && (
           <Button size="sm" variant="ghost" onClick={() => setFilters(EMPTY_FILTERS)} className="gap-1">
             <X className="h-3.5 w-3.5" /> Limpar filtros
@@ -307,11 +254,3 @@ export function ExpansionCreativesTable() {
   );
 }
 
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-1 text-[11px] font-bold uppercase text-gray-500">{label}</p>
-      {children}
-    </div>
-  );
-}

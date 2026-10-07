@@ -6,10 +6,8 @@ import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip as R
 import { Card } from "@/components/ui/Card";
 import { numberFormatter } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { BRAND, GRID_COLOR, TICK_STYLE } from "@/lib/chart-theme";
 
-export const TICK_STYLE = { fontSize: 11, fill: "#7c8e98" };
-export const GRID_COLOR = "#eef2f4";
-export const BRAND = { blue: "#243746", yellow: "#fcbf00", green: "#2f8f5b", red: "#c23b3b", steel: "#5b7fa6" };
 
 const compactFormatter = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -353,3 +351,5 @@ export function Insight({ icon: Icon, title, children }: { icon: React.Component
     </div>
   );
 }
+
+export { TICK_STYLE, GRID_COLOR, BRAND };

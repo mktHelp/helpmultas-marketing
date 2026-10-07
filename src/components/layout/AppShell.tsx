@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <LiveCursors />
       <HelpinhoWidget />
       <div className="hidden lg:block">
-        <Sidebar collapsed={collapsed} animate={animate} />
+        <Sidebar collapsed={collapsed} animate={animate} onToggle={toggleCollapsed} />
       </div>
 
       {mobileOpen && (
@@ -90,12 +90,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onMenuClick={() => setMobileOpen(true)} sidebarCollapsed={collapsed} onToggleSidebar={toggleCollapsed} />
+        <Topbar onMenuClick={() => setMobileOpen(true)} />
         <main
           className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
         >
-          <AccessGuard>{children}</AccessGuard>
+          <div className="mx-auto w-full max-w-[1600px]">
+            <AccessGuard>{children}</AccessGuard>
+          </div>
         </main>
       </div>
     </div>

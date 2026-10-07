@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown, ArrowUp, ArrowUpDown, Check, CheckCircle2, Clock, Copy, ExternalLink, Image as ImageIcon, Layers,
-  ListFilter, Plus, Search, Star, Trash2, X,
+  ListFilter, Plus, Star, Trash2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
 import { RightDrawer } from "@/components/shared/RightDrawer";
 import { StatCard } from "@/components/shared/StatCard";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterButton, FilterChips } from "@/components/ui/FilterBar";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { createCreative, deleteCreative, listCreatives, updateCreative } from "@/lib/services/creatives";
@@ -539,38 +541,8 @@ export function CreativesTable({
 
       {/* Barra: busca + filtros + nova linha */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[200px] flex-1 sm:max-w-sm">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            value={filters.name}
-            onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
-            placeholder="Buscar criativo pelo nome…"
-            aria-label="Buscar criativo"
-            className="h-11 w-full rounded-full border border-gray-200 bg-white pl-10 pr-9 text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10"
-            style={{ fontSize: 16 }}
-          />
-          {filters.name && (
-            <button type="button" onClick={() => setFilters((f) => ({ ...f, name: "" }))} aria-label="Limpar busca" className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setFiltersOpen(true)}
-          aria-haspopup="dialog"
-          className={cn(
-            "inline-flex h-11 items-center gap-2 rounded-full border-2 px-4 font-display text-sm font-semibold transition-all active:scale-[0.97] sm:h-10",
-            countFilters(filters, false) > 0 ? "border-blue-900 bg-blue-900 text-white hover:bg-blue-800" : "border-blue-900 bg-white text-blue-900 hover:bg-blue-050"
-          )}
-        >
-          <ListFilter className="h-4 w-4" /> Filtros
-          {countFilters(filters, false) > 0 && (
-            <span key={countFilters(filters, false)} className="ast-pop rounded-full bg-yellow-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-blue-900">
-              {countFilters(filters, false)}
-            </span>
-          )}
-        </button>
+        <SearchInput value={filters.name} onChange={(name) => setFilters((f) => ({ ...f, name }))} placeholder="Buscar criativo pelo nome…" />
+        <FilterButton count={countFilters(filters, false)} onClick={() => setFiltersOpen(true)} />
         <span className="ml-auto hidden items-center gap-3 text-xs text-gray-500 lg:flex">
           {UNIT_OPTIONS.map((o) => (
             <span key={o.value} className="flex items-center gap-1.5">
@@ -583,21 +555,7 @@ export function CreativesTable({
         </span>
       </div>
 
-      {chips.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {chips.map((c) => (
-            <span key={c.key} className="ast-pop inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white py-1 pl-3 pr-1.5 text-xs font-semibold text-blue-900 shadow-[var(--shadow-sm)]">
-              {c.label}
-              <button type="button" onClick={c.remove} aria-label={`Remover filtro ${c.label}`} className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-blue-900">
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-          <button type="button" onClick={() => setFilters(EMPTY_FILTERS)} className="px-1 text-xs font-bold text-gray-500 hover:text-[color:var(--color-danger)]">
-            Limpar tudo
-          </button>
-        </div>
-      )}
+      <FilterChips chips={chips} onClear={() => setFilters(EMPTY_FILTERS)} />
 
       {loading ? (
         <div className="space-y-2" role="status" aria-label="Carregando criativos">

@@ -11,7 +11,6 @@ import {
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
-import { Select } from "@/components/ui/Select";
 import { Tabs } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
 import {
@@ -30,6 +29,7 @@ import {
   rowsInRange, sumTM, weekdayStats, zeroTM, type MetricKey, type TM, type TrafficHighlightKey,
 } from "@/lib/traffic-analytics";
 import { cn } from "@/lib/utils";
+import { FilterSelect } from "@/components/ui/FilterBar";
 
 // Dashboard do Tráfego Pago (somente leitura, dados do Gerenciador de Anúncios
 // sincronizados em meta_*). Mesmo padrão da aba Instagram: seletor de período
@@ -132,15 +132,6 @@ function DateField({ label, value, min, max, onChange }: { label: string; value:
         className="h-9 rounded-[14px] border border-gray-200 bg-white px-3 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
       />
     </label>
-  );
-}
-
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-1 text-[11px] font-bold uppercase text-gray-500">{label}</p>
-      {children}
-    </div>
   );
 }
 
@@ -542,39 +533,27 @@ export function TrafficDashboard() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2">
-        <FilterField label="Campanha">
-          <div className="w-60">
-            <Select className="h-9" value={campaignId} onChange={(e) => pickCampaign(e.target.value)}>
-              <option value="">Todas</option>
-              {structure.campaigns.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </Select>
-          </div>
-        </FilterField>
-        <FilterField label="Conjunto de anúncios">
-          <div className="w-60">
-            <Select className="h-9" value={adSetId} onChange={(e) => pickAdSet(e.target.value)}>
-              <option value="">Todos</option>
-              {adSetOptions.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </Select>
-          </div>
-        </FilterField>
-        <FilterField label="Anúncio">
-          <div className="w-60">
-            <Select className="h-9" value={adId} onChange={(e) => setAdId(e.target.value)}>
-              <option value="">Todos</option>
-              {adOptions.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </Select>
-          </div>
-        </FilterField>
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterSelect label="Campanha" value={campaignId} onChange={(e) => pickCampaign(e.target.value)}>
+          <option value="">Todas as campanhas</option>
+          {structure.campaigns.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </FilterSelect>
+        <FilterSelect label="Conjunto de anúncios" value={adSetId} onChange={(e) => pickAdSet(e.target.value)}>
+          <option value="">Todos os conjuntos</option>
+          {adSetOptions.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </FilterSelect>
+        <FilterSelect label="Anúncio" value={adId} onChange={(e) => setAdId(e.target.value)}>
+          <option value="">Todos os anúncios</option>
+          {adOptions.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </FilterSelect>
         {hasFilter && (
-          <button onClick={clearFilters} className="mb-1 flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:border-blue-900">
+          <button onClick={clearFilters} className="flex h-11 items-center gap-1 rounded-full border border-gray-200 px-3 text-xs font-semibold text-blue-900 hover:border-blue-900 sm:h-10">
             <X className="h-3.5 w-3.5" />
             Limpar filtros
           </button>

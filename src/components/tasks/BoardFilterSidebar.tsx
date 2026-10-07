@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, CalendarRange, Check, ChevronDown, Flag, Layers, ListFilter, Search, User, Users, X, Zap,
+  AlertTriangle, CalendarRange, Check, ChevronDown, Flag, Layers, ListFilter, User, Users, X, Zap,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth-context";
 import { cn, dateInputToISO, dateInputToStartOfDayISO, isoToDateInputValue } from "@/lib/utils";
 import type { Area, Profile } from "@/types/database";
 import type { TaskFilters } from "@/lib/services/tasks";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 const PRIORITIES = [
   { value: "baixa", label: "Baixa", color: "#7c8e98" },
@@ -180,29 +181,7 @@ export function BoardFilterSidebar({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="px-4 py-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") apply();
-              }}
-              placeholder="Buscar tarefas..."
-              aria-label="Buscar tarefas"
-              className="h-10 w-full rounded-full border border-gray-200 bg-gray-050 pl-9 pr-8 text-sm text-blue-900 outline-none transition-all placeholder:text-gray-500 focus:border-blue-900 focus:bg-white focus:shadow-[var(--shadow-focus)]"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                aria-label="Limpar busca"
-                className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+          <SearchInput value={search} onChange={setSearch} onEnter={apply} placeholder="Buscar tarefas..." className="max-w-none sm:max-w-none" />
 
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button

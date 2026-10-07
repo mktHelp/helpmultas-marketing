@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle, ArrowRight, CalendarCheck, CalendarClock, Check, CheckCircle2, Plus, Sparkles, Sun, Target,
 } from "lucide-react";
-import { PageHero } from "@/components/shared/PageHero";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { TodayAnniversaries } from "@/components/shared/TodayAnniversaries";
 import { UserAvatar } from "@/components/shared/UserAvatar";
@@ -57,9 +57,9 @@ function ProgressRing({ percent, size = 84 }: { percent: number; size?: number }
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`${percent}% do dia concluído`}>
+    <div className="relative shrink-0 text-blue-900" style={{ width: size, height: size }} role="img" aria-label={`${percent}% do dia concluído`}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(36,55,70,0.10)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -75,7 +75,7 @@ function ProgressRing({ percent, size = 84 }: { percent: number; size?: number }
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
         <span className="font-display text-xl font-bold tabular-nums">{percent}%</span>
-        <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-blue-100">do dia</span>
+        <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">do dia</span>
       </span>
     </div>
   );
@@ -231,8 +231,7 @@ export default function MyDayPage() {
 
   return (
     <div>
-      <PageHero
-        tone="day"
+      <PageHeader
         icon={Sun}
         title={`${greeting()}${firstName ? `, ${firstName}` : ""}!`}
         description={format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
@@ -243,11 +242,11 @@ export default function MyDayPage() {
           </Button>
         }
       >
-        <span className="rounded-full bg-white/10 px-2.5 py-1">
+        <span className="rounded-full bg-blue-050 px-2.5 py-1">
           {groups.today.length} {groups.today.length === 1 ? "tarefa para hoje" : "tarefas para hoje"}
         </span>
-        {groups.overdue.length > 0 && <span className="rounded-full bg-red-500/90 px-2.5 py-1">{groups.overdue.length} atrasada{groups.overdue.length === 1 ? "" : "s"}</span>}
-        <span className="rounded-full bg-white/10 px-2.5 py-1">{groups.done.length} concluída{groups.done.length === 1 ? "" : "s"} hoje</span>
+        {groups.overdue.length > 0 && <span className="rounded-full bg-[color:var(--color-danger-bg)] px-2.5 py-1 text-[color:var(--color-danger)]">{groups.overdue.length} atrasada{groups.overdue.length === 1 ? "" : "s"}</span>}
+        <span className="rounded-full bg-blue-050 px-2.5 py-1">{groups.done.length} concluída{groups.done.length === 1 ? "" : "s"} hoje</span>
         {focus && (
           <Link
             href={`/tasks/${focus.id}`}
@@ -258,7 +257,7 @@ export default function MyDayPage() {
             <ArrowRight className="h-3.5 w-3.5 shrink-0" />
           </Link>
         )}
-      </PageHero>
+      </PageHeader>
 
       <TodayAnniversaries onlyMine />
 

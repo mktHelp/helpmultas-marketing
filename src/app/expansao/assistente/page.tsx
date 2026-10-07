@@ -1,2 +1,6 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Helpinho — Expansão Help Multas" };
+
 // Mesmo chat do Hub, dentro da área da Expansão (o AuthProvider vem do layout).
 export { default } from "@/app/(app)/assistente/page";

@@ -1,7 +1,6 @@
 import { after } from "next/server";
 import { refreshFollowerSnapshotsIfStale } from "@/lib/instagram-api";
-import { Camera } from "lucide-react";
-import { PageHero } from "@/components/shared/PageHero";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { InstagramInsights } from "@/components/instagram/InstagramInsights";
 import { InstagramSyncButton } from "@/components/instagram/InstagramSyncButton";
 import { createClient } from "@/lib/supabase/server";
@@ -22,9 +21,7 @@ export default async function InstagramPage() {
 
   return (
     <div>
-      <PageHero
-        tone="instagram"
-        icon={Camera}
+      <PageHeader
         title="Instagram"
         description="Insights dos perfis: desempenho, publicações, conteúdos e público. Somente leitura."
         action={<InstagramSyncButton />}

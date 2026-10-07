@@ -9,7 +9,7 @@ import { HelpinhoWidget } from "@/components/assistant/HelpinhoWidget";
 import type { TaskStatusRow } from "@/types/database";
 
 export const metadata: Metadata = {
-  title: "Criativos — Expansão Help Multas",
+  title: "Expansão Help Multas",
 };
 
 // Standalone dashboard for the expansion team: requires login but lives

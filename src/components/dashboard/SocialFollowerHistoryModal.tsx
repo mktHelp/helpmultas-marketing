@@ -13,6 +13,7 @@ import { listFollowerSnapshotsInRange, listLinkClicksInRange } from "@/lib/servi
 import { dailyFollowerHistory, dailyLinkClickHistory } from "@/lib/stats";
 import { cn, parseUserAgent, referrerLabel } from "@/lib/utils";
 import type { SocialAccount, SocialLinkClick } from "@/types/database";
+import { GRID_COLOR, TOOLTIP_STYLE } from "@/lib/chart-theme";
 
 const MONTHS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -200,7 +201,7 @@ function MonthReport({
 
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={history} margin={{ left: -20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
           <YAxis
             tick={{ fontSize: 11, fill: "#7c8e98" }}
@@ -209,7 +210,7 @@ function MonthReport({
             domain={["dataMin - 20", "dataMax + 20"]}
           />
           <RTooltip
-            contentStyle={{ borderRadius: 12, border: "1px solid #d8e0e4", fontSize: 13 }}
+            contentStyle={TOOLTIP_STYLE}
             formatter={(value, _name, props) => {
               const delta = (props?.payload as { delta?: number | null } | undefined)?.delta;
               return [
@@ -280,11 +281,11 @@ function LinkClicksSection({ month, clicks }: { month: number; clicks: SocialLin
         <>
           <ResponsiveContainer width="100%" height={140}>
             <BarChart data={history} margin={{ left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip
-                contentStyle={{ borderRadius: 12, border: "1px solid #d8e0e4", fontSize: 13 }}
+                contentStyle={TOOLTIP_STYLE}
                 formatter={(value) => [value, "Cliques"]}
               />
               <Bar dataKey="clicks" radius={[6, 6, 0, 0]} fill="#25d366" />

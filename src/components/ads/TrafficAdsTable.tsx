@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Eye, Image as ImageIcon, Layers, Megaphone, MousePointerClick, Percent,
-  Search, Target, Wallet, X,
+  Target, Wallet, X,
 } from "lucide-react";
 import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { createClient } from "@/lib/supabase/client";
@@ -22,6 +22,7 @@ import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { currencyFormatter, formatDay, numberFormatter } from "@/lib/format";
 import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 // Espelha a estrutura do Gerenciador de Anúncios da Meta: uma aba por nível
 // (campanha / conjunto de anúncios / anúncios), cada uma com suas próprias
@@ -294,21 +295,7 @@ function Toolbar({
 }) {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
-      <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          aria-label={placeholder}
-          className="h-10 w-full rounded-full border border-gray-200 bg-white pl-10 pr-9 text-sm text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:shadow-[var(--shadow-focus)]"
-        />
-        {value && (
-          <button type="button" onClick={() => onChange("")} aria-label="Limpar busca" className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      <SearchInput value={value} onChange={onChange} placeholder={placeholder} />
       {children}
       <span className="ml-auto text-xs font-semibold text-gray-500">{summary}</span>
     </div>

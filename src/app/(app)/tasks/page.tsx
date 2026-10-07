@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, CircleDot, ListFilter, ListTodo, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleDot, ListTodo, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RightDrawer } from "@/components/shared/RightDrawer";
 import { StatCard } from "@/components/shared/StatCard";
 import { Button } from "@/components/ui/Button";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterBar, FilterButton } from "@/components/ui/FilterBar";
 import { ActiveFilterChips } from "@/components/tasks/ActiveFilterChips";
 import { BoardFilterSidebar, countActiveFilters } from "@/components/tasks/BoardFilterSidebar";
 import { TaskTable } from "@/components/tasks/TaskTable";
@@ -17,7 +19,7 @@ import { listAreas } from "@/lib/services/reference";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { useTaskStatuses } from "@/lib/task-status-context";
-import { cn, isOverdue } from "@/lib/utils";
+import { isOverdue } from "@/lib/utils";
 import type { Area, Profile, TaskWithRelations } from "@/types/database";
 
 export default function AllTasksPage() {
@@ -84,23 +86,6 @@ export default function AllTasksPage() {
         description="Gerencie todas as atividades do Marketing."
         action={
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(true)}
-              aria-haspopup="dialog"
-              className={cn(
-                "inline-flex h-10 items-center gap-2 rounded-full border-2 px-4 font-display text-sm font-semibold transition-all active:scale-[0.97]",
-                activeCount > 0 ? "border-blue-900 bg-blue-900 text-white hover:bg-blue-800" : "border-blue-900 bg-white text-blue-900 hover:bg-blue-050"
-              )}
-            >
-              <ListFilter className="h-4 w-4" />
-              Filtros
-              {activeCount > 0 && (
-                <span key={activeCount} className="ast-pop rounded-full bg-yellow-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-blue-900">
-                  {activeCount}
-                </span>
-              )}
-            </button>
             <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
               <Plus className="h-4 w-4" /> Nova tarefa
             </Button>
@@ -124,6 +109,10 @@ export default function AllTasksPage() {
         <StatCard icon={CheckCircle2} label="Concluídas" value={stats.done} color="#2f8f5b" index={3} />
       </div>
 
+      <FilterBar>
+        <SearchInput value={filters.search ?? ""} onChange={(v) => setFilters((f) => ({ ...f, search: v || undefined }))} placeholder="Buscar tarefas…" />
+        <FilterButton count={activeCount} onClick={() => setFiltersOpen(true)} />
+      </FilterBar>
       <ActiveFilterChips filters={filters} onChange={setFilters} profiles={profiles} areas={areas} />
 
       {loading ? (

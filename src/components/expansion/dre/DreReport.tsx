@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ReferenceLine, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
 import { CENARIOS, PERIODOS, brl, brlShort, calc, credPct, num, tot, type DreInput, type DreResult } from "@/lib/expansion/dre";
+import { GRID_COLOR } from "@/lib/chart-theme";
+import { insightsEtapa, type Insight } from "@/lib/expansion/insights";
 
 // Relatório em PDF (A4 retrato). Largura fixa de 190 mm (área útil com margem de 10 mm)
 // e gráficos com tamanho em pixels: o que aparece na tela é exatamente o que imprime.
@@ -22,7 +24,7 @@ function Page({ title, S, n, total, children }: { title: string; S: DreInput; n:
   return (
     <section className="flex flex-col overflow-hidden break-after-page break-inside-avoid last:break-after-auto" style={{ width: W, height: PAGE_H }}>
       <div className="mb-3 flex shrink-0 items-center justify-between border-b border-gray-200 pb-2 text-[10px] text-gray-500">
-        <span className="font-bold uppercase tracking-wider text-blue-900">DRE do Franqueado{S.lead ? ` · ${S.lead}` : ""}</span>
+        <span className="font-bold uppercase tracking-wider text-blue-900">Simulado de DRE{S.modelo ? ` · ${S.modelo === "loja" ? "Loja" : "Home Based"}` : ""}{S.lead ? ` · ${S.lead}` : ""}</span>
         <span>{title}</span>
       </div>
       <div className="min-h-0 flex-1">{children}</div>
@@ -43,11 +45,11 @@ function H({ children, sub }: { children: ReactNode; sub?: string }) {
   );
 }
 
-function Kpi({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: "navy" | "yellow" }) {
+function Kpi({ label, value, sub, tone, big }: { label: string; value: string; sub: string; tone?: "navy" | "yellow"; big?: boolean }) {
   return (
-    <div className={`rounded-xl border px-3 py-2.5 ${tone === "navy" ? "border-blue-900 bg-blue-900 text-white" : tone === "yellow" ? "border-yellow-500 bg-yellow-500 text-blue-900" : "border-gray-200 bg-white text-blue-900"}`}>
+    <div className={`rounded-xl border ${big ? "px-3.5 py-3" : "px-3 py-2"} ${tone === "navy" ? "border-blue-900 bg-blue-900 text-white" : tone === "yellow" ? "border-yellow-500 bg-yellow-500 text-blue-900" : "border-gray-200 bg-white text-blue-900"}`}>
       <div className="text-[9px] font-semibold uppercase tracking-wide opacity-70">{label}</div>
-      <div className="font-display text-[19px] font-bold leading-tight">{value}</div>
+      <div className={`font-display font-bold leading-tight ${big ? "text-[22px]" : "text-[16px]"}`}>{value}</div>
       <div className="text-[9px] opacity-70">{sub}</div>
     </div>
   );
@@ -58,12 +60,12 @@ const axisMoney = (v: number) => brlShort(v).replace("R$ ", "");
 function MonthlyChart({ c }: { c: DreResult }) {
   return (
     <AreaChart width={W} height={210} data={c.meses} margin={{ left: 0, right: 12, top: 18, bottom: 0 }}>
-      <CartesianGrid stroke="#e6ecf0" vertical={false} />
+      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
       <XAxis dataKey="m" tick={{ fontSize: 9 }} tickLine={false} interval={2} />
       <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={48} tickFormatter={axisMoney} />
       <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
       <Area isAnimationActive={false} type="monotone" dataKey="margem" name="Margem (após taxa de processamento e impostos)" stroke={YELLOW} fill={YELLOW} fillOpacity={0.2} strokeWidth={2} />
-      <Area isAnimationActive={false} type="monotone" dataKey="resultado" name="Resultado líquido" stroke={NAVY} fill={NAVY} fillOpacity={0.06} strokeWidth={2} />
+      <Area isAnimationActive={false} type="monotone" dataKey="resultado" name="Faturamento líquido" stroke={NAVY} fill={NAVY} fillOpacity={0.06} strokeWidth={2} />
       {c.pay && <ReferenceLine x={c.pay} stroke={GREEN} strokeDasharray="4 4" label={{ value: `Retorno: mês ${c.pay}`, fill: GREEN, fontSize: 9, position: "top" }} />}
     </AreaChart>
   );
@@ -72,7 +74,7 @@ function MonthlyChart({ c }: { c: DreResult }) {
 function CashChart({ c }: { c: DreResult }) {
   return (
     <AreaChart width={W} height={210} data={c.meses} margin={{ left: 0, right: 12, top: 18, bottom: 0 }}>
-      <CartesianGrid stroke="#e6ecf0" vertical={false} />
+      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
       <XAxis dataKey="m" tick={{ fontSize: 9 }} tickLine={false} interval={2} />
       <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={48} tickFormatter={axisMoney} />
       <ReferenceLine y={0} stroke={NAVY} />
@@ -85,16 +87,16 @@ function CashChart({ c }: { c: DreResult }) {
 function YearChart({ c }: { c: DreResult }) {
   const data = PERIODOS.map((n) => {
     const r = c.meses.slice(0, n);
-    return { ano: `${n} meses`, Faturamento: Math.round(tot(r, "faturamento")), Resultado: Math.round(tot(r, "resultado")) };
+    return { ano: `${n} meses`, Faturamento: Math.round(tot(r, "faturamento")), "Fat. líquido": Math.round(tot(r, "resultado")) };
   });
   return (
     <BarChart width={W / 2 - 8} height={190} data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-      <CartesianGrid stroke="#e6ecf0" vertical={false} />
+      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
       <XAxis dataKey="ano" tick={{ fontSize: 9 }} tickLine={false} />
       <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={44} tickFormatter={axisMoney} />
       <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
       <Bar isAnimationActive={false} dataKey="Faturamento" fill={NAVY} radius={[5, 5, 0, 0]} label={{ position: "top", fontSize: 8, fill: NAVY, formatter: (v: unknown) => axisMoney(Number(v)) }} />
-      <Bar isAnimationActive={false} dataKey="Resultado" fill={YELLOW} radius={[5, 5, 0, 0]} label={{ position: "top", fontSize: 8, fill: "#8a6a00", formatter: (v: unknown) => axisMoney(Number(v)) }} />
+      <Bar isAnimationActive={false} dataKey="Fat. líquido" fill={YELLOW} radius={[5, 5, 0, 0]} label={{ position: "top", fontSize: 8, fill: "#8a6a00", formatter: (v: unknown) => axisMoney(Number(v)) }} />
     </BarChart>
   );
 }
@@ -105,7 +107,7 @@ function Hundred({ c }: { c: DreResult }) {
     { n: "Taxa de processamento", v: tot(c.meses, "roy"), color: "#9db0bc" },
     { n: "Impostos", v: tot(c.meses, "imp"), color: "#4a6a80" },
     { n: "Despesas fixas", v: tot(c.meses, "fixa"), color: NAVY },
-    { n: "Resultado líquido", v: Math.max(tot(c.meses, "resultado"), 0), color: YELLOW },
+    { n: "Faturamento líquido", v: Math.max(tot(c.meses, "resultado"), 0), color: YELLOW },
   ];
   const T = parts.reduce((s, x) => s + x.v, 0) || 1;
   return (
@@ -150,6 +152,62 @@ function Funnel({ c, S }: { c: DreResult; S: DreInput }) {
   );
 }
 
+const ORANGE = "#e07a2f";
+
+/** Saldo de caixa dos três cenários no mesmo gráfico. */
+function JornadaChart({ S, c }: { S: DreInput; c: DreResult }) {
+  const res = CENARIOS.map((x) => (x.id === "realista" ? c : calc(S, x.ajuste)));
+  const [cons, real, otim] = res;
+  const cor = [ORANGE, NAVY, GREEN];
+  const sub = ["40% menos clientes", "Premissas informadas", "30% mais clientes"];
+  const data = Array.from({ length: 37 }, (_, m) => ({
+    m,
+    Conservador: m ? cons.meses[m - 1].saldo : -c.inv,
+    Realista: m ? real.meses[m - 1].saldo : -c.inv,
+    Otimista: m ? otim.meses[m - 1].saldo : -c.inv,
+  }));
+  return (
+    <div>
+      <div className="mb-2 grid grid-cols-3 gap-2.5">
+        {CENARIOS.map((x, i) => (
+          <div key={x.id} className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: i === 1 ? NAVY : "#e6ecf0", background: i === 1 ? "#f2f6f8" : "#fff" }}>
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: cor[i] }} />
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-blue-900">{x.label}</div>
+              <div className="text-[9px] text-gray-500">{sub[i]}</div>
+            </div>
+            <div className="text-right">
+              <div className="font-display text-[13px] font-bold text-blue-900">{res[i].pay ? `Mês ${res[i].pay}` : "> 36"}</div>
+              <div className="text-[9px]" style={{ color: res[i].pico.resultado < 0 ? RED : "#6b7f8c" }}>{brlShort(res[i].pico.resultado)}/mês</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    <LineChart width={W} height={230} data={data} margin={{ left: 0, right: 12, top: 18, bottom: 0 }}>
+      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+      <XAxis dataKey="m" tick={{ fontSize: 9 }} tickLine={false} interval={2} />
+      <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={48} tickFormatter={axisMoney} />
+      <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+      <ReferenceLine y={0} stroke={NAVY} label={{ value: "Investimento recuperado", position: "insideTopLeft", fontSize: 9, fill: NAVY }} />
+      <Line isAnimationActive={false} type="monotone" dataKey="Conservador" stroke={ORANGE} strokeWidth={2} dot={false} />
+      <Line isAnimationActive={false} type="monotone" dataKey="Otimista" stroke={GREEN} strokeWidth={2} dot={false} />
+      <Line isAnimationActive={false} type="monotone" dataKey="Realista" stroke={NAVY} strokeWidth={3} dot={false} />
+    </LineChart>
+    </div>
+  );
+}
+
+function InsightBox({ x }: { x: Insight }) {
+  const opp = x.tipo === "oportunidade";
+  return (
+    <div className="rounded-xl border p-3" style={{ borderColor: opp ? YELLOW : "#e6ecf0", background: opp ? "#fffaeb" : "#fff", breakInside: "avoid" }}>
+      {x.valor && <div className="font-display text-[18px] font-bold leading-none" style={{ color: opp ? "#8a6a00" : NAVY }}>{x.valor}</div>}
+      <div className={`text-[11px] font-bold text-blue-900 ${x.valor ? "mt-1.5" : ""}`}>{x.titulo}</div>
+      <div className="mt-0.5 text-[10px] leading-snug text-gray-600">{x.texto}</div>
+    </div>
+  );
+}
+
 function ItemsTable({ title, items, total }: { title: string; items: { n: string; v: number }[]; total: number }) {
   return (
     <div style={{ width: W / 2 - 8 }}>
@@ -170,7 +228,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
   const fat = tot(c.meses, "faturamento");
   const res = tot(c.meses, "resultado");
   const ys = PERIODOS.map((n) => c.meses.slice(0, n));
-  const TOTAL = 4;
+  const TOTAL = 5;
   const emitido = new Date().toLocaleDateString("pt-BR");
   const premissas: [string, string][] = [
     ["Modelo", S.modelo === "loja" ? "Loja" : "Home Based"],
@@ -191,10 +249,27 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
       <td className={`px-2.5 py-1.5 ${kind === "n" ? "pl-5 text-gray-700" : ""}`}>{label}</td>
       {ys.map((y, i) => {
         const v = tot(y, k);
-        return <td key={i} className="whitespace-nowrap px-2.5 py-1.5 text-right" style={v < 0 && kind !== "r" ? { color: RED } : undefined}>{brl(neg ? -v : v)}</td>;
+        const f = tot(y, "faturamento");
+        return (
+          <td key={i} className="whitespace-nowrap px-2.5 py-1.5 text-right" style={v < 0 && kind !== "r" ? { color: RED } : undefined}>
+            {brl(neg ? -v : v)}
+            {f > 0 && <span className="block text-[8.5px] font-normal opacity-60">{Math.round((Math.abs(v) / f) * 100)}% da receita</span>}
+          </td>
+        );
       })}
     </tr>
   );
+  const extra = (label: string, get: (y: typeof ys[number], n: number) => number) => (
+    <tr className="border-t border-gray-100 text-gray-600">
+      <td className="px-2.5 py-1.5">{label}</td>
+      {ys.map((y, i) => <td key={i} className="whitespace-nowrap px-2.5 py-1.5 text-right">{brl(get(y, PERIODOS[i]))}</td>)}
+    </tr>
+  );
+  // insights positivos (os mesmos mostrados durante a montagem), sem repetir título
+  const vistos = new Set<string>();
+  const todos = [0, 1, 2, 3, 4].flatMap((n) => insightsEtapa(n, S, c)).filter((x) => (vistos.has(x.titulo) ? false : (vistos.add(x.titulo), true)));
+  const destaques = todos.filter((x) => x.tipo === "destaque").slice(0, 6);
+  const oportunidades = todos.filter((x) => x.tipo === "oportunidade").slice(0, 3);
 
   return (
     <div className="mx-auto text-blue-900" style={{ width: W }}>
@@ -214,20 +289,21 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
             {c.pay ? <>volta no <span className="text-yellow-500">mês {c.pay}</span></> : <>passa de 36 meses de retorno</>}
           </h1>
           <p className="relative mt-2 text-[12px] leading-relaxed text-blue-100">
-            Com base no seu círculo de amigos, parceiros de negócios, tráfego pago, recompra e indicação de amigos, projetamos  <b className="text-white">{pct1(c.casosMes)} clientes por mês</b> e um resultado líquido de <b className="text-white">{brl(c.pico.resultado)}/mês</b> a partir do mês {Math.min(S.rampa, 36)}.
+            Com base no seu círculo de amigos, parceiros de negócios, tráfego pago, recompra e indicação de amigos, projetamos  <b className="text-white">{pct1(c.casosMes)} clientes por mês</b> e um faturamento líquido de <b className="text-white">{brl(c.pico.resultado)}/mês</b> a partir do mês {Math.min(S.rampa, 36)}.
           </p>
           <p className="relative mt-3 text-[9px] text-blue-200">Emitido em {emitido}</p>
         </div>
 
-        <div className="mt-4 grid grid-cols-4 gap-2.5">
-          <Kpi label="Investimento inicial" value={brl(c.inv)} sub="para abrir a operação" />
-          <Kpi label="Retorno" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} sub="saldo acumulado positivo" tone="navy" />
-          <Kpi label="Faturamento 36m" value={brlShort(fat)} sub="receita dos clientes" />
-          <Kpi label="Lucro acumulado 36m" value={brlShort(res)} sub="já descontado tudo" tone="yellow" />
-          <Kpi label="Margem líquida" value={`${fat ? pct1((res / fat) * 100) : 0}%`} sub="resultado ÷ faturamento" />
-          <Kpi label="Retorno sobre o invest." value={c.roi36 !== null ? `${pct1(c.roi36)}×` : "—"} sub="lucro ÷ investimento" tone="navy" />
-          <Kpi label="Ponto de equilíbrio" value={c.equilibrio !== null ? `${pct1(c.equilibrio)} clientes` : "—"} sub="por mês, p/ pagar despesas" />
-          <Kpi label="Folga sobre o equilíbrio" value={c.folga !== null ? `${pct1(c.folga)}×` : "—"} sub="projeção ÷ equilíbrio" tone="yellow" />
+        <div className="mt-4 grid grid-cols-3 gap-2.5">
+          <Kpi big label="Investimento inicial" value={brl(c.inv)} sub="para abrir a operação" />
+          <Kpi big label="Faturamento líquido / mês" value={brl(c.pico.resultado)} sub={`a partir do mês ${Math.min(S.rampa, 36)}`} tone="navy" />
+          <Kpi big label="Lucro acumulado 36m" value={brlShort(res)} sub="já descontado tudo" tone="yellow" />
+        </div>
+        <div className="mt-2.5 grid grid-cols-4 gap-2.5">
+          <Kpi label="Retorno" value={c.pay ? `Mês ${c.pay}` : "> 36 meses"} sub="saldo acumulado positivo" />
+          <Kpi label="Margem líquida" value={`${fat ? pct1((res / fat) * 100) : 0}%`} sub="fat. líquido ÷ faturamento" />
+          <Kpi label="Retorno s/ invest." value={c.roi36 !== null ? `${pct1(c.roi36)}×` : "—"} sub="lucro ÷ investimento" />
+          <Kpi label="Folga s/ equilíbrio" value={c.folga !== null ? `${pct1(c.folga)}×` : "—"} sub="projeção ÷ equilíbrio" />
         </div>
 
         <H sub="mesma operação, três cenários">E se der menos certo do que o esperado?</H>
@@ -241,7 +317,7 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
                 <div className="mb-2 text-[9px] leading-snug text-gray-500">{x.desc}</div>
                 <div className="grid grid-cols-3 gap-1 text-[9px] text-gray-500">
                   <div>Retorno<b className="block font-display text-[13px] text-blue-900">{r.pay ? `Mês ${r.pay}` : ">36m"}</b></div>
-                  <div>Resultado/mês<b className="block font-display text-[13px]" style={{ color: r.pico.resultado < 0 ? RED : NAVY }}>{brlShort(r.pico.resultado)}</b></div>
+                  <div>Fat. líquido/mês<b className="block font-display text-[13px]" style={{ color: r.pico.resultado < 0 ? RED : NAVY }}>{brlShort(r.pico.resultado)}</b></div>
                   <div>Clientes/mês<b className="block font-display text-[13px] text-blue-900">{pct1(r.casosMes)}</b></div>
                 </div>
               </div>
@@ -263,13 +339,13 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
 
       {/* ---------- Página 2: gráficos ---------- */}
       <Page title="Evolução e distribuição" S={S} n={2} total={TOTAL}>
-        <H sub="mensal, 36 meses">Margem e resultado</H>
+        <H sub="mensal, 36 meses">Margem e faturamento líquido</H>
         <MonthlyChart c={c} />
         <H sub={`após o investimento inicial de ${brl(c.inv)}`}>Saldo de caixa acumulado</H>
         <CashChart c={c} />
         <div className="mt-5 flex gap-4">
           <div>
-            <H sub="acumulado, faturamento x resultado">Evolução em 12, 24 e 36 meses</H>
+            <H sub="acumulado, faturamento x fat. líquido">Evolução em 12, 24 e 36 meses</H>
             <YearChart c={c} />
           </div>
           <div>
@@ -296,7 +372,9 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
             {line("(-) Impostos", "imp", "n", true)}
             {line("= Margem de contribuição", "margem", "t")}
             {line("(-) Despesas fixas", "fixa", "n", true)}
-            {line("= Resultado líquido", "resultado", "r")}
+            {line("= Faturamento líquido", "resultado", "r")}
+            {extra("Faturamento líquido médio por mês", (y, n) => tot(y, "resultado") / n)}
+            {extra(`Saldo após o investimento de ${brl(c.inv)}`, (y) => y[y.length - 1].saldo)}
           </tbody>
         </table>
         <div className="mt-5 flex gap-4">
@@ -313,13 +391,31 @@ export function DreReport({ S, c }: { S: DreInput; c: DreResult }) {
         </ul>
       </Page>
 
-      {/* ---------- Página 4: fluxo mensal ---------- */}
-      <Page title="Fluxo de caixa mensal" S={S} n={4} total={TOTAL}>
+      {/* ---------- Página 4: destaques e jornada ---------- */}
+      <Page title="Destaques e oportunidades" S={S} n={4} total={TOTAL}>
+        <H sub="o que a projeção mostra para você">Pontos fortes da sua operação</H>
+        <div className="grid grid-cols-2 gap-2.5">
+          {destaques.map((x) => <InsightBox key={x.titulo} x={x} />)}
+        </div>
+        {oportunidades.length > 0 && (
+          <>
+            <H sub="quanto dá para ganhar a mais">Oportunidades para acelerar</H>
+            <div className="grid grid-cols-3 gap-2.5">
+              {oportunidades.map((x) => <InsightBox key={x.titulo} x={x} />)}
+            </div>
+          </>
+        )}
+        <H sub="saldo do caixa, já descontado o investimento">Sua jornada financeira nos três cenários</H>
+        <JornadaChart S={S} c={c} />
+      </Page>
+
+      {/* ---------- Página 5: fluxo mensal ---------- */}
+      <Page title="Fluxo de caixa mensal" S={S} n={5} total={TOTAL}>
         <H sub="36 meses">Fluxo de caixa mensal</H>
         <table className="w-full border-collapse text-[10px]">
           <thead>
             <tr className="border-b border-gray-300 text-[9px] text-gray-500">
-              {["Mês", "Clientes", "Faturamento", "Taxa proc.", "Impostos", "Despesas", "Resultado", "Saldo"].map((h, i) => <th key={h} className={`px-2 py-1 font-semibold ${i ? "text-right" : "text-left"}`}>{h}</th>)}
+              {["Mês", "Clientes", "Faturamento", "Taxa proc.", "Impostos", "Despesas", "Fat. líquido", "Saldo"].map((h, i) => <th key={h} className={`px-2 py-1 font-semibold ${i ? "text-right" : "text-left"}`}>{h}</th>)}
             </tr>
           </thead>
           <tbody>

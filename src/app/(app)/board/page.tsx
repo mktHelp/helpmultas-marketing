@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ListFilter, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RightDrawer } from "@/components/shared/RightDrawer";
 import { Button } from "@/components/ui/Button";
@@ -12,9 +12,10 @@ import { createClient } from "@/lib/supabase/client";
 import { listTasks, type TaskFilters } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
 import { listAreas } from "@/lib/services/reference";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterBar, FilterButton } from "@/components/ui/FilterBar";
 import { ActiveFilterChips } from "@/components/tasks/ActiveFilterChips";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
-import { cn } from "@/lib/utils";
 import type { Area, Profile, TaskWithRelations } from "@/types/database";
 
 export default function BoardPage() {
@@ -64,25 +65,6 @@ export default function BoardPage() {
         description="Visualize e mova as tarefas entre as etapas de produção."
         action={
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(true)}
-              aria-haspopup="dialog"
-              className={cn(
-                "inline-flex h-10 items-center gap-2 rounded-full border-2 px-4 font-display text-sm font-semibold transition-all active:scale-[0.97]",
-                activeCount > 0
-                  ? "border-blue-900 bg-blue-900 text-white hover:bg-blue-800"
-                  : "border-blue-900 bg-white text-blue-900 hover:bg-blue-050"
-              )}
-            >
-              <ListFilter className="h-4 w-4" />
-              Filtros
-              {activeCount > 0 && (
-                <span key={activeCount} className="ast-pop rounded-full bg-yellow-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-blue-900">
-                  {activeCount}
-                </span>
-              )}
-            </button>
             <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
               <Plus className="h-4 w-4" /> Nova tarefa
             </Button>
@@ -90,6 +72,10 @@ export default function BoardPage() {
         }
       />
 
+      <FilterBar>
+        <SearchInput value={filters.search ?? ""} onChange={(v) => setFilters((f) => ({ ...f, search: v || undefined }))} placeholder="Buscar tarefas…" />
+        <FilterButton count={activeCount} onClick={() => setFiltersOpen(true)} />
+      </FilterBar>
       <ActiveFilterChips filters={filters} onChange={setFilters} profiles={profiles} areas={areas} />
 
       {loading ? (

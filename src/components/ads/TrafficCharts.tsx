@@ -1,11 +1,11 @@
 "use client";
 
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, LineChart, Line } from "recharts";
+import { GRID_COLOR, TOOLTIP_STYLE } from "@/lib/chart-theme";
 
 // Mesma paleta/estilo de app/src/components/dashboard/DashboardCharts.tsx,
 // reaproveitado aqui pros gráficos de Tráfego Pago.
 const TICK_STYLE = { fontSize: 11, fill: "#7c8e98" };
-const TOOLTIP_STYLE = { borderRadius: 12, border: "1px solid #d8e0e4", fontSize: 13 };
 
 function truncate(label: string, max = 22) {
   return label.length > max ? `${label.slice(0, max - 1)}…` : label;
@@ -23,7 +23,7 @@ export function TrafficBarChart({
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={chartData} margin={{ left: -20, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
         <XAxis
           dataKey="shortLabel"
           tick={TICK_STYLE}
@@ -57,7 +57,7 @@ export function TrafficLineChart({
   return (
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={data} margin={{ left: -20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#eef2f4" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
         <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
         <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} />
         <RTooltip formatter={(value) => [formatValue(Number(value ?? 0)), ""]} contentStyle={TOOLTIP_STYLE} />
