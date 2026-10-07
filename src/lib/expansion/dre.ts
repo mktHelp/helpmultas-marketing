@@ -108,9 +108,36 @@ const pickPreset = (src: DreInput): ModeloPreset => structuredClone(Object.fromE
 
 export const PRESETS: Record<Modelo, ModeloPreset> = {
   home: pickPreset(DEFAULT_INPUT),
-  // TODO(loja): valores do Modelo Loja ainda não definidos; por enquanto iguais ao Home Based.
-  loja: pickPreset(DEFAULT_INPUT),
+  // Modelo Loja: parte do Home Based e muda só o que já foi definido (investimento de R$ 110.000 de adesão,
+  // estrutura de sala, despesas de ponto físico e taxa de processamento de 33%). Impostos e demais premissas
+  // seguem iguais ao Home Based até serem definidas.
+  loja: lojaPreset(),
 };
+
+function lojaPreset(): ModeloPreset {
+  const p = pickPreset(DEFAULT_INPUT);
+  p.invest = [
+    { n: "Taxa de adesão à rede", v: 110000 },
+    { n: "Estrutura (sala)", v: 0 },
+    { n: "Equipamentos (Computador, Celular)", v: 0 },
+    { n: "Capital de giro", v: 0 },
+  ];
+  p.desp = [
+    { n: "Internet e telefone", v: 0 },
+    { n: "Água", v: 0 },
+    { n: "Aluguel", v: 0 },
+    { n: "Energia", v: 0 },
+    { n: "Sistemas / CRM", v: 595 },
+    { n: "Gestor de Tráfego", v: 0 },
+    { n: "Tráfego Pago", v: 0 },
+    { n: "Marketing Nacional", v: 231 },
+    { n: "Royalties da Franqueadora", v: 1648 },
+    { n: "Contador", v: 0 },
+    { n: "Pró-labore / retirada", v: 0 },
+  ];
+  p.royalties = 33; // taxa de processamento da Loja
+  return p;
+}
 
 /** Simulação nova (círculo zerado) com os valores pré-definidos do modelo. */
 export function inputForModelo(m: Modelo): DreInput {
