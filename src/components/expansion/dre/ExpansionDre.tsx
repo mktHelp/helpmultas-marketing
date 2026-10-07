@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DreConflictError, getDreSimulation, saveDreSimulation } from "@/lib/services/dreSimulations";
 import { SavedSimulations } from "./SavedSimulations";
 import { DreReport } from "./DreReport";
+import { DreDetalhada } from "./DreDetalhada";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
@@ -919,7 +920,7 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub: s
   );
 }
 
-function StepDre({ c, filtro, setFiltro, full }: { S: DreInput; c: DreResult; filtro: Filtro; setFiltro: (f: Filtro) => void; full?: boolean }) {
+function StepDre({ S, c, filtro, setFiltro, full }: { S: DreInput; c: DreResult; filtro: Filtro; setFiltro: (f: Filtro) => void; full?: boolean }) {
   const ys = PERIODOS.map((n) => c.meses.slice(0, n));
   const r = rowsOf(c, filtro);
   const line = (label: string, k: "faturamento" | "roy" | "imp" | "margem" | "fixa" | "resultado", kind: "t" | "r" | "n" = "n", neg = false) => (
@@ -949,6 +950,8 @@ function StepDre({ c, filtro, setFiltro, full }: { S: DreInput; c: DreResult; fi
           </table>
         </div>
       </Card>
+
+      {S.modelo === "loja" && <DreDetalhada S={S} c={c} meses={parseInt(filtro, 10)} tabs={<Tabs filtro={filtro} setFiltro={setFiltro} />} />}
 
       <Card className="p-5">
         <div className="mb-3 flex items-baseline justify-between"><h3 className="font-display text-base font-semibold text-blue-900">Saldo de caixa acumulado</h3><span className="text-xs text-gray-500">após o investimento inicial de {brl(c.inv)}</span></div>
