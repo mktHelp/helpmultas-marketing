@@ -36,7 +36,7 @@ export function NovoLead({
   const podeSalvar = !!nome;
   return (
     <Dialog open={open} onClose={salvando ? () => {} : onClose} size="md">
-      <DialogHeader title="Começar um novo lead?" subtitle="Você volta para a tela inicial para escolher o modelo." onClose={onClose} />
+      <DialogHeader title="Começar uma nova simulação?" subtitle="Você volta para a tela inicial para escolher o modelo." onClose={onClose} />
       <DialogBody className="space-y-4">
         <div className="rounded-2xl border border-gray-200 bg-gray-050 p-4">
           <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Simulação em andamento</p>
@@ -66,7 +66,7 @@ export function NovoLead({
       <DialogFooter>
         <Button variant="ghost" onClick={onClose} disabled={salvando}>Cancelar</Button>
         {jaSalva ? (
-          <Button onClick={onNovo}><Plus className="h-4 w-4" /> Novo lead <ArrowRight className="h-4 w-4" /></Button>
+          <Button onClick={onNovo}><Plus className="h-4 w-4" /> Nova simulação <ArrowRight className="h-4 w-4" /></Button>
         ) : (
           <>
             <Button variant="danger" onClick={onNovo} disabled={salvando}>Descartar e começar novo</Button>

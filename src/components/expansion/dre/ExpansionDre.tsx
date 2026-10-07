@@ -276,12 +276,12 @@ export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => vo
             <h2 className="mt-0.5 font-display text-2xl font-bold text-blue-900 sm:text-3xl">{STEPS[step].t}</h2>
             <p className="mt-1 max-w-xl text-sm text-gray-500">{STEPS[step].sub}</p>
           </div>
-          <MenuSimulacao
-            outroModelo={MODELO_LABEL[outroModelo]}
-            onTrocarModelo={() => setConfirmModelo(true)}
-            onSalvas={() => setSavedOpen(true)}
-            onNovo={() => setConfirmNovo(true)}
-          />
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => setConfirmNovo(true)} className="flex h-10 items-center gap-2 rounded-full bg-yellow-500 px-4 text-sm font-bold text-blue-900 shadow-[var(--shadow-sm)] transition-colors hover:bg-yellow-600">
+              <Plus className="h-4 w-4" /> <span className="max-sm:hidden">Nova simulação</span>
+            </button>
+            <MenuSimulacao outroModelo={MODELO_LABEL[outroModelo]} onTrocarModelo={() => setConfirmModelo(true)} onSalvas={() => setSavedOpen(true)} />
+          </div>
         </div>
 
         <nav aria-label="Etapas da simulação">
@@ -380,7 +380,7 @@ export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => vo
   );
 }
 
-function MenuSimulacao({ outroModelo, onTrocarModelo, onSalvas, onNovo }: { outroModelo: string; onTrocarModelo: () => void; onSalvas: () => void; onNovo: () => void }) {
+function MenuSimulacao({ outroModelo, onTrocarModelo, onSalvas }: { outroModelo: string; onTrocarModelo: () => void; onSalvas: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -395,7 +395,6 @@ function MenuSimulacao({ outroModelo, onTrocarModelo, onSalvas, onNovo }: { outr
     };
   }, [open]);
   const itens = [
-    { icon: Plus, label: "Novo lead", sub: "Volta ao início para escolher o modelo", tile: "bg-yellow-500 text-blue-900", on: onNovo },
     { icon: FolderOpen, label: "Simulações salvas", sub: "Abrir, comparar ou gerar PDF", tile: "bg-blue-050 text-blue-900", on: onSalvas },
     { icon: ArrowLeftRight, label: `Trocar para ${outroModelo}`, sub: "Compare os modelos; o que você preencheu é mantido", tile: "bg-blue-050 text-blue-900", on: onTrocarModelo },
   ];
