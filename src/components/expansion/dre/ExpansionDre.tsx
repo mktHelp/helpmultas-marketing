@@ -24,12 +24,10 @@ import {
 } from "@/lib/expansion/dre";
 
 const STORAGE_KEY = "hm-expansion-dre-v5";
-const UI_KEY = "hm-expansion-dre-ui-v1";
+const UI_KEY = "hm-expansion-dre-ui-v2";
 const STEPS = [
-  { t: "Mercado", icon: Users, sub: "Quem o lead alcança: círculo de contatos, parceiros e credibilidade no meio dele." },
-  { t: "Ticket médio", icon: Receipt, sub: "Quanto cada cliente fechado deixa de receita." },
-  { t: "Investimento", icon: Wallet, sub: "O que o lead precisa colocar para abrir a operação." },
-  { t: "Despesas", icon: Receipt, sub: "Custos fixos mensais e o que é descontado do faturamento." },
+  { t: "Mercado", icon: Users, sub: "Quem o lead alcança, a credibilidade dele e quanto cada cliente deixa de receita." },
+  { t: "Custos", icon: Wallet, sub: "O investimento para abrir a operação e os custos mensais." },
   { t: "Projeção", icon: TrendingUp, sub: "Dos leads aos clientes: quanto cada canal entrega por mês." },
   { t: "Resumo", icon: BarChart3, sub: "A visão geral da viabilidade, pronta para mostrar ao lead." },
   { t: "DRE", icon: Receipt, sub: "A demonstração do resultado em 12, 24 e 36 meses." },
@@ -285,7 +283,7 @@ export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => vo
         </div>
 
         <nav aria-label="Etapas da simulação">
-          <ol className="grid grid-cols-7 gap-1.5 sm:gap-2">
+          <ol className="grid grid-cols-5 gap-1.5 sm:gap-2">
             {STEPS.map(({ t, icon: Icon }, i) => (
               <li key={t}>
                 <button type="button" onClick={() => go(i)} aria-current={i === step ? "step" : undefined} className="group block w-full text-left">
@@ -301,13 +299,11 @@ export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => vo
         </nav>
       </header>
 
-      {step === 0 && <StepMercado S={S} c={c} patch={patch} />}
-      {step === 1 && <StepTicket S={S} c={c} patch={patch} pickRegiao={pickRegiao} />}
-      {step === 2 && <StepInvest S={S} c={c} patch={patch} />}
-      {step === 3 && <StepDespesas S={S} c={c} patch={patch} />}
-      {step === 4 && <StepProjecao S={S} c={c} patch={patch} />}
-      {step === 5 && <StepResumo S={S} c={c} filtro={filtro} setFiltro={setFiltro} />}
-      {step === 6 && <StepDre S={S} c={c} filtro={filtro} setFiltro={setFiltro} />}
+      {step === 0 && <StepMercado S={S} c={c} patch={patch} pickRegiao={pickRegiao} />}
+      {step === 1 && <StepCustos S={S} c={c} patch={patch} />}
+      {step === 2 && <StepProjecao S={S} c={c} patch={patch} />}
+      {step === 3 && <StepResumo S={S} c={c} filtro={filtro} setFiltro={setFiltro} />}
+      {step === 4 && <StepDre S={S} c={c} filtro={filtro} setFiltro={setFiltro} />}
 
       <div className="sticky bottom-3 z-10 flex items-center justify-between gap-3 rounded-2xl bg-white/90 p-2.5 shadow-[var(--shadow-lg)] ring-1 ring-gray-200 backdrop-blur print:hidden">
         <Button variant="ghost" disabled={step === 0} onClick={() => go(step - 1)}>
@@ -320,7 +316,7 @@ export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => vo
           <Button variant="secondary" onClick={() => salvar()} disabled={saveState.kind === "saving"}>
             {saveState.kind === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar
           </Button>
-          {step >= 5 && (
+          {step >= 3 && (
             <Button variant="secondary" onClick={imprimir}>
               <Printer className="h-4 w-4" /> <span className="hidden sm:inline">PDF</span>
             </Button>
@@ -625,10 +621,10 @@ function Bars({ items }: { items: { n: string; v: number; fmt?: (n: number) => s
 
 /* ---------------- etapas ---------------- */
 
-function StepMercado({ S, c, patch }: StepProps) {
+function StepMercado({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: string) => void }) {
   return (
     <Split
-      insights={<InsightsCard step={0} S={S} c={c} />}
+      insights={<><InsightsCard step={0} S={S} c={c} /><InsightsCard step={1} S={S} c={c} /></>}
       aside={
         <Live c={c}>
           <p className="mb-3 text-sm font-semibold">Composição do mercado</p>
@@ -639,9 +635,19 @@ function StepMercado({ S, c, patch }: StepProps) {
     >
       <PreencherTexto S={S} onApply={patch} />
       <Section title="Quem é o lead?">
-        <Field label="Nome do lead">
-          <input value={S.lead} onChange={(e) => patch({ lead: e.target.value })} placeholder="Ex.: Roberson Alvarenga" className={inputCls} />
-        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Nome do lead">
+            <input value={S.lead} onChange={(e) => patch({ lead: e.target.value })} placeholder="Ex.: Roberson Alvarenga" className={inputCls} />
+          </Field>
+          <Field label="Região">
+            <RegionSelect value={S.regiao} options={["Brasil", ...REGIOES]} onChange={pickRegiao} />
+          </Field>
+          <div className="sm:col-span-2">
+          <Field label="Ticket médio" help="Receita média por cliente fechado.">
+            <NumInput value={S.ticket} onChange={(ticket) => patch({ ticket })} prefix="R$" />
+          </Field>
+          </div>
+        </div>
       </Section>
       <ItemList title="Quem você alcança" items={S.mercado} onChange={(mercado) => patch({ mercado })} total="Total de pessoas alcançadas" />
       <Section title="Parceiros" hint="indicações recorrentes">
@@ -743,57 +749,15 @@ function RegionSelect({ value, options, onChange }: { value: string; options: st
   );
 }
 
-function StepTicket({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: string) => void }) {
-  const regioes = ["Brasil", ...REGIOES];
+function StepCustos({ S, c, patch }: StepProps) {
   return (
     <Split
-      insights={<InsightsCard step={1} S={S} c={c} />}
-      aside={
-        <Live c={c}>
-          <p className="text-sm font-semibold">Ticket médio</p>
-          <p className="mb-4 font-display text-3xl font-bold text-yellow-500">{brl(c.ticket)}</p>
-          <p className="text-xs text-blue-100">
-            Com {c.casosMes.toFixed(1).replace(".", ",")} clientes/mês: <b className="text-yellow-500">{brl(c.casosMes * c.ticket)}</b> por mês no ritmo máximo.
-          </p>
-        </Live>
-      }
-    >
-      <Section title="Sua região" hint="só identifica a simulação">
-        <RegionSelect value={S.regiao} options={regioes} onChange={pickRegiao} />
-      </Section>
-      <Section title="Ticket médio" hint="receita média por cliente">
-        <Field label="Ticket médio" help="Receita média por cliente fechado. Altere conforme a sua realidade.">
-          <NumInput value={S.ticket} onChange={(ticket) => patch({ ticket })} prefix="R$" />
-        </Field>
-      </Section>
-    </Split>
-  );
-}
-
-function StepInvest({ S, c, patch }: StepProps) {
-  return (
-    <Split
-      insights={<InsightsCard step={2} S={S} c={c} />}
+      insights={<><InsightsCard step={2} S={S} c={c} /><InsightsCard step={3} S={S} c={c} /></>}
       aside={
         <Live c={c}>
           <p className="mb-3 text-sm font-semibold">Para onde vai o investimento</p>
           <Bars items={S.invest.map((x) => ({ n: x.n, v: +x.v || 0 }))} />
-          <p className="mt-3 text-xs text-blue-100">Retorno estimado: <b className="text-yellow-500">{c.pay ? `mês ${c.pay}` : "acima de 36 meses"}</b></p>
-        </Live>
-      }
-    >
-      <ItemList title="Investimento inicial" items={S.invest} onChange={(invest) => patch({ invest })} total="Total a investir" unit="R$" />
-    </Split>
-  );
-}
-
-function StepDespesas({ S, c, patch }: StepProps) {
-  return (
-    <Split
-      insights={<InsightsCard step={3} S={S} c={c} />}
-      aside={
-        <Live c={c}>
-          <p className="mb-3 text-sm font-semibold">Despesas fixas por mês</p>
+          <p className="mb-3 mt-5 text-sm font-semibold">Despesas fixas por mês</p>
           <Bars items={S.desp.map((x) => ({ n: x.n, v: +x.v || 0 }))} />
           {c.equilibrio !== null && (
             <p className="mt-3 text-xs text-blue-100">Para pagar tudo, você precisa de <b className="text-yellow-500">{c.equilibrio.toFixed(1).replace(".", ",")} clientes/mês</b>.</p>
@@ -801,6 +765,7 @@ function StepDespesas({ S, c, patch }: StepProps) {
         </Live>
       }
     >
+      <ItemList title="Investimento inicial" items={S.invest} onChange={(invest) => patch({ invest })} total="Total a investir" unit="R$" />
       <ItemList title="Despesas fixas por mês" items={S.desp} onChange={(desp) => patch({ desp })} total="Despesa fixa mensal" unit="R$" />
       <Section title="Custos sobre o faturamento" hint="variáveis">
         <div className="grid grid-cols-2 gap-3">
