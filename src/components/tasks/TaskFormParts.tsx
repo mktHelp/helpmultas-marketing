@@ -2,12 +2,12 @@
 
 import { addDays, format } from "date-fns";
 import {
-  Check, Clapperboard, Globe, LayoutGrid, Layers, Mail, Megaphone, MessageCircle, Smartphone, Video, FileText,
+  Check, Clapperboard, FolderKanban, Globe, LayoutGrid, Layers, Mail, Megaphone, MessageCircle, Smartphone, Video, FileText,
   type LucideIcon,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { cn } from "@/lib/utils";
-import type { ContentType, Profile, TaskPriority, TaskStatusRow } from "@/types/database";
+import type { ContentType, Profile, Project, TaskPriority, TaskStatusRow } from "@/types/database";
 
 /** Peças de formulário compartilhadas pelo "Nova tarefa" e pela página da tarefa. */
 
@@ -231,3 +231,60 @@ export function QuickDates({ value, onChange, disabled }: { value: string; onCha
 
 export const inputClass =
   "h-11 w-full rounded-[14px] border border-gray-200 bg-white px-3.5 text-blue-900 placeholder:text-gray-400 transition-shadow focus:border-transparent focus:outline-none focus:ring-2 focus:ring-yellow-500 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10";
+
+/** Cor fixa por projeto (pelo nome), usada nos chips e nos selos dos cards. */
+export function projectColor(name?: string | null) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("franqueadora")) return "#1f4e79";
+  if (n.includes("mentoria")) return "#7c3aed";
+  if (n.includes("roberson")) return "#d97706";
+  return "#64748b";
+}
+
+export function ProjectBadge({ name, className }: { name: string; className?: string }) {
+  const color = projectColor(name);
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide", className)} style={{ backgroundColor: `${color}1a`, color }}>
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+      {name}
+    </span>
+  );
+}
+
+export function ProjectSelector({
+  projects, value, onChange, disabled,
+}: {
+  projects: Pick<Project, "id" | "name">[];
+  value: string | null;
+  onChange: (id: string) => void;
+  disabled?: boolean;
+}) {
+  if (projects.length === 0) return <p className="text-xs text-gray-400">Carregando projetos…</p>;
+  return (
+    <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Projeto">
+      {projects.map((pr) => {
+        const active = value === pr.id;
+        const color = projectColor(pr.name);
+        return (
+          <button
+            key={pr.id}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            disabled={disabled}
+            // clicar de novo no projeto selecionado desmarca
+            onClick={() => onChange(active ? "" : pr.id)}
+            className={cn(
+              "flex flex-col items-center gap-1 rounded-xl border-2 px-1 py-2 text-[11px] font-bold uppercase tracking-wide transition-all duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60",
+              active ? "text-white shadow-md" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-050"
+            )}
+            style={active ? { backgroundColor: color, borderColor: color } : undefined}
+          >
+            <FolderKanban className="h-[18px] w-[18px]" style={active ? undefined : { color }} />
+            {pr.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

@@ -10,7 +10,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import {
-  AssigneeChips, ContentTypeSelector, FieldLabel, PrioritySelector, QuickDates, StatusSelector, inputClass,
+  AssigneeChips, ContentTypeSelector, FieldLabel, PrioritySelector, ProjectSelector, QuickDates, StatusSelector, inputClass,
 } from "./TaskFormParts";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -83,7 +83,7 @@ export function CreateTaskModal({
   useEffect(() => {
     if (!open) return;
     setForm(makeInitial());
-    setMoreOpen(!!(defaultProjectId || defaultCampaignId));
+    setMoreOpen(!!defaultCampaignId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -169,7 +169,7 @@ export function CreateTaskModal({
   }
 
   const detailsCount =
-    (form.area_id ? 1 : 0) + (form.project_id ? 1 : 0) + (form.campaign_id ? 1 : 0) + (form.template_id ? 1 : 0) +
+    (form.area_id ? 1 : 0) + (form.campaign_id ? 1 : 0) + (form.template_id ? 1 : 0) +
     (form.estimated_minutes ? 1 : 0) + (form.tagIds.length ? 1 : 0);
 
   return (
@@ -261,6 +261,12 @@ export function CreateTaskModal({
             <ContentTypeSelector value={form.content_type} onChange={(v) => update("content_type", v)} />
           </div>
 
+          {/* Projeto */}
+          <div>
+            <FieldLabel icon={FolderKanban}>Projeto</FieldLabel>
+            <ProjectSelector projects={projects} value={form.project_id} onChange={(v) => update("project_id", v)} />
+          </div>
+
           {/* Mais detalhes (recolhido por padrão) */}
           <div className="rounded-2xl border border-gray-200">
             <button
@@ -271,7 +277,7 @@ export function CreateTaskModal({
             >
               <Plus className={cn("h-4 w-4 text-blue-700 transition-transform duration-300", moreOpen && "rotate-45")} />
               <span className="flex-1 font-display text-sm font-bold text-blue-900">Mais detalhes</span>
-              <span className="hidden text-xs text-gray-400 sm:inline">área, projeto, campanha, tempo, tags, template</span>
+              <span className="hidden text-xs text-gray-400 sm:inline">área, campanha, tempo, tags, template</span>
               {detailsCount > 0 && <span className="ast-pop rounded-full bg-yellow-500 px-1.5 text-[11px] font-bold text-blue-900">{detailsCount}</span>}
               <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform duration-300", moreOpen && "rotate-180")} />
             </button>
@@ -303,13 +309,6 @@ export function CreateTaskModal({
                       <Select value={form.category_id} onChange={(e) => update("category_id", e.target.value)} disabled={!categories.length} style={{ fontSize: 16 }}>
                         <option value="">{form.area_id ? "Selecione" : "Escolha uma área primeiro"}</option>
                         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </Select>
-                    </div>
-                    <div>
-                      <FieldLabel icon={FolderKanban}>Projeto</FieldLabel>
-                      <Select value={form.project_id} onChange={(e) => update("project_id", e.target.value)} style={{ fontSize: 16 }}>
-                        <option value="">Nenhum</option>
-                        {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                       </Select>
                     </div>
                     <div>

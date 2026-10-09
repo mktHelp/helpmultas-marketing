@@ -6,6 +6,7 @@ import { AlertTriangle, MessageSquare, Paperclip, CheckSquare } from "lucide-rea
 import { PriorityBadge } from "@/components/shared/StatusBadge";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Tag } from "@/components/ui/Tag";
+import { ProjectBadge } from "./TaskFormParts";
 import { cn, formatDate, isOverdue } from "@/lib/utils";
 import type { TaskWithRelations } from "@/types/database";
 
@@ -27,9 +28,8 @@ export function KanbanCardContent({ task }: { task: TaskWithRelations }) {
         </div>
       )}
 
-      {(task.project || task.campaign) && (
-        <p className="mt-1.5 text-xs text-gray-400">{task.project?.name || task.campaign?.name}</p>
-      )}
+      {task.project && <ProjectBadge name={task.project.name} className="mt-2" />}
+      {!task.project && task.campaign && <p className="mt-1.5 text-xs text-gray-400">{task.campaign.name}</p>}
 
       <div className="mt-3 flex items-center justify-between gap-2">
         <PriorityBadge priority={task.priority} />

@@ -17,6 +17,7 @@ import { useTaskStatuses } from "@/lib/task-status-context";
 import { cn, formatDate, isOverdue } from "@/lib/utils";
 import type { TaskWithRelations } from "@/types/database";
 import type { Profile } from "@/types/database";
+import { ProjectBadge } from "./TaskFormParts";
 
 export function TaskTable({
   tasks,
@@ -107,7 +108,7 @@ export function TaskTable({
               <Checkbox checked={selected.includes(task.id)} onChange={() => toggle(task.id)} className="mt-1 shrink-0" />
               <Link href={`/tasks/${task.id}`} className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-blue-900">{task.title}</p>
-                {task.project && <p className="truncate text-xs text-gray-400">{task.project.name}</p>}
+                {task.project && <ProjectBadge name={task.project.name} className="mt-0.5" />}
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
                   {task.area?.name && <span>{task.area.name}</span>}
                   <span className={cn("flex items-center gap-1 whitespace-nowrap", overdue && "font-semibold text-[color:var(--color-danger)]")}>
@@ -168,7 +169,7 @@ export function TaskTable({
                     <Link href={`/tasks/${task.id}`} className="font-semibold text-blue-900 hover:underline">
                       {task.title}
                     </Link>
-                    {task.project && <p className="text-xs text-gray-400">{task.project.name}</p>}
+                    {task.project && <ProjectBadge name={task.project.name} className="mt-0.5" />}
                   </td>
                   <td className="py-3 pr-3">
                     {task.assignees && task.assignees.length > 0 ? (
