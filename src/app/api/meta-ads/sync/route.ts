@@ -113,6 +113,17 @@ async function graphGetEdge<T>(path: string, params: Record<string, string>): Pr
   let url = `${GRAPH_BASE}${path}?${new URLSearchParams({ ...params, access_token: requireToken() })}`;
   while (url) {
     const json = await fetchJsonWithRetry<{ data?: T[] } & GraphPaging & GraphError>(url);
+    // "Please reduce the amount of data": a página pediu dado demais — refaz
+    // a mesma página com metade do limit (mínimo 5) em vez de falhar o sync.
+    if (json.error && /reduce the amount of data/i.test(json.error.message)) {
+      const u = new URL(url);
+      const current = Number(u.searchParams.get("limit") ?? 25);
+      if (current > 5) {
+        u.searchParams.set("limit", String(Math.max(5, Math.floor(current / 2))));
+        url = u.toString();
+        continue;
+      }
+    }
     if (json.error) throw new Error(`Meta API (${path}): ${json.error.message}`);
     results.push(...(json.data ?? []));
     url = json.paging?.next ?? "";
@@ -327,7 +338,7 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
       : await graphGetEdge<RawAd>(`/${accountId}/ads`, {
           fields: "id,name,status,effective_status,adset_id,creative.thumbnail_width(720).thumbnail_height(720){id,thumbnail_url,image_url,image_hash,video_id,object_story_spec}",
           filtering: JSON.stringify([{ field: "adset.id", operator: "IN", value: activeAdSetMetaIds }]),
-          limit: "200",
+          limit: "50",
         });
   entities.ads = ads.length;
 
