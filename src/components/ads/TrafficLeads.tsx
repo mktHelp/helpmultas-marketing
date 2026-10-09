@@ -22,7 +22,7 @@ import { currencyFormatter, numberFormatter } from "@/lib/format";
 import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { FilterSelect } from "@/components/ui/FilterBar";
+import { FilterMultiSelect, FilterSelect } from "@/components/ui/FilterBar";
 import { Tabs } from "@/components/ui/Tabs";
 
 const PAGE_SIZE = 25;
@@ -521,8 +521,8 @@ export function TrafficLeads() {
   const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
-  const [campaignId, setCampaignId] = useState("");
-  const [adId, setAdId] = useState("");
+  const [campaignIds, setCampaignIds] = useState<string[]>([]);
+  const [adIds, setAdIds] = useState<string[]>([]);
   const [matchStatus, setMatchStatus] = useState<"" | "matched" | "unmatched">("");
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<LeadRow[]>([]);
@@ -565,8 +565,8 @@ export function TrafficLeads() {
   }, []);
 
   const filter: LeadsFilter = useMemo(
-    () => ({ range: dateRange, search, campaignId, adId, matchStatus, pageOrigin, page, pageSize: PAGE_SIZE }),
-    [dateRange, search, campaignId, adId, matchStatus, pageOrigin, page]
+    () => ({ range: dateRange, search, campaignIds, adIds, matchStatus, pageOrigin, page, pageSize: PAGE_SIZE }),
+    [dateRange, search, campaignIds, adIds, matchStatus, pageOrigin, page]
   );
 
   const loadLeads = useCallback(async () => {
@@ -611,7 +611,7 @@ export function TrafficLeads() {
 
   useEffect(() => {
     setPage(0);
-  }, [dateRange, search, campaignId, adId, matchStatus, pageOrigin]);
+  }, [dateRange, search, campaignIds, adIds, matchStatus, pageOrigin]);
 
   // Busca ao vivo: aplica 350 ms depois da última tecla (sem botão de lupa).
   useEffect(() => {
@@ -630,12 +630,12 @@ export function TrafficLeads() {
     return [1, 7, 30].includes(days) ? days : null;
   })();
 
-  const hasFilters = !!(searchInput || campaignId || adId || pageOrigin || matchStatus);
+  const hasFilters = !!(searchInput || campaignIds.length || adIds.length || pageOrigin || matchStatus);
   function clearFilters() {
     setSearchInput("");
     setSearch("");
-    setCampaignId("");
-    setAdId("");
+    setCampaignIds([]);
+    setAdIds([]);
     setPageOrigin("");
     setMatchStatus("");
   }
@@ -715,18 +715,22 @@ export function TrafficLeads() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <FilterSelect value={campaignId} onChange={(e) => setCampaignId(e.target.value)} aria-label="Campanha">
-                  <option value="">Todas as campanhas</option>
-                  {campaigns.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </FilterSelect>
-              <FilterSelect value={adId} onChange={(e) => setAdId(e.target.value)} aria-label="Anúncio">
-                  <option value="">Todos os anúncios</option>
-                  {ads.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </FilterSelect>
+              <FilterMultiSelect
+                label="Campanha"
+                allLabel="Todas as campanhas"
+                pluralLabel="campanhas"
+                options={campaigns.map((c) => ({ value: c.id, label: c.name }))}
+                selected={campaignIds}
+                onChange={setCampaignIds}
+              />
+              <FilterMultiSelect
+                label="Anúncio"
+                allLabel="Todos os anúncios"
+                pluralLabel="anúncios"
+                options={ads.map((a) => ({ value: a.id, label: a.name }))}
+                selected={adIds}
+                onChange={setAdIds}
+              />
               <FilterSelect value={pageOrigin} onChange={(e) => setPageOrigin(e.target.value)} aria-label="Página de origem">
                   <option value="">Todas as páginas</option>
                   {Object.entries(PAGE_ORIGIN_LABEL).map(([value, label]) => (

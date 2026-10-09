@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
 import { Bar, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { summaryRows } from "@/components/reports/ReportsOverview";
 import { BRAND, GRID_COLOR, TICK_STYLE, compact, fmt, percent, shortDate, signed } from "@/components/shared/dash-parts";
 import { Delta, PageShell, ReportStyle, SectionTitle, longDate, usePrintWhenReady } from "@/components/shared/report-parts";
@@ -116,15 +117,13 @@ export function ExecutiveReport({
               </label>
             ))}
           </div>
-          <select
-            value={period}
-            onChange={(e) => go({ period: e.target.value as ReportPeriodKey })}
-            className="h-10 rounded-[14px] border border-gray-200 bg-white px-3 text-sm text-blue-900"
-          >
-            {REPORT_PERIOD_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>{o.label}</option>
-            ))}
-          </select>
+          <div className="w-44">
+            <Select value={period} onChange={(e) => go({ period: e.target.value as ReportPeriodKey })}>
+              {REPORT_PERIOD_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
+            </Select>
+          </div>
           {period === "custom" && (
             <div className="flex items-center gap-2 text-xs font-semibold text-gray-700">
               <input type="date" value={range.from} max={range.to} onChange={(e) => e.target.value && go({ from: e.target.value })} className="h-10 rounded-[14px] border border-gray-200 px-3 text-sm text-blue-900" />

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useSpeechRecognition } from "@/lib/hooks/useSpeechRecognition";
 import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/Select";
 import type { TeleprompterFolder } from "@/types/database";
 
 type Mode = "generate" | "review";
@@ -419,18 +420,18 @@ export function AiPanel({
                         style={{ fontSize: 16 }}
                       />
                       <label htmlFor="ai-folder" className="block text-xs font-bold text-gray-700">Pasta</label>
-                      <select
+                      <Select
                         id="ai-folder"
                         value={folderId ?? ""}
                         onChange={(e) => setFolderId(e.target.value || null)}
-                        className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)]"
+                        className="h-11"
                         style={{ fontSize: 16 }}
                       >
                         <option value="">Sem pasta</option>
                         {folders.map((f) => (
                           <option key={f.id} value={f.id}>{f.name}</option>
                         ))}
-                      </select>
+                      </Select>
                       <button
                         type="button"
                         onClick={saveAsNew}

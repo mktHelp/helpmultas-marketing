@@ -29,7 +29,7 @@ import {
   rowsInRange, sumTM, weekdayStats, zeroTM, type MetricKey, type TM, type TrafficHighlightKey,
 } from "@/lib/traffic-analytics";
 import { cn } from "@/lib/utils";
-import { FilterSelect } from "@/components/ui/FilterBar";
+import { FilterMultiSelect } from "@/components/ui/FilterBar";
 
 // Dashboard do Tráfego Pago (somente leitura, dados do Gerenciador de Anúncios
 // sincronizados em meta_*). Mesmo padrão da aba Instagram: seletor de período
@@ -165,9 +165,10 @@ export function TrafficDashboard() {
 
   const [period, setPeriod] = useState<PeriodKey>("30");
   const [custom, setCustom] = useState<DateRange>(() => ({ from: shiftDate(todayBRT(), -7), to: shiftDate(todayBRT(), -1) }));
-  const [campaignId, setCampaignId] = useState("");
-  const [adSetId, setAdSetId] = useState("");
-  const [adId, setAdId] = useState("");
+  // Filtros em cascata com seleção múltipla; lista vazia = sem filtro naquele nível.
+  const [campaignIds, setCampaignIds] = useState<string[]>([]);
+  const [adSetIds, setAdSetIds] = useState<string[]>([]);
+  const [adIdsFilter, setAdIdsFilter] = useState<string[]>([]);
   const [chartKey, setChartKey] = useState<ChartKey>("spend");
   const [level, setLevel] = useState<Level>("campaign");
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "spend", dir: "desc" });
@@ -243,32 +244,43 @@ export function TrafficDashboard() {
   };
 
   const adSetOptions = useMemo(
-    () => (campaignId ? structure.adSets.filter((a) => a.campaign_id === campaignId) : structure.adSets),
-    [structure.adSets, campaignId]
+    () => (campaignIds.length ? structure.adSets.filter((a) => campaignIds.includes(a.campaign_id)) : structure.adSets),
+    [structure.adSets, campaignIds]
   );
   const adOptions = useMemo(() => {
-    if (adSetId) return structure.ads.filter((a) => a.adset_id === adSetId);
-    if (campaignId) return structure.ads.filter((a) => adSetById.get(a.adset_id)?.campaign_id === campaignId);
+    if (adSetIds.length) return structure.ads.filter((a) => adSetIds.includes(a.adset_id));
+    if (campaignIds.length) return structure.ads.filter((a) => campaignIds.includes(adSetById.get(a.adset_id)?.campaign_id ?? ""));
     return structure.ads;
-  }, [structure.ads, adSetId, campaignId, adSetById]);
+  }, [structure.ads, adSetIds, campaignIds, adSetById]);
 
   const adIds = useMemo(() => {
-    if (adId) return new Set([adId]);
-    if (adSetId || campaignId) return new Set(adOptions.map((a) => a.id));
+    if (adIdsFilter.length) return new Set(adIdsFilter);
+    if (adSetIds.length || campaignIds.length) return new Set(adOptions.map((a) => a.id));
     return null;
-  }, [adId, adSetId, campaignId, adOptions]);
+  }, [adIdsFilter, adSetIds, campaignIds, adOptions]);
 
-  function pickCampaign(id: string) {
-    setCampaignId(id);
-    setAdSetId("");
-    setAdId("");
+  // Ao mudar um nível, descarta as escolhas dos níveis abaixo que deixaram de pertencer a ele.
+  function pickCampaigns(ids: string[]) {
+    setCampaignIds(ids);
+    const keptSets = ids.length ? adSetIds.filter((s) => ids.includes(adSetById.get(s)?.campaign_id ?? "")) : adSetIds;
+    setAdSetIds(keptSets);
+    setAdIdsFilter((cur) =>
+      cur.filter((a) => {
+        const ad = adById.get(a);
+        if (!ad) return false;
+        if (keptSets.length) return keptSets.includes(ad.adset_id);
+        return !ids.length || ids.includes(adSetById.get(ad.adset_id)?.campaign_id ?? "");
+      })
+    );
   }
-  function pickAdSet(id: string) {
-    setAdSetId(id);
-    setAdId("");
+  function pickAdSets(ids: string[]) {
+    setAdSetIds(ids);
+    if (ids.length) setAdIdsFilter((cur) => cur.filter((a) => ids.includes(adById.get(a)?.adset_id ?? "")));
   }
   function clearFilters() {
-    pickCampaign("");
+    setCampaignIds([]);
+    setAdSetIds([]);
+    setAdIdsFilter([]);
     setLevel("campaign");
   }
 
@@ -315,7 +327,7 @@ export function TrafficDashboard() {
     const rows: TableRow[] =
       level === "campaign"
         ? structure.campaigns
-            .filter((c) => !campaignId || c.id === campaignId)
+            .filter((c) => !campaignIds.length || campaignIds.includes(c.id))
             .map((c) => ({ id: c.id, name: c.name, active: c.active_in_meta, budget: c.daily_budget, m: campaignTM.get(c.id) ?? zeroTM() }))
         : level === "adset"
           ? adSetOptions.map((a) => ({
@@ -345,22 +357,23 @@ export function TrafficDashboard() {
       if (typeof va === "string") return dir * va.localeCompare(vb as string);
       return dir * ((va as number) - (vb as number));
     });
-  }, [level, structure.campaigns, campaignId, campaignTM, adSetOptions, adSetTM, adOptions, adTM, campaignById, adSetById, sort]);
+  }, [level, structure.campaigns, campaignIds, campaignTM, adSetOptions, adSetTM, adOptions, adTM, campaignById, adSetById, sort]);
 
   function toggleSort(key: SortKey) {
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "cpl" || key === "cpc" ? "asc" : "desc" }));
   }
   function drill(row: TableRow) {
     if (level === "campaign") {
-      pickCampaign(row.id);
+      pickCampaigns([row.id]);
       setLevel("adset");
     } else if (level === "adset") {
       const ad = adSetById.get(row.id);
-      if (ad) setCampaignId(ad.campaign_id);
-      pickAdSet(row.id);
+      if (ad) setCampaignIds([ad.campaign_id]);
+      setAdSetIds([row.id]);
+      setAdIdsFilter([]);
       setLevel("ad");
     } else {
-      setAdId(row.id);
+      setAdIdsFilter([row.id]);
     }
   }
 
@@ -393,13 +406,13 @@ export function TrafficDashboard() {
 
   // ── Leads da LP ──
   const lpScope = (l: LpLead) => {
-    if (adId) return l.matched_ad_id === adId;
-    if (adSetId) return l.matched_adset_id === adSetId;
-    if (campaignId) return l.matched_campaign_id === campaignId;
+    if (adIdsFilter.length) return adIdsFilter.includes(l.matched_ad_id ?? "");
+    if (adSetIds.length) return adSetIds.includes(l.matched_adset_id ?? "");
+    if (campaignIds.length) return campaignIds.includes(l.matched_campaign_id ?? "");
     return true;
   };
-  const lpCur = useMemo(() => lpLeads.filter(lpScope), [lpLeads, campaignId, adSetId, adId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const lpPrev = useMemo(() => prevLpLeads.filter(lpScope), [prevLpLeads, campaignId, adSetId, adId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lpCur = useMemo(() => lpLeads.filter(lpScope), [lpLeads, campaignIds, adSetIds, adIdsFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lpPrev = useMemo(() => prevLpLeads.filter(lpScope), [prevLpLeads, campaignIds, adSetIds, adIdsFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const lpByDay = useMemo(() => {
     const counts = new Map<string, number>();
     lpCur.forEach((l) => counts.set(brtDay(l.received_at), (counts.get(brtDay(l.received_at)) ?? 0) + 1));
@@ -483,7 +496,7 @@ export function TrafficDashboard() {
   const label = periodLabel(period, range);
   const maxFunnel = Math.max(totals.impressions, 1);
   const funnelWidth = (v: number) => (Math.sqrt(v) / Math.sqrt(maxFunnel)) * 100;
-  const hasFilter = !!(campaignId || adSetId || adId);
+  const hasFilter = campaignIds.length + adSetIds.length + adIdsFilter.length > 0;
 
   const levelTabs = [
     { key: "campaign", label: "Campanhas" },
@@ -521,7 +534,7 @@ export function TrafficDashboard() {
             variant="secondary"
             onClick={() =>
               window.open(
-                `/relatorio/trafego?period=${period}&from=${range.from}&to=${range.to}&campaign=${campaignId}&print=1`,
+                `/relatorio/trafego?period=${period}&from=${range.from}&to=${range.to}&campaign=${campaignIds.join(",")}&print=1`,
                 "_blank"
               )
             }
@@ -534,24 +547,30 @@ export function TrafficDashboard() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect label="Campanha" value={campaignId} onChange={(e) => pickCampaign(e.target.value)}>
-          <option value="">Todas as campanhas</option>
-          {structure.campaigns.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </FilterSelect>
-        <FilterSelect label="Conjunto de anúncios" value={adSetId} onChange={(e) => pickAdSet(e.target.value)}>
-          <option value="">Todos os conjuntos</option>
-          {adSetOptions.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </FilterSelect>
-        <FilterSelect label="Anúncio" value={adId} onChange={(e) => setAdId(e.target.value)}>
-          <option value="">Todos os anúncios</option>
-          {adOptions.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </FilterSelect>
+        <FilterMultiSelect
+          label="Campanha"
+          allLabel="Todas as campanhas"
+          pluralLabel="campanhas"
+          options={structure.campaigns.map((c) => ({ value: c.id, label: c.name }))}
+          selected={campaignIds}
+          onChange={pickCampaigns}
+        />
+        <FilterMultiSelect
+          label="Conjunto de anúncios"
+          allLabel="Todos os conjuntos"
+          pluralLabel="conjuntos"
+          options={adSetOptions.map((c) => ({ value: c.id, label: c.name }))}
+          selected={adSetIds}
+          onChange={pickAdSets}
+        />
+        <FilterMultiSelect
+          label="Anúncio"
+          allLabel="Todos os anúncios"
+          pluralLabel="anúncios"
+          options={adOptions.map((c) => ({ value: c.id, label: c.name }))}
+          selected={adIdsFilter}
+          onChange={setAdIdsFilter}
+        />
         {hasFilter && (
           <button onClick={clearFilters} className="flex h-11 items-center gap-1 rounded-full border border-gray-200 px-3 text-xs font-semibold text-blue-900 hover:border-blue-900 sm:h-10">
             <X className="h-3.5 w-3.5" />

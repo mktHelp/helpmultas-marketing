@@ -435,3 +435,16 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adj
 .hw-pop-in { animation: hw-pop-in 260ms var(--ease-standard) both; transform-origin: bottom right; }
 .hw-bubble-in { animation: hw-bubble-in 360ms var(--ease-standard) both; transform-origin: bottom right; }
 @media (prefers-reduced-motion: reduce) { .hw-pop-in, .hw-bubble-in { animation: none !important; } }
+
+/* Painel das listas suspensas (ui/Listbox). */
+@keyframes dd-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dd-in-up {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.dd-pop { animation: dd-in 140ms ease-out both; transform-origin: top; }
+.dd-pop-up { animation-name: dd-in-up; transform-origin: bottom; }
+@media (prefers-reduced-motion: reduce) { .dd-pop { animation: none; } }

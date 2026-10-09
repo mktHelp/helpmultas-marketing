@@ -39,7 +39,8 @@ export default async function TrafficReportPage({
     supabase.from("meta_ad_accounts").select("name").limit(1).maybeSingle(),
   ]);
 
-  const campaignId = structure.campaigns.some((c) => c.id === params.campaign) ? (params.campaign as string) : "";
+  // `campaign` aceita vários ids separados por vírgula (filtro múltiplo do dashboard).
+  const campaignIds = (params.campaign ?? "").split(",").filter((id) => structure.campaigns.some((c) => c.id === id));
 
   return (
     <TrafficReport
@@ -49,7 +50,7 @@ export default async function TrafficReportPage({
       prevRange={prevRange}
       periodText={periodLabel(period, range)}
       lengthDays={length}
-      campaignId={campaignId}
+      campaignIds={campaignIds}
       campaigns={structure.campaigns.map((c) => ({ id: c.id, name: c.name, budget: c.daily_budget, active: c.active_in_meta }))}
       adSets={structure.adSets.map((a) => ({ id: a.id, campaign_id: a.campaign_id }))}
       ads={structure.ads.map((a) => ({ id: a.id, adset_id: a.adset_id, name: a.name, thumbnail_url: a.thumbnail_url }))}

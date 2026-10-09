@@ -343,8 +343,9 @@ export interface LeadsPage {
 export interface LeadsFilter {
   range: DateRange;
   search: string;
-  campaignId: string;
-  adId: string;
+  /** Vazio = sem filtro; vários = qualquer um deles. */
+  campaignIds: string[];
+  adIds: string[];
   matchStatus: "" | "matched" | "unmatched";
   pageOrigin: string;
   page: number;
@@ -368,11 +369,11 @@ export async function fetchLeads(supabase: SupabaseClient, filter: LeadsFilter):
     const cols = ["name", "email", "phone", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_id"];
     query = query.or(cols.map((c) => `${c}.ilike.%${term}%`).join(","));
   }
-  if (filter.campaignId) {
-    query = query.eq("matched_campaign_id", filter.campaignId);
+  if (filter.campaignIds.length) {
+    query = query.in("matched_campaign_id", filter.campaignIds);
   }
-  if (filter.adId) {
-    query = query.eq("matched_ad_id", filter.adId);
+  if (filter.adIds.length) {
+    query = query.in("matched_ad_id", filter.adIds);
   }
   if (filter.pageOrigin) {
     query = query.eq("page_origin", filter.pageOrigin);

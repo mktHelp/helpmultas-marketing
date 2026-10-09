@@ -1,7 +1,9 @@
 "use client";
 
-import { forwardRef } from "react";
-import { ChevronDown, ListFilter, RotateCcw, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ListFilter, RotateCcw, X } from "lucide-react";
+import { Listbox } from "./Listbox";
+import { parseOptions } from "./Select";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,27 +22,58 @@ export function FilterBar({ children, actions, summary, className }: { children:
   );
 }
 
-/** Lista suspensa no formato dos demais filtros (pílula de 40px). */
-export const FilterSelect = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string }>(
-  ({ className, children, label, ...props }, ref) => (
-    <label className="relative block min-w-[9rem] max-w-full">
-      {label && <span className="sr-only">{label}</span>}
-      <select
-        ref={ref}
-        className={cn(
-          "h-11 w-full appearance-none rounded-full border border-gray-200 bg-white pl-4 pr-9 text-base text-blue-900 outline-none transition-all sm:h-10 sm:text-sm",
-          "hover:border-gray-300 focus:border-blue-900 focus:shadow-[var(--shadow-focus)] disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-    </label>
-  )
-);
-FilterSelect.displayName = "FilterSelect";
+/** Lista suspensa no formato dos demais filtros (pílula de 40px). Aceita <option> como o <select>. */
+export function FilterSelect({
+  label, className, children, value, defaultValue, onChange, disabled, ...rest
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string }) {
+  const options = useMemo(() => parseOptions(children), [children]);
+  const [inner, setInner] = useState(defaultValue !== undefined ? String(defaultValue) : (options[0]?.value ?? ""));
+  const current = value !== undefined ? String(value) : inner;
+  return (
+    <Listbox
+      variant="pill"
+      options={options}
+      value={[current]}
+      disabled={disabled}
+      ariaLabel={label ?? rest["aria-label"]}
+      wrapperClassName={className}
+      onChange={([next]) => {
+        if (value === undefined) setInner(next);
+        const target = { value: next, name: "" };
+        onChange?.({ target, currentTarget: target } as unknown as React.ChangeEvent<HTMLSelectElement>);
+      }}
+    />
+  );
+}
+
+/** Filtro em pílula com seleção múltipla (nenhum marcado = todos). */
+export function FilterMultiSelect({
+  label, allLabel, pluralLabel, options, selected, onChange, className,
+}: {
+  label: string;
+  /** Texto com nada marcado, ex.: "Todas as campanhas". */
+  allLabel: string;
+  /** Com 2+ marcados, ex.: "campanhas" → "3 campanhas". */
+  pluralLabel: string;
+  options: { value: string; label: string; color?: string }[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+  className?: string;
+}) {
+  return (
+    <Listbox
+      multiple
+      variant="pill"
+      options={options}
+      value={selected}
+      onChange={onChange}
+      placeholder={allLabel}
+      pluralLabel={pluralLabel}
+      ariaLabel={label}
+      wrapperClassName={className}
+    />
+  );
+}
 
 /** Botão que abre o painel lateral de filtros, com contador de filtros ativos. */
 export function FilterButton({ count, onClick, label = "Filtros" }: { count: number; onClick: () => void; label?: string }) {

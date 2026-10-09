@@ -6,6 +6,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import { BRAND, GRID_COLOR, TICK_STYLE, compact, fmt, percent, shortDate } from "@/components/shared/dash-parts";
 import { Delta, PageShell, ReportStyle, SectionTitle, avg, longDate, usePrintWhenReady } from "@/components/shared/report-parts";
 import { currencyFormatter } from "@/lib/format";
@@ -32,7 +33,7 @@ interface Props {
   prevRange: DateRange;
   periodText: string;
   lengthDays: number;
-  campaignId: string;
+  campaignIds: string[];
   campaigns: { id: string; name: string; budget: number | null; active: boolean }[];
   adSets: { id: string; campaign_id: string }[];
   ads: { id: string; adset_id: string; name: string; thumbnail_url: string }[];
@@ -65,7 +66,7 @@ function FunnelRow({ label, value, width, rateLabel, rate, color }: { label: str
 
 export function TrafficReport(props: Props) {
   const {
-    accountName, period, range, prevRange, periodText, lengthDays, campaignId, campaigns, adSets, ads, insights, minDate,
+    accountName, period, range, prevRange, periodText, lengthDays, campaignIds, campaigns, adSets, ads, insights, minDate,
     leads, prevLeads, generatedAt, autoPrint,
   } = props;
   const router = useRouter();
@@ -79,7 +80,7 @@ export function TrafficReport(props: Props) {
       period: next.period ?? period,
       from: next.from ?? range.from,
       to: next.to ?? range.to,
-      campaign: next.campaign ?? campaignId,
+      campaign: next.campaign ?? campaignIds.join(","),
     });
     router.replace(`/relatorio/trafego?${q}`);
   };
@@ -92,9 +93,10 @@ export function TrafficReport(props: Props) {
     return ad ? (campaignOfAdSet.get(ad.adset_id) ?? null) : null;
   };
 
+  const inCampaigns = (id: string | null | undefined) => !campaignIds.length || campaignIds.includes(id ?? "");
   const adIds = useMemo(
-    () => (campaignId ? new Set(ads.filter((a) => campaignOfAdSet.get(a.adset_id) === campaignId).map((a) => a.id)) : null),
-    [campaignId, ads, campaignOfAdSet]
+    () => (campaignIds.length ? new Set(ads.filter((a) => campaignIds.includes(campaignOfAdSet.get(a.adset_id) ?? "")).map((a) => a.id)) : null),
+    [campaignIds, ads, campaignOfAdSet]
   );
 
   const curRows = useMemo(() => rowsInRange(insights, range, adIds), [insights, range, adIds]);
@@ -127,14 +129,14 @@ export function TrafficReport(props: Props) {
   const weekdayData = weekday.map((w) => ({ label: w.label, spend: Math.round(w.spend), leads: Number(w.leads.toFixed(1)) }));
 
   const campaignRows = campaigns
-    .filter((c) => !campaignId || c.id === campaignId)
+    .filter((c) => inCampaigns(c.id))
     .map((c) => ({ c, m: campaignTM.get(c.id) ?? zeroTM() }))
     .filter((x) => x.m.spend > 0)
     .sort((a, b) => b.m.spend - a.m.spend)
     .slice(0, 8);
 
   const pacing = campaigns
-    .filter((c) => c.active && c.budget && c.budget > 0 && (!campaignId || c.id === campaignId) && (campaignTM.get(c.id)?.spend ?? 0) > 0)
+    .filter((c) => c.active && c.budget && c.budget > 0 && inCampaigns(c.id) && (campaignTM.get(c.id)?.spend ?? 0) > 0)
     .map((c) => {
       const avgDaily = (campaignTM.get(c.id)?.spend ?? 0) / Math.max(lengthDays, 1);
       return { id: c.id, name: c.name, avg: avgDaily, budget: c.budget as number, ratio: avgDaily / (c.budget as number) };
@@ -149,7 +151,7 @@ export function TrafficReport(props: Props) {
     .slice(0, 6);
 
   // Leads da LP
-  const inScope = (l: LandingLead) => !campaignId || l.matched_campaign_id === campaignId;
+  const inScope = (l: LandingLead) => inCampaigns(l.matched_campaign_id);
   const lpCur = leads.filter(inScope);
   const lpPrev = prevLeads.filter(inScope);
   const lpByDay = useMemo(() => {
@@ -200,7 +202,7 @@ export function TrafficReport(props: Props) {
 
   const total = 3;
   const footer = `Help Multas · Relatório de Tráfego Pago · ${accountName}`;
-  const campaignLabel = campaignId ? (campaignName.get(campaignId) ?? "") : "Todas as campanhas";
+  const campaignLabel = campaignIds.length ? campaignIds.map((id) => campaignName.get(id) ?? "").filter(Boolean).join(" · ") : "Todas as campanhas";
 
   return (
     <div className="report-root">
@@ -213,12 +215,13 @@ export function TrafficReport(props: Props) {
         </Button>
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-64">
-            <Select value={campaignId} onChange={(e) => go({ campaign: e.target.value })}>
-              <option value="">Todas as campanhas</option>
-              {campaigns.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </Select>
+            <MultiSelect
+              placeholder="Todas as campanhas"
+              options={campaigns.map((c) => ({ value: c.id, label: c.name }))}
+              selected={campaignIds}
+              onChange={(ids) => go({ campaign: ids.join(",") })}
+              className="w-full"
+            />
           </div>
           <div className="w-40">
             <Select value={period} onChange={(e) => go({ period: e.target.value as PeriodKey })}>
