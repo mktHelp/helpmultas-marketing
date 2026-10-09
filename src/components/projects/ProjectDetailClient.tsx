@@ -64,7 +64,7 @@ export function ProjectDetailClient({ projectId }: { projectId: string }) {
       <Card className="mb-6 p-5">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Info label="Status" value={PROJECT_STATUS_LABELS[project.status as keyof typeof PROJECT_STATUS_LABELS]} />
-          <Info label="Progresso" value={`${project.progress}%`} />
+          <Info label="Progresso" value={`${tasks.length ? Math.round((tasks.filter((t) => t.completed_at).length / tasks.length) * 100) : project.progress}%`} />
           <Info label="Entrega" value={formatDate(project.end_date)} />
           <div>
             <p className="text-xs font-bold uppercase text-gray-500">Responsável</p>

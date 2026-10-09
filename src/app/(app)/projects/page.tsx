@@ -21,9 +21,19 @@ export default function ProjectsPage() {
   const supabase = createClient();
   const [projects, setProjects] = useState<ProjectWithOwner[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  // tarefas por projeto: total e concluídas (o progresso sai delas)
+  const [counts, setCounts] = useState<Record<string, { total: number; done: number }>>({});
 
   const load = useCallback(async () => {
     setProjects(await listProjects(supabase));
+    const { data } = await supabase.from("tasks").select("project_id, completed_at").not("project_id", "is", null).is("deleted_at", null).eq("is_archived", false);
+    const c: Record<string, { total: number; done: number }> = {};
+    for (const t of (data ?? []) as { project_id: string; completed_at: string | null }[]) {
+      const x = (c[t.project_id] ??= { total: 0, done: 0 });
+      x.total++;
+      if (t.completed_at) x.done++;
+    }
+    setCounts(c);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -32,7 +42,7 @@ export default function ProjectsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useRealtimeChanges(["projects"], load);
+  useRealtimeChanges(["projects", "tasks"], load);
 
   return (
     <div>
@@ -46,7 +56,10 @@ export default function ProjectsPage() {
         <EmptyState icon={FolderKanban} title="Nenhum projeto ainda" actionLabel="Criar projeto" onAction={() => setCreateOpen(true)} />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((p) => (
+          {projects.map((p) => {
+            const n = counts[p.id] ?? { total: 0, done: 0 };
+            const pct = n.total ? Math.round((n.done / n.total) * 100) : p.progress;
+            return (
             <Link key={p.id} href={`/projects/${p.id}`}>
               <Card className="p-5 hover:shadow-[var(--shadow-md)] transition-shadow h-full">
                 <div className="flex items-center justify-between">
@@ -57,17 +70,18 @@ export default function ProjectsPage() {
                 {p.description && <p className="mt-1 line-clamp-2 text-sm text-gray-500">{p.description}</p>}
                 <div className="mt-4">
                   <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>Progresso</span>
-                    <span className="font-semibold text-blue-900">{p.progress}%</span>
+                    <span>{n.total} {n.total === 1 ? "tarefa" : "tarefas"}{n.total ? ` · ${n.done} concluída${n.done === 1 ? "" : "s"}` : ""}</span>
+                    <span className="font-semibold text-blue-900">{pct}%</span>
                   </div>
                   <div className="mt-1 h-1.5 rounded-full bg-gray-100">
-                    <div className="h-1.5 rounded-full bg-yellow-500" style={{ width: `${p.progress}%` }} />
+                    <div className="h-1.5 rounded-full bg-yellow-500" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
                 {p.end_date && <p className="mt-3 text-xs text-gray-400">Entrega: {formatDate(p.end_date)}</p>}
               </Card>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
 

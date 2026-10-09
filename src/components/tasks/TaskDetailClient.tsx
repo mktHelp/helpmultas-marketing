@@ -16,7 +16,7 @@ import { ChecklistPanel } from "./ChecklistPanel";
 import { CommentsPanel } from "./CommentsPanel";
 import { AttachmentsPanel } from "./AttachmentsPanel";
 import {
-  AssigneeChips, CONTENT_TYPE_OPTIONS, ContentTypeSelector, FieldLabel, PRIORITY_OPTIONS, PrioritySelector, QuickDates,
+  AssigneeChips, CONTENT_TYPE_OPTIONS, ContentTypeSelector, FieldLabel, PRIORITY_OPTIONS, PrioritySelector, ProjectSelector, QuickDates,
   StatusSelector, inputClass,
 } from "./TaskFormParts";
 import { createClient } from "@/lib/supabase/client";
@@ -26,11 +26,12 @@ import {
   listComments, listTaskActivity, setTaskAssignees, updateTask,
 } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
+import { listProjects } from "@/lib/services/projects";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { cn, dateInputToISO, formatDate, isOverdue, isoToDateInputValue } from "@/lib/utils";
 import type {
-  ActivityLog, ContentType, Profile, Task, TaskAttachment, TaskComment, TaskPriority, TaskWithRelations,
+  ActivityLog, ContentType, Profile, Project, Task, TaskAttachment, TaskComment, TaskPriority, TaskWithRelations,
 } from "@/types/database";
 
 type TabKey = "detalhes" | "conteudo" | "comentarios" | "anexos" | "historico";
@@ -56,6 +57,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
   const [task, setTask] = useState<TaskWithRelations | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [activity, setActivity] = useState<ActivityLog[]>([]);
@@ -74,7 +76,8 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
 
   const load = useCallback(async () => {
     try {
-      const [t, p] = await Promise.all([getTask(supabase, taskId), listProfiles(supabase)]);
+      const [t, p, pj] = await Promise.all([getTask(supabase, taskId), listProfiles(supabase), listProjects(supabase)]);
+      setProjects(pj);
       setTask(t);
       setLoadError(false);
       setProfiles(p);
@@ -581,6 +584,20 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
                   value={task.content_type}
                   disabled={!canEdit}
                   onChange={(v) => void patch({ content_type: (v || null) as ContentType | null })}
+                />
+              </div>
+
+              <div>
+                <FieldLabel icon={FolderKanban}>Projeto</FieldLabel>
+                <ProjectSelector
+                  projects={projects}
+                  value={task.project_id}
+                  disabled={!canEdit}
+                  onChange={(id) => {
+                    const pr = projects.find((x) => x.id === id) ?? null;
+                    setTask((prev) => (prev ? { ...prev, project_id: id || null, project: pr } : prev));
+                    void patch({ project_id: id || null });
+                  }}
                 />
               </div>
 
