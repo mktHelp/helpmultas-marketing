@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { AccessGuard } from "./AccessGuard";
 import { Topbar } from "./Topbar";
 import { LiveCursors } from "@/components/shared/LiveCursors";
 import { HelpinhoWidget } from "@/components/assistant/HelpinhoWidget";
+import { useSmoothScroll } from "@/components/shared/SmoothScroll";
 
 const STORAGE_KEY = "hm-sidebar-collapsed";
 
@@ -15,6 +16,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // A transição de largura só liga depois do primeiro paint, pra o menu não
   // "animar" de aberto para recolhido ao carregar a página com a preferência salva.
   const [animate, setAnimate] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  useSmoothScroll(mainRef, contentRef);
 
   useEffect(() => {
     try {
@@ -92,10 +96,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
         <main
+          ref={mainRef}
+          data-lenis-shell
           className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
         >
-          <div className="mx-auto w-full max-w-[1600px]">
+          <div ref={contentRef} className="mx-auto w-full max-w-[1600px]">
             <AccessGuard>{children}</AccessGuard>
           </div>
         </main>

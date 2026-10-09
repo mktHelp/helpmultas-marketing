@@ -4,6 +4,8 @@ import { MetaSyncProvider } from "@/lib/meta-sync-context";
 import { InstagramSyncProvider } from "@/lib/instagram-sync-context";
 import { SyncStatusWidgets } from "@/components/ads/SyncStatusWidgets";
 import { NoPinchZoom } from "@/components/shared/NoPinchZoom";
+import { SmoothScroll } from "@/components/shared/SmoothScroll";
+import "lenis/dist/lenis.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,6 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="pt-BR" className="h-full antialiased">
       <body className="min-h-full" suppressHydrationWarning>
         <NoPinchZoom />
+        <SmoothScroll />
         <MetaSyncProvider>
           <InstagramSyncProvider>
             {children}
