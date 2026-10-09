@@ -28,7 +28,7 @@ import { rematchUnmatchedLeads } from "@/lib/lead-matching";
 // via Supabase Realtime pra mostrar o andamento em linguagem natural.
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const GRAPH_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
@@ -37,6 +37,8 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 // o seletor de datas livre da aba "Tráfego Pago" consegue voltar.
 const INSIGHTS_SYNC_DAYS = 90;
 const INSIGHTS_UPSERT_BATCH = 500;
+// Updates independentes ao banco disparados em paralelo (em vez de um a um).
+const DB_CONCURRENCY = 15;
 
 function toDateOnly(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -243,29 +245,26 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
   await setProgress(admin, runId, `${campaigns.length} campanhas ativas encontradas. Salvando...`);
 
   const campaignIdByMetaId = new Map<string, string>();
-  for (const c of campaigns) {
+  const campaignRows = campaigns.map((c) => ({
+    meta_campaign_id: c.id,
+    account_id: accountRow.id,
+    name: c.name,
+    objective: c.objective,
+    status: c.effective_status,
+    active_in_meta: true,
+    daily_budget: c.daily_budget ? Number(c.daily_budget) / 100 : null,
+    lifetime_budget: c.lifetime_budget ? Number(c.lifetime_budget) / 100 : null,
+    start_time: c.start_time ?? null,
+    stop_time: c.stop_time ?? null,
+    synced_at: startedAt,
+  }));
+  for (let i = 0; i < campaignRows.length; i += INSIGHTS_UPSERT_BATCH) {
     const { data, error } = await admin
       .from("meta_campaigns")
-      .upsert(
-        {
-          meta_campaign_id: c.id,
-          account_id: accountRow.id,
-          name: c.name,
-          objective: c.objective,
-          status: c.effective_status,
-          active_in_meta: true,
-          daily_budget: c.daily_budget ? Number(c.daily_budget) / 100 : null,
-          lifetime_budget: c.lifetime_budget ? Number(c.lifetime_budget) / 100 : null,
-          start_time: c.start_time ?? null,
-          stop_time: c.stop_time ?? null,
-          synced_at: startedAt,
-        },
-        { onConflict: "meta_campaign_id" }
-      )
-      .select("id")
-      .single();
-    if (error || !data) continue;
-    campaignIdByMetaId.set(c.id, data.id);
+      .upsert(campaignRows.slice(i, i + INSIGHTS_UPSERT_BATCH), { onConflict: "meta_campaign_id" })
+      .select("id, meta_campaign_id");
+    if (error) throw new Error(`Falha ao salvar campanhas: ${error.message}`);
+    for (const row of data ?? []) campaignIdByMetaId.set(row.meta_campaign_id as string, row.id as string);
   }
 
   // Campanhas que sincronizamos antes e não vieram mais como ativas.
@@ -292,30 +291,31 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
   entities.adsets = adSets.length;
 
   const adSetIdByMetaId = new Map<string, string>();
-  for (const a of adSets) {
+  const adSetRows = adSets.flatMap((a) => {
     const campaignId = campaignIdByMetaId.get(a.campaign_id);
-    if (!campaignId) continue;
+    if (!campaignId) return [];
+    return [
+      {
+        meta_adset_id: a.id,
+        campaign_id: campaignId,
+        name: a.name,
+        status: a.status,
+        optimization_goal: a.optimization_goal ?? "",
+        billing_event: a.billing_event ?? "",
+        daily_budget: a.daily_budget ? Number(a.daily_budget) / 100 : null,
+        start_time: a.start_time ?? null,
+        end_time: a.end_time ?? null,
+        synced_at: startedAt,
+      },
+    ];
+  });
+  for (let i = 0; i < adSetRows.length; i += INSIGHTS_UPSERT_BATCH) {
     const { data, error } = await admin
       .from("meta_ad_sets")
-      .upsert(
-        {
-          meta_adset_id: a.id,
-          campaign_id: campaignId,
-          name: a.name,
-          status: a.status,
-          optimization_goal: a.optimization_goal ?? "",
-          billing_event: a.billing_event ?? "",
-          daily_budget: a.daily_budget ? Number(a.daily_budget) / 100 : null,
-          start_time: a.start_time ?? null,
-          end_time: a.end_time ?? null,
-          synced_at: startedAt,
-        },
-        { onConflict: "meta_adset_id" }
-      )
-      .select("id")
-      .single();
-    if (error || !data) continue;
-    adSetIdByMetaId.set(a.id, data.id);
+      .upsert(adSetRows.slice(i, i + INSIGHTS_UPSERT_BATCH), { onConflict: "meta_adset_id" })
+      .select("id, meta_adset_id");
+    if (error) throw new Error(`Falha ao salvar conjuntos de anúncios: ${error.message}`);
+    for (const row of data ?? []) adSetIdByMetaId.set(row.meta_adset_id as string, row.id as string);
   }
 
   // 4. Anúncios dentro desses conjuntos
@@ -416,7 +416,7 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
     // genérico/curto (1 palavra) casando com anúncios não relacionados.
     .filter((c) => c.tokens.length >= 2);
 
-  let matchedCount = 0;
+  const matchJobs: { internalAdId: string; creativeId: string }[] = [];
   for (const ad of ads) {
     const internalAdId = adIdByMetaId.get(ad.id);
     if (!internalAdId) continue;
@@ -428,15 +428,22 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
         if (!best || candidate.tokens.length > best.tokens.length) best = candidate;
       }
     }
-    if (!best) continue;
+    if (best) matchJobs.push({ internalAdId, creativeId: best.id });
+  }
 
-    const { data } = await admin
-      .from("meta_ads")
-      .update({ matched_creative_id: best.id, matched_by: "auto_tokens" })
-      .eq("id", internalAdId)
-      .is("matched_creative_id", null)
-      .select("id");
-    if (data && data.length > 0) matchedCount++;
+  let matchedCount = 0;
+  for (let i = 0; i < matchJobs.length; i += DB_CONCURRENCY) {
+    const results = await Promise.all(
+      matchJobs.slice(i, i + DB_CONCURRENCY).map(({ internalAdId, creativeId }) =>
+        admin
+          .from("meta_ads")
+          .update({ matched_creative_id: creativeId, matched_by: "auto_tokens" })
+          .eq("id", internalAdId)
+          .is("matched_creative_id", null)
+          .select("id")
+      )
+    );
+    for (const { data } of results) if (data && data.length > 0) matchedCount++;
   }
   entities.matched_creatives = matchedCount;
 
@@ -520,20 +527,21 @@ async function runSync(admin: SupabaseClient, runId: string, startedAt: string) 
       (matchedAds ?? []).map((r) => [r.meta_ad_id as string, r.matched_creative_id as string])
     );
 
-    for (const row of lifetimeInsights) {
-      const creativeId = creativeIdByMetaAdId.get(row.ad_id);
-      if (!creativeId) continue;
-      const conversions = leadsFromActions(row.actions ?? null);
-
-      await admin
-        .from("creatives")
-        .update({
-          impressions: Number(row.impressions ?? 0),
-          clicks: Number(row.inline_link_clicks ?? 0),
-          spend: Number(row.spend ?? 0),
-          conversions,
-        })
-        .eq("id", creativeId);
+    const lifetimeJobs = lifetimeInsights.filter((row) => creativeIdByMetaAdId.has(row.ad_id));
+    for (let i = 0; i < lifetimeJobs.length; i += DB_CONCURRENCY) {
+      await Promise.all(
+        lifetimeJobs.slice(i, i + DB_CONCURRENCY).map((row) =>
+          admin
+            .from("creatives")
+            .update({
+              impressions: Number(row.impressions ?? 0),
+              clicks: Number(row.inline_link_clicks ?? 0),
+              spend: Number(row.spend ?? 0),
+              conversions: leadsFromActions(row.actions ?? null),
+            })
+            .eq("id", creativeIdByMetaAdId.get(row.ad_id)!)
+        )
+      );
     }
   }
 
