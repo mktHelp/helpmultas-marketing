@@ -70,6 +70,8 @@ const PAGE_ORIGIN_LABEL: Record<string, string> = {
   evento: "Evento",
   // Leads do formulário nativo da Meta (campanhas FORMS II), enviados pelo n8n.
   forms: "Formulário nativo",
+  // Leads que entraram direto pelo CRM (webhook leads.export).
+  crm: "CRM",
 };
 
 function pageOriginLabel(value: string) {

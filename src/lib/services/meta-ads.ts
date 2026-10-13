@@ -562,3 +562,46 @@ export async function loadTrafficDaily(supabase: SupabaseClient): Promise<Traffi
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
+
+export interface MeetingLeadRow {
+  id: string;
+  name: string;
+  phone: string;
+  received_at: string;
+  crm_lead_id: string | null;
+  crm_category_name: string | null;
+  crm_funnel_name: string | null;
+  crm_stage_name: string | null;
+  crm_phase_name: string | null;
+  crm_stage_entered_at: string | null;
+  meetings_count: number;
+  meetings_no_show: number;
+  meetings_rescheduled: number;
+  first_meeting_at: string | null;
+  last_meeting_at: string | null;
+  last_meeting_status: string | null;
+  matched_campaign: { id: string; name: string } | { id: string; name: string }[] | null;
+  matched_ad: { id: string; name: string } | { id: string; name: string }[] | null;
+}
+
+// TODOS os leads do período (mesma base da aba Leads); os que já foram vistos
+// pelo CRM têm crm_lead_id, categoria/etapa e o resumo de reuniões — base da
+// aba Reuniões. Paginado: o PostgREST corta em 1000.
+export async function fetchCrmLeads(supabase: SupabaseClient, range: DateRange): Promise<MeetingLeadRow[]> {
+  const out: MeetingLeadRow[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("landing_page_leads")
+      .select(
+        "id, name, phone, received_at, crm_lead_id, crm_category_name, crm_funnel_name, crm_stage_name, crm_phase_name, crm_stage_entered_at, meetings_count, meetings_no_show, meetings_rescheduled, first_meeting_at, last_meeting_at, last_meeting_status, matched_campaign:meta_campaigns!matched_campaign_id(id, name), matched_ad:meta_ads(id, name)"
+      )
+      .gte("received_at", `${range.since}T00:00:00`)
+      .lte("received_at", `${range.until}T23:59:59`)
+      .order("received_at", { ascending: false })
+      .range(from, from + 999);
+    if (error) throw error;
+    out.push(...((data ?? []) as unknown as MeetingLeadRow[]));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
