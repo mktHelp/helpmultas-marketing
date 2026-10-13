@@ -5,6 +5,7 @@ import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { createClient } from "@/lib/supabase/client";
 import type { LeadRow } from "@/lib/services/meta-ads";
 import { cn } from "@/lib/utils";
+import { meetingStatusText } from "./MeetingStatus";
 
 // Modal de detalhes do lead — o mesmo nas abas Leads e Reuniões: contato, anúncio
 // de origem (com preview), dados do CRM, reuniões, histórico de etapas e UTMs.
@@ -232,7 +233,7 @@ export function LeadDetailDialog({ leadId, onClose, actions }: { leadId: string 
                 <DetailField label="Reuniões" value={lead.crm_lead_id ? String(lead.meetings_count) : null} />
                 <DetailField label="No-show" value={lead.crm_lead_id ? String(lead.meetings_no_show) : null} />
                 <DetailField label="Reagendadas" value={lead.crm_lead_id ? String(lead.meetings_rescheduled) : null} />
-                <DetailField label="Status da última" value={lead.last_meeting_status} />
+                <DetailField label="Status da última" value={lead.last_meeting_status ? meetingStatusText(lead.last_meeting_status) : null} />
                 <DetailField label="Primeira reunião" value={lead.first_meeting_at ? formatDateTime(lead.first_meeting_at) : null} />
                 <DetailField label="Última reunião" value={lead.last_meeting_at ? formatDateTime(lead.last_meeting_at) : null} />
               </DetailSection>

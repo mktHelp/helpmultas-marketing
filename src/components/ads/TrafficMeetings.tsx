@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { LeadDeleteDialog, LeadDialogActions, LeadEditDialog, LeadRowActions, type LeadRef } from "./LeadAdmin";
 import { LeadDetailDialog } from "./LeadDetail";
+import { MeetingStatusBadge, meetingStatusText } from "./MeetingStatus";
 
 const PAGE_SIZE = 25;
 
@@ -597,7 +598,7 @@ export function TrafficMeetings() {
         const hay = normalize(
           [
             r.name, r.phone, r.email, one(r.matched_campaign)?.name, one(r.matched_ad)?.name,
-            categoryLabel(r)?.label, r.crm_stage_name, r.crm_funnel_name, r.last_meeting_status,
+            categoryLabel(r)?.label, r.crm_stage_name, r.crm_funnel_name, r.last_meeting_status, r.last_meeting_status ? meetingStatusText(r.last_meeting_status) : "",
           ].join(" ")
         );
         if (!hay.includes(term)) return false;
@@ -631,7 +632,7 @@ export function TrafficMeetings() {
     })),
     ...filters.stages.map((v) => ({ key: `s-${v}`, label: v, remove: () => setFilters((f) => ({ ...f, stages: f.stages.filter((x) => x !== v) })) })),
     ...(filters.meeting ? [{ key: "m", label: MEETING_FILTERS.find((m) => m.value === filters.meeting)?.label ?? filters.meeting, remove: () => setFilters((f) => ({ ...f, meeting: "" })) }] : []),
-    ...filters.statuses.map((v) => ({ key: `t-${v}`, label: `Reunião: ${v}`, remove: () => setFilters((f) => ({ ...f, statuses: f.statuses.filter((x) => x !== v) })) })),
+    ...filters.statuses.map((v) => ({ key: `t-${v}`, label: `Reunião: ${meetingStatusText(v)}`, remove: () => setFilters((f) => ({ ...f, statuses: f.statuses.filter((x) => x !== v) })) })),
   ];
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -899,7 +900,7 @@ export function TrafficMeetings() {
                   <td className="px-4 py-2.5">{r.crm_lead_id ? r.meetings_no_show : <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-2.5">{r.crm_lead_id ? r.meetings_rescheduled : <span className="text-gray-300">—</span>}</td>
                   <td className="whitespace-nowrap px-4 py-2.5">{formatDate(r.last_meeting_at)}</td>
-                  <td className="px-4 py-2.5">{r.last_meeting_status ? <Badge>{r.last_meeting_status}</Badge> : "—"}</td>
+                  <td className="px-4 py-2.5"><MeetingStatusBadge status={r.last_meeting_status} /></td>
                   {isAdmin && (
                     <td className="px-4 py-2.5">
                       <LeadRowActions
@@ -947,7 +948,7 @@ export function TrafficMeetings() {
           stageOptions={stageOptions.map((s) => ({ value: s, label: s }))}
           categoryOptions={CATEGORY_FILTERS.map((c) => ({ ...c, color: /^\d+$/.test(c.value) ? FUNNEL[Number(c.value)].color : c.value === "lost" ? "#c0392b" : undefined }))}
           meetingOptions={MEETING_FILTERS}
-          statusOptions={statusOptions.map((s) => ({ value: s, label: s }))}
+          statusOptions={statusOptions.map((s) => ({ value: s, label: meetingStatusText(s) }))}
           resultCount={base.length}
           onClose={() => setFiltersOpen(false)}
           onApply={(next) => {
