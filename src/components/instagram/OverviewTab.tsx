@@ -9,12 +9,12 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, XAxis, YAxis,
 } from "recharts";
 import {
-  BRAND, BarList, Chip, ChartTooltip, Donut, GRID_COLOR, Insight, Kpi, Panel, RTooltip, TICK_STYLE, compact, fmt,
-  shortDate, signed, tipDate,
+  BRAND, BarList, Chip, ChartTooltip, DeltaBadge, Donut, GRID_COLOR, Insight, Kpi, Panel, RTooltip, TICK_STYLE, compact,
+  fmt, percent, shortDate, signed, tipDate,
 } from "@/components/shared/dash-parts";
 import {
   CATEGORY_COLOR, CATEGORY_LABEL, CATEGORY_ORDER, WEEKDAY_LONG, WEEKDAY_SHORT, categoryFromMedia, engagementRate,
-  sumInsights, weekdayOf, type ContentCategory,
+  sumByCategory, sumInsights, weekdayOf, type ContentCategory,
 } from "@/lib/services/instagram";
 import { buildHighlights, type HighlightKey } from "@/lib/instagram-highlights";
 import type { InstagramDailyInsight, InstagramMedia } from "@/types/database";
@@ -122,6 +122,34 @@ export function OverviewTab({
     });
   }, [rows, media]);
   const presentCats = CATEGORY_ORDER.filter((c) => media.some((m) => categoryFromMedia(m) === c));
+
+  // ── Visualizações por tipo de conteúdo ──
+  const [typeMetric, setTypeMetric] = useState<"views" | "reach" | "interactions">("views");
+  const typeRows = useMemo(
+    () =>
+      CATEGORY_ORDER.map((c) => ({
+        cat: c,
+        views: t.viewsByCategory[c] ?? 0,
+        reach: t.reachByCategory[c] ?? 0,
+        interactions: t.interactionsByCategory[c] ?? 0,
+        prevViews: p.viewsByCategory[c] ?? 0,
+        count: media.filter((m) => categoryFromMedia(m) === c).length,
+      })).filter((r) => r.views > 0 || r.reach > 0 || r.interactions > 0 || r.count > 0),
+    [t, p, media]
+  );
+  const typeSeries = useMemo(
+    () =>
+      rows.map((r) => {
+        const src = { views: r.views_by_type, reach: r.reach_by_type, interactions: r.interactions_by_type }[typeMetric];
+        const by = sumByCategory([src ?? {}]);
+        const entry: Record<string, number | string> = { label: shortDate(r.date), tip: tipDate(r.date) };
+        CATEGORY_ORDER.forEach((c) => (entry[c] = by[c] ?? 0));
+        return entry;
+      }),
+    [rows, typeMetric]
+  );
+  const typeCats = typeRows.filter((r) => r[typeMetric] > 0).map((r) => r.cat);
+  const typeMetricLabel = { views: "Visualizações", reach: "Alcance", interactions: "Interações" }[typeMetric];
 
   // ── Seguidores ──
   const netRows = rows.slice(-Math.min(rows.length, 30));
@@ -285,6 +313,89 @@ export function OverviewTab({
             )}
           </AreaChart>
         </ResponsiveContainer>
+      </Panel>
+
+      {/* Desempenho por tipo de conteúdo */}
+      <Panel
+        title="Desempenho por tipo de conteúdo"
+        subtitle="Stories, reels, posts e carrosséis separados"
+        action={
+          <div className="flex flex-wrap gap-2">
+            {(["views", "reach", "interactions"] as const).map((k) => (
+              <Chip key={k} active={typeMetric === k} onClick={() => setTypeMetric(k)}>
+                {{ views: "Visualizações", reach: "Alcance", interactions: "Interações" }[k]}
+              </Chip>
+            ))}
+          </div>
+        }
+      >
+        {typeRows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400">Sem dados por tipo neste período.</p>
+        ) : (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+              {typeRows.map((r) => (
+                <div key={r.cat} className="rounded-2xl border border-gray-100 p-3" style={{ borderTop: `3px solid ${CATEGORY_COLOR[r.cat]}` }}>
+                  <p className="text-xs font-semibold text-gray-500">{CATEGORY_LABEL[r.cat]}</p>
+                  <p className="mt-1 font-display text-2xl font-bold text-blue-900">{fmt(r[typeMetric])}</p>
+                  <p className="text-[11px] text-gray-400">
+                    {percent(r[typeMetric], typeMetric === "views" ? t.views : typeMetric === "reach" ? t.reach : t.interactions, 0)} do total
+                    {r.count > 0 && ` · ${r.count} ${r.cat === "story" ? "stories" : "publ."}`}
+                  </p>
+                  {typeMetric === "views" && <div className="mt-1"><DeltaBadge current={r.views} previous={hasPrevious ? r.prevViews : null} /></div>}
+                </div>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={typeSeries} margin={{ left: -10, right: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
+                <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
+                <RTooltip content={<ChartTooltip total />} cursor={{ fill: "#f4f6f8" }} />
+                {typeCats.map((c) => (
+                  <Bar isAnimationActive={false} key={c} dataKey={c} name={`${CATEGORY_LABEL[c]} · ${typeMetricLabel}`} stackId="type" fill={CATEGORY_COLOR[c]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+              {typeCats.map((c) => (
+                <span key={c} className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ background: CATEGORY_COLOR[c] }} />
+                  {CATEGORY_LABEL[c]}
+                </span>
+              ))}
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold text-gray-500">{typeMetricLabel} por dia</p>
+              <div className="max-h-[360px] overflow-auto rounded-xl border border-gray-100">
+                <table className="w-full min-w-[420px] text-sm">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="text-left text-xs font-semibold text-gray-500">
+                      <th className="px-3 py-2">Dia</th>
+                      {typeCats.map((c) => (
+                        <th key={c} className="px-3 py-2 text-right">{CATEGORY_LABEL[c]}</th>
+                      ))}
+                      <th className="px-3 py-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...typeSeries].reverse().map((d) => (
+                      <tr key={d.tip as string} className="border-t border-gray-100">
+                        <td className="px-3 py-1.5 font-semibold text-blue-900">{d.tip}</td>
+                        {typeCats.map((c) => (
+                          <td key={c} className="px-3 py-1.5 text-right">{fmt(d[c] as number)}</td>
+                        ))}
+                        <td className="px-3 py-1.5 text-right font-bold text-blue-900">
+                          {fmt(typeCats.reduce((s, c) => s + (d[c] as number), 0))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </Panel>
 
       {/* Publicações por dia + seguidores */}
