@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Tabs } from "@/components/ui/Tabs";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterMultiSelect, FilterSelect } from "@/components/ui/FilterBar";
 import { numberFormatter } from "@/lib/format";
 import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { fetchCrmLeads, type MeetingLeadRow } from "@/lib/services/meta-ads";
+import { useAuth } from "@/lib/auth-context";
+import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
+import { LeadDeleteDialog, LeadDialogActions, LeadEditDialog, LeadRowActions, type LeadRef } from "./LeadAdmin";
+import { LeadDetailDialog } from "./LeadDetail";
 
 const PAGE_SIZE = 25;
 
@@ -89,7 +95,7 @@ const F_WBOTTOM = 64;
 const fWidth = (i: number, n: number) => F_WTOP - ((F_WTOP - F_WBOTTOM) * i) / n;
 const fRy = (w: number) => (w / 2) * 0.16;
 
-function FunnelChart({ steps }: { steps: FunnelStep[] }) {
+function FunnelChart({ steps, activeIdx, onSelect }: { steps: FunnelStep[]; activeIdx: number | null; onSelect: (i: number) => void }) {
   const n = steps.length;
   const totalH = F_TOP + n * F_H + fRy(fWidth(n, n)) + 6;
   const topCount = steps[0].reached;
@@ -101,16 +107,21 @@ function FunnelChart({ steps }: { steps: FunnelStep[] }) {
     return y + F_H / 2 + (fRy(fWidth(i, n)) + fRy(fWidth(i + 1, n))) / 2;
   });
   const pctY = (y: number) => `${(y / totalH) * 100}%`;
+  // Com uma camada selecionada, as demais ficam esmaecidas.
+  const dim = (i: number) => (activeIdx !== null && activeIdx !== i ? 0.35 : 1);
 
   return (
     <div className="mx-auto grid w-full max-w-[780px] grid-cols-[36%_64%] sm:grid-cols-[1fr_minmax(0,400px)_104px]">
       {/* rótulos */}
       <div className="relative">
         {steps.map((s, i) => (
-          <div
+          <button
             key={s.label}
-            className="absolute right-1 -translate-y-1/2 text-right sm:right-2"
-            style={{ top: pctY(centers[i]) }}
+            type="button"
+            onClick={() => onSelect(i)}
+            title="Filtrar a lista pelos leads que chegaram até aqui"
+            className="absolute right-1 -translate-y-1/2 cursor-pointer text-right transition-opacity hover:opacity-100 sm:right-2"
+            style={{ top: pctY(centers[i]), opacity: dim(i) }}
           >
             <p className="text-[10px] font-bold uppercase leading-tight sm:text-xs" style={{ color: s.color }}>
               {s.label}
@@ -120,7 +131,7 @@ function FunnelChart({ steps }: { steps: FunnelStep[] }) {
               {pct(s.reached, topCount)}
               {i > 0 && ` · ${pct(s.reached, steps[i - 1].reached)} ant.`}
             </p>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -144,7 +155,16 @@ function FunnelChart({ steps }: { steps: FunnelStep[] }) {
           const cy = centers[i];
           const edge = F_CX - (wt + wb) / 4;
           return (
-            <g key={s.label}>
+            <g
+              key={s.label}
+              onClick={() => onSelect(i)}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(i)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Filtrar leads que chegaram até ${s.label}`}
+              className="cursor-pointer outline-none transition-opacity hover:opacity-100"
+              style={{ opacity: dim(i) }}
+            >
               <path d={d} fill={s.color} />
               <line x1={0} y1={cy} x2={edge - 2} y2={cy} stroke={s.color} strokeWidth={1.5} strokeDasharray="3 3" />
               <text
@@ -169,8 +189,9 @@ function FunnelChart({ steps }: { steps: FunnelStep[] }) {
         {steps.map((s, i) => (
           <div
             key={s.label}
-            className="absolute left-2 flex h-[68px] w-[68px] -translate-y-1/2 flex-col items-center justify-center rounded-full border-[3px] bg-white text-center"
-            style={{ top: pctY(centers[i]), borderColor: s.color }}
+            className="absolute left-3 flex max-h-[58px] -translate-y-1/2 flex-col items-center justify-center overflow-hidden rounded-full border-[3px] bg-white text-center"
+            // ~74% da altura da faixa: sobra folga entre um círculo e o seguinte em qualquer largura.
+            style={{ top: pctY(centers[i]), height: `${((F_H * 0.74) / totalH) * 100}%`, aspectRatio: "1 / 1", borderColor: s.color }}
           >
             <span className="text-[13px] font-bold leading-none text-blue-900">{pct(s.reached, topCount)}</span>
             <span className="mt-0.5 text-[9px] leading-none text-gray-500">{i > 0 ? `${pct(s.reached, steps[i - 1].reached)} ant.` : "do topo"}</span>
@@ -183,6 +204,33 @@ function FunnelChart({ steps }: { steps: FunnelStep[] }) {
 
 type Filter = "all" | "crm" | "none" | "meeting";
 
+const MEETING_FILTERS = [
+  { value: "", label: "Todas as reuniões" },
+  { value: "none", label: "Sem reunião" },
+  { value: "1", label: "Com 1ª reunião ou mais" },
+  { value: "2", label: "Com 2ª reunião ou mais" },
+  { value: "3", label: "Com 3ª reunião ou mais" },
+  { value: "noshow", label: "Com no-show" },
+  { value: "resched", label: "Com reagendamento" },
+];
+
+const CATEGORY_FILTERS = [
+  ...FUNNEL.map((f, i) => ({ value: String(i), label: f.label })),
+  { value: "lost", label: "Venda perdida" },
+  { value: "other", label: "Outras categorias" },
+  { value: "none", label: "Fora do CRM" },
+];
+
+const categoryKey = (r: MeetingLeadRow) => String(categoryOf(r) ?? "none");
+
+function meetingMatches(r: MeetingLeadRow, f: string) {
+  if (!f) return true;
+  if (f === "none") return r.meetings_count === 0;
+  if (f === "noshow") return r.meetings_no_show > 0;
+  if (f === "resched") return r.meetings_rescheduled > 0;
+  return r.meetings_count >= Number(f);
+}
+
 export function TrafficMeetings() {
   const [days, setDays] = useState("30");
   const [rows, setRows] = useState<MeetingLeadRow[]>([]);
@@ -190,6 +238,19 @@ export function TrafficMeetings() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(0);
+  const { isAdmin } = useAuth();
+  const [reloadKey, setReloadKey] = useState(0);
+  const [selected, setSelected] = useState<LeadRef | null>(null);
+  const [editing, setEditing] = useState<LeadRef | null>(null);
+  const [deleting, setDeleting] = useState<LeadRef | null>(null);
+  const [search, setSearch] = useState("");
+  const [campaignIds, setCampaignIds] = useState<string[]>([]);
+  const [stage, setStage] = useState("");
+  const [meetingFilter, setMeetingFilter] = useState("");
+  const [meetingStatus, setMeetingStatus] = useState("");
+  // Só afetam a lista (não o funil, que precisa continuar inteiro pra ser clicado).
+  const [category, setCategory] = useState("");
+  const [reachedIdx, setReachedIdx] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,25 +264,82 @@ export function TrafficMeetings() {
     return () => {
       cancelled = true;
     };
-  }, [days]);
+  }, [days, reloadKey]);
 
-  useEffect(() => setPage(0), [filter, days]);
+  // Exclusão/edição (aqui ou na aba Leads) e novas sincronizações do CRM atualizam a tela.
+  useRealtimeChanges(["landing_page_leads"], () => setReloadKey((k) => k + 1));
+
+  useEffect(() => setPage(0), [filter, days, search, campaignIds, stage, meetingFilter, meetingStatus, category, reachedIdx]);
+
+  const campaignOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of rows) {
+      const c = one(r.matched_campaign);
+      map.set(c?.id ?? "none", c?.name ?? "Sem vínculo");
+    }
+    return [...map.entries()].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [rows]);
+  const stageOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.crm_stage_name).filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [rows]
+  );
+  const statusOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.last_meeting_status).filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [rows]
+  );
+
+  // Filtros gerais: valem pra página toda (cards, funil, tabelas e lista).
+  const base = useMemo(() => {
+    const term = normalize(search);
+    return rows.filter((r) => {
+      if (term && !normalize(`${r.name} ${r.phone} ${r.email}`).includes(term)) return false;
+      if (campaignIds.length && !campaignIds.includes(one(r.matched_campaign)?.id ?? "none")) return false;
+      if (stage && r.crm_stage_name !== stage) return false;
+      if (!meetingMatches(r, meetingFilter)) return false;
+      if (meetingStatus && r.last_meeting_status !== meetingStatus) return false;
+      return true;
+    });
+  }, [rows, search, campaignIds, stage, meetingFilter, meetingStatus]);
+
+  const hasFilters = !!(search || campaignIds.length || stage || meetingFilter || meetingStatus || category || reachedIdx !== null || filter !== "all");
+  function clearFilters() {
+    setSearch("");
+    setCampaignIds([]);
+    setStage("");
+    setMeetingFilter("");
+    setMeetingStatus("");
+    setCategory("");
+    setReachedIdx(null);
+    setFilter("all");
+  }
+  function jumpToList() {
+    document.getElementById("lista-reunioes")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function selectFunnel(i: number) {
+    setCategory("");
+    setReachedIdx((cur) => (cur === i ? null : i));
+    if (reachedIdx !== i) jumpToList();
+  }
+  function selectCategory(value: string) {
+    setReachedIdx(null);
+    setCategory(value);
+  }
 
   const stats = useMemo(() => {
-    const inCrm = rows.filter((r) => r.crm_lead_id);
+    const inCrm = base.filter((r) => r.crm_lead_id);
     return {
-      leads: rows.length,
+      leads: base.length,
       inCrm: inCrm.length,
-      notInCrm: rows.length - inCrm.length,
-      withMeeting: rows.filter((r) => r.meetings_count > 0).length,
-      meetings: rows.reduce((a, r) => a + r.meetings_count, 0),
-      noShow: rows.reduce((a, r) => a + r.meetings_no_show, 0),
-      rescheduled: rows.reduce((a, r) => a + r.meetings_rescheduled, 0),
+      notInCrm: base.length - inCrm.length,
+      withMeeting: base.filter((r) => r.meetings_count > 0).length,
+      meetings: base.reduce((a, r) => a + r.meetings_count, 0),
+      noShow: base.reduce((a, r) => a + r.meetings_no_show, 0),
+      rescheduled: base.reduce((a, r) => a + r.meetings_rescheduled, 0),
     };
-  }, [rows]);
+  }, [base]);
 
   const { steps, lost, other } = useMemo(() => {
-    const cats = rows.map(categoryOf);
+    const cats = base.map(categoryOf);
     const steps: FunnelStep[] = FUNNEL.map((f, i) => ({
       label: f.label,
       color: f.color,
@@ -230,24 +348,24 @@ export function TrafficMeetings() {
       now: cats.filter((c) => c === i).length,
     }));
     return { steps, lost: cats.filter((c) => c === "lost").length, other: cats.filter((c) => c === "other").length };
-  }, [rows]);
+  }, [base]);
 
   const byStage = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of rows) {
+    for (const r of base) {
       if (!r.crm_lead_id) continue;
       const k = r.crm_stage_name || "Sem etapa";
       map.set(k, (map.get(k) ?? 0) + 1);
     }
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
-  }, [rows]);
+  }, [base]);
 
   const byCampaign = useMemo(() => {
-    const map = new Map<string, { name: string; leads: number; inCrm: number; withMeeting: number; second: number; third: number; noShow: number }>();
-    for (const r of rows) {
+    const map = new Map<string, { id: string; name: string; leads: number; inCrm: number; withMeeting: number; second: number; third: number; noShow: number }>();
+    for (const r of base) {
       const c = one(r.matched_campaign);
       const key = c?.id ?? "none";
-      const cur = map.get(key) ?? { name: c?.name ?? "Sem vínculo", leads: 0, inCrm: 0, withMeeting: 0, second: 0, third: 0, noShow: 0 };
+      const cur = map.get(key) ?? { id: key, name: c?.name ?? "Sem vínculo", leads: 0, inCrm: 0, withMeeting: 0, second: 0, third: 0, noShow: 0 };
       cur.leads++;
       if (r.crm_lead_id) cur.inCrm++;
       if (r.meetings_count > 0) cur.withMeeting++;
@@ -257,14 +375,30 @@ export function TrafficMeetings() {
       map.set(key, cur);
     }
     return [...map.values()].sort((a, b) => b.withMeeting - a.withMeeting || b.leads - a.leads);
-  }, [rows]);
+  }, [base]);
+
+  // Categoria / clique no funil: só a lista. Os contadores das abas refletem esse recorte.
+  const listBase = useMemo(() => {
+    return base.filter((r) => {
+      const c = categoryOf(r);
+      if (reachedIdx !== null && !(typeof c === "number" && c >= reachedIdx)) return false;
+      if (category && categoryKey(r) !== category) return false;
+      return true;
+    });
+  }, [base, category, reachedIdx]);
 
   const filtered = useMemo(() => {
-    if (filter === "crm") return rows.filter((r) => r.crm_lead_id);
-    if (filter === "none") return rows.filter((r) => !r.crm_lead_id);
-    if (filter === "meeting") return rows.filter((r) => r.meetings_count > 0);
-    return rows;
-  }, [rows, filter]);
+    if (filter === "crm") return listBase.filter((r) => r.crm_lead_id);
+    if (filter === "none") return listBase.filter((r) => !r.crm_lead_id);
+    if (filter === "meeting") return listBase.filter((r) => r.meetings_count > 0);
+    return listBase;
+  }, [listBase, filter]);
+  const listCounts = {
+    all: listBase.length,
+    crm: listBase.filter((r) => r.crm_lead_id).length,
+    none: listBase.filter((r) => !r.crm_lead_id).length,
+    meeting: listBase.filter((r) => r.meetings_count > 0).length,
+  };
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -273,6 +407,58 @@ export function TrafficMeetings() {
   return (
     <div className="space-y-6">
       <Tabs tabs={PERIODS} active={days} onChange={setDays} />
+
+      <div className="space-y-3 rounded-3xl border border-gray-100 bg-gray-050/80 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome, telefone ou e-mail..." className="sm:max-w-md" />
+          <FilterMultiSelect
+            label="Campanha"
+            allLabel="Todas as campanhas"
+            pluralLabel="campanhas"
+            options={campaignOptions}
+            selected={campaignIds}
+            onChange={setCampaignIds}
+          />
+          <FilterSelect value={stage} onChange={(e) => setStage(e.target.value)} aria-label="Etapa do CRM">
+            <option value="">Todas as etapas</option>
+            {stageOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </FilterSelect>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterSelect value={category} onChange={(e) => selectCategory(e.target.value)} aria-label="Categoria do CRM">
+            <option value="">Todas as categorias</option>
+            {CATEGORY_FILTERS.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </FilterSelect>
+          <FilterSelect value={meetingFilter} onChange={(e) => setMeetingFilter(e.target.value)} aria-label="Reuniões">
+            {MEETING_FILTERS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </FilterSelect>
+          <FilterSelect value={meetingStatus} onChange={(e) => setMeetingStatus(e.target.value)} aria-label="Status da última reunião">
+            <option value="">Todos os status de reunião</option>
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </FilterSelect>
+          {reachedIdx !== null && (
+            <span className="flex items-center gap-1 rounded-full bg-blue-900 px-3 py-1.5 text-xs font-semibold text-white">
+              Funil: chegaram até {FUNNEL[reachedIdx].label}
+              <button type="button" onClick={() => setReachedIdx(null)} aria-label="Remover filtro do funil">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          )}
+          {hasFilters && (
+            <button onClick={clearFilters} className="flex items-center gap-1 text-xs font-semibold text-blue-900 hover:underline">
+              <X className="h-3.5 w-3.5" /> Limpar filtros
+            </button>
+          )}
+        </div>
+      </div>
       {error && <p className="text-sm text-[color:var(--color-danger)]">{error}</p>}
 
       {!loading && stats.notInCrm > 0 && (
@@ -309,15 +495,24 @@ export function TrafficMeetings() {
             <CardTitle>Funil por categoria do CRM</CardTitle>
           </CardHeader>
           <CardBody>
-            <FunnelChart steps={steps} />
+            <FunnelChart steps={steps} activeIdx={reachedIdx ?? (/^\d+$/.test(category) ? Number(category) : null)} onSelect={selectFunnel} />
             <p className="mt-2 text-xs text-gray-500">
-              O número em cada camada são os leads que chegaram até ali (quem está numa categoria à frente já passou pelas anteriores). Venda perdida fica fora do funil.
+              O número em cada camada são os leads que chegaram até ali (quem está numa categoria à frente já passou pelas anteriores). Venda perdida fica fora do funil. Clique em uma camada para filtrar a lista abaixo.
             </p>
           </CardBody>
         </Card>
 
         <div className="space-y-6">
-          <Card>
+          <Card
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              selectCategory(category === "lost" ? "" : "lost");
+              jumpToList();
+            }}
+            onKeyDown={(e) => e.key === "Enter" && selectCategory(category === "lost" ? "" : "lost")}
+            className={cn("cursor-pointer transition-shadow hover:shadow-md", category === "lost" && "ring-2 ring-[color:var(--color-danger)]")}
+          >
             <CardBody>
               <p className="text-[11px] font-bold uppercase text-gray-500">Venda perdida</p>
               <p className="mt-1 text-3xl font-bold text-[color:var(--color-danger)]">{numberFormatter.format(lost)}</p>
@@ -350,16 +545,24 @@ export function TrafficMeetings() {
           </CardHeader>
           <CardBody className="space-y-2">
             {byStage.length === 0 && <p className="text-sm text-gray-400">{loading ? "Carregando..." : "Nenhum lead do CRM no período."}</p>}
-            {byStage.map(([stage, count]) => (
-              <div key={stage}>
+            {byStage.map(([name, count]) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => {
+                  setStage((cur) => (cur === name ? "" : name));
+                  jumpToList();
+                }}
+                className={cn("block w-full rounded-lg px-2 py-1 text-left transition-colors hover:bg-gray-050", stage === name && "bg-yellow-100/60 ring-1 ring-yellow-600/40")}
+              >
                 <div className="flex justify-between text-sm text-blue-900">
-                  <span>{stage}</span>
+                  <span>{name}</span>
                   <span className="font-semibold">{numberFormatter.format(count)}</span>
                 </div>
                 <div className="mt-1 h-1.5 rounded-full bg-gray-100">
                   <div className="h-full rounded-full bg-blue-900" style={{ width: `${(count / (byStage[0]?.[1] || 1)) * 100}%` }} />
                 </div>
-              </div>
+              </button>
             ))}
           </CardBody>
         </Card>
@@ -384,7 +587,14 @@ export function TrafficMeetings() {
               </thead>
               <tbody>
                 {byCampaign.map((c) => (
-                  <tr key={c.name} className="border-b border-gray-100 text-blue-900">
+                  <tr
+                    key={c.id}
+                    onClick={() => {
+                      setCampaignIds((cur) => (cur.length === 1 && cur[0] === c.id ? [] : [c.id]));
+                      jumpToList();
+                    }}
+                    className={cn("cursor-pointer border-b border-gray-100 text-blue-900 hover:bg-gray-050", campaignIds.length === 1 && campaignIds[0] === c.id && "bg-yellow-100/60")}
+                  >
                     <td className="px-4 py-2.5">{c.name}</td>
                     <td className="px-4 py-2.5">{c.leads}</td>
                     <td className="px-4 py-2.5">{c.inCrm}</td>
@@ -411,10 +621,10 @@ export function TrafficMeetings() {
           </div>
           <Tabs
             tabs={[
-              { key: "all", label: "Todos", count: stats.leads },
-              { key: "crm", label: "No CRM", count: stats.inCrm },
-              { key: "none", label: "Fora do CRM", count: stats.notInCrm },
-              { key: "meeting", label: "Com reunião", count: stats.withMeeting },
+              { key: "all", label: "Todos", count: listCounts.all },
+              { key: "crm", label: "No CRM", count: listCounts.crm },
+              { key: "none", label: "Fora do CRM", count: listCounts.none },
+              { key: "meeting", label: "Com reunião", count: listCounts.meeting },
             ]}
             active={filter}
             onChange={(k) => setFilter(k as Filter)}
@@ -434,18 +644,23 @@ export function TrafficMeetings() {
                 <th className={th}>Reag.</th>
                 <th className={th}>Última reunião</th>
                 <th className={th}>Status</th>
+                {isAdmin && <th className={th}>Ações</th>}
               </tr>
             </thead>
             <tbody>
               {pageRows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={isAdmin ? 11 : 10} className="px-4 py-8 text-center text-gray-400">
                     {loading ? "Carregando..." : "Nenhum lead nesse filtro."}
                   </td>
                 </tr>
               )}
               {pageRows.map((r) => (
-                <tr key={r.id} className="border-b border-gray-100 text-blue-900">
+                <tr
+                  key={r.id}
+                  onClick={() => setSelected({ id: r.id, name: r.name })}
+                  className="cursor-pointer border-b border-gray-100 text-blue-900 transition-colors hover:bg-yellow-050/70"
+                >
                   <td className="px-4 py-2.5">
                     <p className="font-semibold">{r.name || "—"}</p>
                     <p className="text-xs text-gray-500">{r.phone}</p>
@@ -459,6 +674,14 @@ export function TrafficMeetings() {
                   <td className="px-4 py-2.5">{r.crm_lead_id ? r.meetings_rescheduled : <span className="text-gray-300">—</span>}</td>
                   <td className="whitespace-nowrap px-4 py-2.5">{formatDate(r.last_meeting_at)}</td>
                   <td className="px-4 py-2.5">{r.last_meeting_status ? <Badge>{r.last_meeting_status}</Badge> : "—"}</td>
+                  {isAdmin && (
+                    <td className="px-4 py-2.5">
+                      <LeadRowActions
+                        onEdit={() => setEditing({ id: r.id, name: r.name })}
+                        onDelete={() => setDeleting({ id: r.id, name: r.name })}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -490,6 +713,18 @@ export function TrafficMeetings() {
           )}
         </CardBody>
       </Card>
+
+      <LeadDetailDialog
+        leadId={selected?.id ?? null}
+        onClose={() => setSelected(null)}
+        actions={
+          isAdmin && selected ? (
+            <LeadDialogActions onEdit={() => setEditing(selected)} onDelete={() => setDeleting(selected)} />
+          ) : undefined
+        }
+      />
+      <LeadEditDialog lead={editing} onClose={() => setEditing(null)} onSaved={() => { setSelected(null); setReloadKey((k) => k + 1); }} />
+      <LeadDeleteDialog lead={deleting} onClose={() => setDeleting(null)} onDeleted={() => { setSelected(null); setReloadKey((k) => k + 1); }} />
     </div>
   );
 }

@@ -65,10 +65,11 @@ interface ExistingLead {
   matched_ad_id: string | null;
   matched_adset_id: string | null;
   matched_campaign_id: string | null;
+  crm_locked: boolean;
 }
 
 const EXISTING_COLS =
-  "id, crm_lead_id, phone_digits, email, crm_stage_name, crm_stage_entered_at, crm_last_movement_at, meetings_count, meetings_no_show, meetings_rescheduled, last_meeting_at, last_meeting_status, matched_ad_id, matched_adset_id, matched_campaign_id";
+  "id, crm_lead_id, phone_digits, email, crm_stage_name, crm_stage_entered_at, crm_last_movement_at, meetings_count, meetings_no_show, meetings_rescheduled, last_meeting_at, last_meeting_status, matched_ad_id, matched_adset_id, matched_campaign_id, crm_locked";
 
 const CHUNK = 200;
 
@@ -140,8 +141,16 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  const leads = body.leads.filter((l) => s(l.id));
-  const stats = { received: body.leads.length, inserted: 0, updated: 0, unchanged: 0, linkedToExisting: 0, stageChanges: 0, errors: 0 };
+  const incoming = body.leads.filter((l) => s(l.id));
+
+  // Leads excluídos à mão (Master) não voltam: o CRM reenvia a base toda a cada envio.
+  const deleted = new Set<string>();
+  for (const part of chunks(incoming.map((l) => s(l.id)))) {
+    const { data } = await admin.from("deleted_crm_leads").select("crm_lead_id").in("crm_lead_id", part);
+    for (const r of data ?? []) deleted.add(r.crm_lead_id as string);
+  }
+  const leads = incoming.filter((l) => !deleted.has(s(l.id)));
+  const stats = { received: body.leads.length, skippedDeleted: incoming.length - leads.length, inserted: 0, updated: 0, unchanged: 0, linkedToExisting: 0, stageChanges: 0, errors: 0 };
   const errors: string[] = [];
 
   // 1. Já conhecidos pelo id do CRM.
@@ -197,6 +206,12 @@ export async function POST(request: Request) {
     }
 
     const fields = crmFields(l);
+
+    // Dados do CRM corrigidos à mão pelo Master: a sincronização não sobrescreve.
+    if (ex && ex.crm_lead_id && ex.crm_locked) {
+      stats.unchanged++;
+      continue;
+    }
 
     if (!ex) {
       const m = await match(l);

@@ -567,6 +567,7 @@ export interface MeetingLeadRow {
   id: string;
   name: string;
   phone: string;
+  email: string;
   received_at: string;
   crm_lead_id: string | null;
   crm_category_name: string | null;
@@ -593,7 +594,7 @@ export async function fetchCrmLeads(supabase: SupabaseClient, range: DateRange):
     const { data, error } = await supabase
       .from("landing_page_leads")
       .select(
-        "id, name, phone, received_at, crm_lead_id, crm_category_name, crm_funnel_name, crm_stage_name, crm_phase_name, crm_stage_entered_at, meetings_count, meetings_no_show, meetings_rescheduled, first_meeting_at, last_meeting_at, last_meeting_status, matched_campaign:meta_campaigns!matched_campaign_id(id, name), matched_ad:meta_ads(id, name)"
+        "id, name, email, phone, received_at, crm_lead_id, crm_category_name, crm_funnel_name, crm_stage_name, crm_phase_name, crm_stage_entered_at, meetings_count, meetings_no_show, meetings_rescheduled, first_meeting_at, last_meeting_at, last_meeting_status, matched_campaign:meta_campaigns!matched_campaign_id(id, name), matched_ad:meta_ads(id, name)"
       )
       .gte("received_at", `${range.since}T00:00:00`)
       .lte("received_at", `${range.until}T23:59:59`)

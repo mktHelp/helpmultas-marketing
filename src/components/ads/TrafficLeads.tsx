@@ -4,6 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Crown, Eye, FileText, Info, Link2, MapPin, MousePointerClick, Phone, Target, Trophy, UserX, Users, X } from "lucide-react";
 import Link from "next/link";
 import { ScriptLinkDialog } from "./ScriptLinkDialog";
+import { LeadDeleteDialog, LeadDialogActions, LeadEditDialog, LeadRowActions, type LeadRef } from "./LeadAdmin";
+import {
+  LeadDetailDialog,
+  MATCHED_BY_LABEL,
+  PAGE_ORIGIN_LABEL,
+  UTM_COLUMNS,
+  formatDateTime,
+  linkedEntities,
+  pageOriginLabel,
+  useAdPreview,
+} from "./LeadDetail";
+import { useAuth } from "@/lib/auth-context";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog, DialogBody, DialogHeader } from "@/components/ui/Dialog";
@@ -27,119 +39,11 @@ import { Tabs } from "@/components/ui/Tabs";
 
 const PAGE_SIZE = 25;
 
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-}
-
-const MATCHED_BY_LABEL: Record<string, string> = {
-  ad_id: "por ID do anúncio",
-  ad_name: "por nome do anúncio",
-  adset_id: "por ID do conjunto",
-  adset_name: "por nome do conjunto",
-  campaign_id: "por ID da campanha",
-  campaign_name: "por nome da campanha",
-};
-
-function one<T>(v: T | T[] | null | undefined): T | null {
-  return (Array.isArray(v) ? v[0] : v) ?? null;
-}
-
-function linkedEntities(lead: LeadRow) {
-  const ad = one(lead.matched_ad);
-  const adset = one(ad?.adset) ?? one(lead.matched_adset);
-  const campaign = one(one(ad?.adset)?.campaign) ?? one(lead.matched_campaign);
-  return { ad, adset, campaign };
-}
-
 function MatchCell({ lead }: { lead: LeadRow }) {
   const { ad, adset, campaign } = linkedEntities(lead);
   if (!ad && !adset && !campaign) return <Badge tone="danger">Sem vínculo</Badge>;
   const label = lead.matched_by ? MATCHED_BY_LABEL[lead.matched_by] ?? lead.matched_by : "Vinculado";
   return <Badge tone="success">{label}</Badge>;
-}
-
-// Página da LP onde o formulário foi preenchido — NÃO é utm_source (origem do tráfego).
-const PAGE_ORIGIN_LABEL: Record<string, string> = {
-  home: "Home",
-  evento: "Evento",
-  // Leads do formulário nativo da Meta (campanhas FORMS II), enviados pelo n8n.
-  forms: "Formulário nativo",
-  // Leads que entraram direto pelo CRM (webhook leads.export).
-  crm: "CRM",
-};
-
-function pageOriginLabel(value: string) {
-  return PAGE_ORIGIN_LABEL[value] ?? (value ? value.charAt(0).toUpperCase() + value.slice(1) : "—");
-}
-
-const UTM_COLUMNS: { key: "utm_source" | "utm_medium" | "utm_campaign" | "utm_content" | "utm_term" | "utm_id"; width: string }[] = [
-  { key: "utm_source", width: "min-w-28" },
-  { key: "utm_medium", width: "min-w-28" },
-  { key: "utm_campaign", width: "min-w-44" },
-  { key: "utm_content", width: "min-w-44" },
-  { key: "utm_term", width: "min-w-44" },
-  { key: "utm_id", width: "min-w-44" },
-];
-
-function DetailField({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-bold uppercase text-gray-500">{label}</p>
-      <p className={cn("break-all text-sm text-blue-900", mono && "font-mono text-xs")}>
-        {value ? value : <span className="text-gray-300">—</span>}
-      </p>
-    </div>
-  );
-}
-
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h3 className="mb-2 border-b border-gray-100 pb-1 text-xs font-bold uppercase tracking-wide text-gray-400">{title}</h3>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{children}</div>
-    </section>
-  );
-}
-
-interface AdPreviewState {
-  url: string | null;
-  loading: boolean;
-  error: string | null;
-}
-
-// Preview oficial da Meta (iframe) pelo ID do anúncio na Meta, via
-// /api/meta-ads/preview — o token da Meta fica só no servidor.
-function useAdPreview(metaAdId: string | null | undefined): AdPreviewState {
-  const [preview, setPreview] = useState<AdPreviewState>({ url: null, loading: false, error: null });
-
-  useEffect(() => {
-    if (!metaAdId) {
-      setPreview({ url: null, loading: false, error: null });
-      return;
-    }
-    let cancelled = false;
-    setPreview({ url: null, loading: true, error: null });
-    fetch(`/api/meta-ads/preview?metaAdId=${encodeURIComponent(metaAdId)}`)
-      .then(async (res) => {
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Erro ao gerar preview");
-        if (!cancelled) setPreview({ url: json.previewUrl, loading: false, error: null });
-      })
-      .catch((err) => {
-        if (!cancelled) setPreview({ url: null, loading: false, error: err instanceof Error ? err.message : "Erro desconhecido" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [metaAdId]);
-
-  return preview;
 }
 
 function AdPreviewDialog({ ad, onClose }: { ad: { name: string; metaAdId: string } | null; onClose: () => void }) {
@@ -156,77 +60,6 @@ function AdPreviewDialog({ ad, onClose }: { ad: { name: string; metaAdId: string
             className="h-[min(600px,70dvh)] w-full max-w-sm rounded-xl border border-gray-200"
             title={`Preview — ${ad?.name ?? "anúncio"}`}
           />
-        )}
-      </DialogBody>
-    </Dialog>
-  );
-}
-
-function LeadDialog({ lead, onClose }: { lead: LeadRow | null; onClose: () => void }) {
-  const ad = one(lead?.matched_ad);
-  const adset = one(ad?.adset) ?? one(lead?.matched_adset);
-  const campaign = one(one(ad?.adset)?.campaign) ?? one(lead?.matched_campaign);
-  const metaAdId = ad?.meta_ad_id;
-  const preview = useAdPreview(metaAdId);
-
-  return (
-    <Dialog open={!!lead} onClose={onClose} size="xl">
-      <DialogHeader title={lead?.name || "Lead"} subtitle={lead ? `Recebido em ${formatDateTime(lead.received_at)}` : undefined} onClose={onClose} />
-      <DialogBody>
-        {lead && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto]">
-            <div className="space-y-5">
-              <DetailSection title="Origem do lead">
-                <DetailField label="Página de origem (onde preencheu)" value={pageOriginLabel(lead.page_origin)} />
-              </DetailSection>
-
-              <DetailSection title="Contato">
-                <DetailField label="Nome" value={lead.name} />
-                <DetailField label="E-mail" value={lead.email} />
-                <DetailField label="Telefone" value={lead.phone} />
-                <DetailField label="Cidade / UF" value={lead.city && lead.state ? `${lead.city}/${lead.state}` : lead.city || lead.state} />
-                <DetailField label="Capital para investir" value={lead.capital_label} />
-                <DetailField label="Valor (capital)" value={lead.capital} />
-              </DetailSection>
-
-              <DetailSection title="Origem do anúncio">
-                <DetailField label="Campanha" value={campaign?.name} />
-                <DetailField label="Conjunto" value={adset?.name} />
-                <DetailField label="Anúncio" value={ad?.name} />
-                <DetailField label="Como foi vinculado" value={lead.matched_by ? MATCHED_BY_LABEL[lead.matched_by] ?? lead.matched_by : "Sem vínculo"} />
-              </DetailSection>
-
-              <DetailSection title="UTMs (como vieram na URL)">
-                {UTM_COLUMNS.map((c) => (
-                  <DetailField key={c.key} label={c.key} value={lead[c.key]} mono />
-                ))}
-              </DetailSection>
-
-              <DetailSection title="Rastreamento Meta">
-                <DetailField label="fbclid" value={lead.fbclid} mono />
-                <DetailField label="fbc" value={lead.fbc} mono />
-                <DetailField label="fbp" value={lead.fbp} mono />
-              </DetailSection>
-            </div>
-
-            <div className="lg:w-[340px]">
-              <h3 className="mb-2 border-b border-gray-100 pb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Preview do anúncio</h3>
-              {!metaAdId && (
-                <p className="rounded-xl bg-gray-050 px-4 py-10 text-center text-sm text-gray-400">
-                  Este lead não está vinculado a um anúncio específico, então não há preview.
-                </p>
-              )}
-              {preview.loading && <p className="py-10 text-center text-sm text-gray-500">Carregando preview...</p>}
-              {preview.error && <p className="py-10 text-center text-sm text-[color:var(--color-danger)]">{preview.error}</p>}
-              {preview.url && (
-                <iframe
-                  src={preview.url}
-                  className="h-[min(600px,70dvh)] w-full rounded-xl border border-gray-200"
-                  title={`Preview — ${ad?.name ?? "anúncio"}`}
-                />
-              )}
-            </div>
-          </div>
         )}
       </DialogBody>
     </Dialog>
@@ -520,6 +353,9 @@ function StatsCards({
 
 export function TrafficLeads() {
   const supabase = createClient();
+  const { isAdmin } = useAuth();
+  const [editing, setEditing] = useState<LeadRef | null>(null);
+  const [deleting, setDeleting] = useState<LeadRef | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -651,7 +487,7 @@ export function TrafficLeads() {
     document.getElementById("lista-leads")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const colCount = 6 + (showUtms ? UTM_COLUMNS.length : 0);
+  const colCount = 6 + (showUtms ? UTM_COLUMNS.length : 0) + (isAdmin ? 1 : 0);
   const th = "sticky top-0 z-20 bg-blue-900 px-4 py-3 text-white";
   const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const to = Math.min((page + 1) * PAGE_SIZE, total);
@@ -822,6 +658,7 @@ export function TrafficLeads() {
                       <th key={c.key} className={cn(th, "normal-case", c.width)}>{c.key}</th>
                     ))}
                   <th className={cn(th, "min-w-36")}>Recebido em</th>
+                  {isAdmin && <th className={cn(th, "w-24")}>Ações</th>}
                 </tr>
               </thead>
               <tbody>
@@ -877,6 +714,14 @@ export function TrafficLeads() {
                           </td>
                         ))}
                       <td className="px-4 py-3 text-xs text-gray-500">{formatDateTime(lead.received_at)}</td>
+                      {isAdmin && (
+                        <td className="px-4 py-3">
+                          <LeadRowActions
+                            onEdit={() => setEditing({ id: lead.id, name: lead.name })}
+                            onDelete={() => setDeleting({ id: lead.id, name: lead.name })}
+                          />
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -929,7 +774,36 @@ export function TrafficLeads() {
         </CardBody>
       </Card>
 
-      <LeadDialog lead={selectedLead} onClose={() => setSelectedLead(null)} />
+      <LeadDetailDialog
+        leadId={selectedLead?.id ?? null}
+        onClose={() => setSelectedLead(null)}
+        actions={
+          isAdmin && selectedLead ? (
+            <LeadDialogActions
+              onEdit={() => setEditing({ id: selectedLead.id, name: selectedLead.name })}
+              onDelete={() => setDeleting({ id: selectedLead.id, name: selectedLead.name })}
+            />
+          ) : undefined
+        }
+      />
+      <LeadEditDialog
+        lead={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setSelectedLead(null);
+          loadLeads();
+          loadRanking();
+        }}
+      />
+      <LeadDeleteDialog
+        lead={deleting}
+        onClose={() => setDeleting(null)}
+        onDeleted={() => {
+          setSelectedLead(null);
+          loadLeads();
+          loadRanking();
+        }}
+      />
       <AdPreviewDialog ad={previewAd} onClose={() => setPreviewAd(null)} />
     </div>
   );
