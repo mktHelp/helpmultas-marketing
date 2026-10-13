@@ -251,6 +251,22 @@ export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => vo
 
   if (!ready) return null;
 
+  const confirmAbrir = (
+    <ConfirmDialog
+        open={!!pendingOpen}
+        onClose={() => setPendingOpen(null)}
+        onConfirm={() => {
+          const p = pendingOpen;
+          setPendingOpen(null);
+          if (p) void abrirSalva(p.id, p.print);
+        }}
+        title="Abrir a simulação salva?"
+        description={`Você tem uma simulação em andamento${S.lead.trim() ? ` (${S.lead.trim()})` : ""} com alterações que ainda não foram salvas. Abrir a salva substitui o que está na tela. Cancele e use Salvar antes se quiser guardar o que você fez.`}
+        confirmLabel="Sim, abrir a salva"
+        danger
+      />
+  );
+
   if (!started || !S.modelo) {
     const draftLead = S.lead.trim();
     const hasDraft = !!S.modelo && (!!draftLead || sum(S.mercado) > 0 || S.parceiros > 0 || S.leadsMkt !== DEFAULT_INPUT.leadsMkt);
@@ -258,6 +274,7 @@ export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => vo
       <>
         <ModeloPicker onPick={escolherModelo} onSaved={() => setSavedOpen(true)} draft={hasDraft ? { lead: draftLead } : null} onContinue={() => setStarted(true)} />
         <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => pedirAbrirSalva(id)} onPrint={(id) => pedirAbrirSalva(id, true)} busyId={busyId} />
+        {confirmAbrir}
       </>
     );
   }
@@ -332,19 +349,7 @@ export function ExpansionDre({ onModelo }: { onModelo?: (m: Modelo | null) => vo
         <p className={cn("px-1 text-center text-xs font-semibold md:hidden print:hidden", saveState.kind === "error" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]")}>{saveState.msg}</p>
       )}
       <SavedSimulations open={savedOpen} onClose={() => setSavedOpen(false)} onOpen={(id) => pedirAbrirSalva(id)} onPrint={(id) => pedirAbrirSalva(id, true)} busyId={busyId} />
-      <ConfirmDialog
-        open={!!pendingOpen}
-        onClose={() => setPendingOpen(null)}
-        onConfirm={() => {
-          const p = pendingOpen;
-          setPendingOpen(null);
-          if (p) void abrirSalva(p.id, p.print);
-        }}
-        title="Abrir a simulação salva?"
-        description={`Você tem uma simulação em andamento${S.lead.trim() ? ` (${S.lead.trim()})` : ""} com alterações que ainda não foram salvas. Abrir a salva substitui o que está na tela. Cancele e use Salvar antes se quiser guardar o que você fez.`}
-        confirmLabel="Sim, abrir a salva"
-        danger
-      />
+      {confirmAbrir}
       <TrocarModelo open={confirmModelo} atual={S.modelo} onClose={() => setConfirmModelo(false)} onConfirm={trocarModelo} />
       <NovoLead
         open={confirmNovo}
