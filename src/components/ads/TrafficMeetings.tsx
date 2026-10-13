@@ -11,7 +11,7 @@ import { FilterMultiSelect, FilterSelect } from "@/components/ui/FilterBar";
 import { numberFormatter } from "@/lib/format";
 import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
-import { fetchCrmLeads, type MeetingLeadRow } from "@/lib/services/meta-ads";
+import { fetchCrmLeads, fetchStageHistoryCategories, type MeetingLeadRow } from "@/lib/services/meta-ads";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { LeadDeleteDialog, LeadDialogActions, LeadEditDialog, LeadRowActions, type LeadRef } from "./LeadAdmin";
@@ -28,15 +28,36 @@ const PERIODS = [
 // Categorias do funil do CRM, na ordem. O casamento é por padrão no nome
 // (sem acento/caixa), porque o CRM pode variar "1ª"/"1a", "Reunião"/"Reuniao".
 const FUNNEL = [
-  { key: "contato", label: "Contato inicial", match: /contato inicial/, color: "#c8102e" },
-  { key: "atendimento", label: "Atendimento inicial", match: /atendimento inicial/, color: "#f2a900" },
+  { key: "contato", label: "Contato inicial", match: /contato/, color: "#c8102e" },
+  { key: "atendimento", label: "Atendimento inicial", match: /atendimento/, color: "#f2a900" },
   { key: "reuniao1", label: "1ª reunião", match: /\b1\s*a?\s*reuni/, color: "#b3bf2a" },
   { key: "cof", label: "Etapa COF", match: /\bcof\b/, color: "#6fb43f" },
   { key: "reuniao2", label: "2ª reunião", match: /\b2\s*a?\s*reuni/, color: "#2f8f6b" },
-  { key: "venda", label: "Venda efetivada", match: /venda efetivada/, color: "#1f3a4d" },
+  { key: "venda", label: "Venda efetivada", match: /efetivad/, color: "#1f3a4d" },
 ] as const;
 
-const LOST = /venda perdida/;
+const LOST = /perdid/;
+
+// Etapas do CRM por fase (categoria). Serve de apoio quando a fase vem vazia ou
+// escrita de outro jeito: "Formulario Nativo" e "Leads para Evento" são etapas SEM
+// fase e ficam fora do funil.
+const STAGE_RULES: [RegExp, number][] = [
+  [/cliente potencial/, 0],
+  [/qualifica|sem resposta/, 1],
+  [/apresenta|remarcando/, 2],
+  [/coletando/, 3],
+  [/indicadores|perfil|consulta de dados|contrato/, 4],
+];
+
+// Índice no funil de um nome de fase OU de etapa; "lost" para venda perdida; null se não for do funil.
+function classify(name: string | null): number | "lost" | null {
+  const c = normalize(name);
+  if (!c) return null;
+  if (LOST.test(c)) return "lost";
+  const i = FUNNEL.findIndex((f) => f.match.test(c));
+  if (i >= 0) return i;
+  return STAGE_RULES.find(([re]) => re.test(c))?.[1] ?? null;
+}
 
 function normalize(v: string | null) {
   return (v ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
@@ -46,10 +67,43 @@ function normalize(v: string | null) {
 // ou null (lead que ainda não está no CRM).
 function categoryOf(r: MeetingLeadRow): number | "lost" | "other" | null {
   if (!r.crm_lead_id) return null;
-  const c = normalize(r.crm_category_name);
-  if (LOST.test(c)) return "lost";
-  const i = FUNNEL.findIndex((f) => f.match.test(c));
-  return i >= 0 ? i : "other";
+  return classify(r.crm_category_name) ?? classify(r.crm_stage_name) ?? "other";
+}
+
+// Índice de funil de um nome de categoria (null se não for do funil).
+// Fase exibida na tabela: a que o CRM mandou ou, se vier vazia, a deduzida pela etapa
+// (a mesma regra que posiciona o lead no funil), marcada como deduzida.
+function categoryLabel(r: MeetingLeadRow): { label: string; inferred: boolean } | null {
+  if (!r.crm_lead_id) return null;
+  if (r.crm_category_name) return { label: r.crm_category_name, inferred: false };
+  const c = classify(r.crm_stage_name);
+  if (c === "lost") return { label: "Venda perdida", inferred: true };
+  if (typeof c === "number") return { label: FUNNEL[c].label, inferred: true };
+  return null;
+}
+
+function funnelIndex(name: string | null): number | null {
+  const c = classify(name);
+  return typeof c === "number" ? c : null;
+}
+
+const REUNIAO_1 = FUNNEL.findIndex((f) => f.key === "reuniao1");
+const REUNIAO_2 = FUNNEL.findIndex((f) => f.key === "reuniao2");
+
+// Até onde o lead chegou no funil (-1 = não é do funil): o maior entre a categoria
+// atual, as categorias do histórico e o que as reuniões provam (2 reuniões => já fez
+// a 1ª e a 2ª). Venda perdida conta até onde tinha chegado, no mínimo Contato inicial.
+function reachOf(r: MeetingLeadRow, historyCats: string[] = []): number {
+  const cur = categoryOf(r);
+  const evidence = [
+    typeof cur === "number" ? cur : -1,
+    ...historyCats.map((c) => funnelIndex(c) ?? -1),
+    r.crm_lead_id && r.meetings_count >= 2 ? REUNIAO_2 : -1,
+    r.crm_lead_id && r.meetings_count >= 1 ? REUNIAO_1 : -1,
+  ];
+  const best = Math.max(...evidence);
+  if (best >= 0) return best;
+  return cur === "lost" ? 0 : -1;
 }
 
 function one<T>(v: T | T[] | null | undefined): T | null {
@@ -111,7 +165,7 @@ function FunnelChart({ steps, activeIdx, onSelect }: { steps: FunnelStep[]; acti
   const dim = (i: number) => (activeIdx !== null && activeIdx !== i ? 0.35 : 1);
 
   return (
-    <div className="mx-auto grid w-full max-w-[780px] grid-cols-[36%_64%] sm:grid-cols-[1fr_minmax(0,400px)_104px]">
+    <div className="mx-auto grid w-full max-w-[780px] grid-cols-[36%_64%] sm:grid-cols-[1fr_minmax(0,400px)_150px]">
       {/* rótulos */}
       <div className="relative">
         {steps.map((s, i) => (
@@ -189,12 +243,22 @@ function FunnelChart({ steps, activeIdx, onSelect }: { steps: FunnelStep[]; acti
         {steps.map((s, i) => (
           <div
             key={s.label}
-            className="absolute left-3 flex max-h-[58px] -translate-y-1/2 flex-col items-center justify-center overflow-hidden rounded-full border-[3px] bg-white text-center"
-            // ~74% da altura da faixa: sobra folga entre um círculo e o seguinte em qualquer largura.
-            style={{ top: pctY(centers[i]), height: `${((F_H * 0.74) / totalH) * 100}%`, aspectRatio: "1 / 1", borderColor: s.color }}
+            className="absolute left-3 right-0 -translate-y-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1.5 pl-3 pr-2 shadow-sm"
+            style={{ top: pctY(centers[i]), borderLeft: `5px solid ${s.color}` }}
           >
-            <span className="text-[13px] font-bold leading-none text-blue-900">{pct(s.reached, topCount)}</span>
-            <span className="mt-0.5 text-[9px] leading-none text-gray-500">{i > 0 ? `${pct(s.reached, steps[i - 1].reached)} ant.` : "do topo"}</span>
+            <p className="flex items-baseline gap-1.5 whitespace-nowrap leading-none">
+              <span className="text-base font-bold text-blue-900">{pct(s.reached, topCount)}</span>
+              <span className="text-[10px] text-gray-500">do topo</span>
+            </p>
+            <p className="mt-1 whitespace-nowrap text-[11px] leading-none text-gray-500">
+              {i > 0 ? (
+                <>
+                  <span className="font-semibold text-blue-900">{pct(s.reached, steps[i - 1].reached)}</span> da anterior
+                </>
+              ) : (
+                "base do funil"
+              )}
+            </p>
           </div>
         ))}
       </div>
@@ -217,7 +281,7 @@ const MEETING_FILTERS = [
 const CATEGORY_FILTERS = [
   ...FUNNEL.map((f, i) => ({ value: String(i), label: f.label })),
   { value: "lost", label: "Venda perdida" },
-  { value: "other", label: "Outras categorias" },
+  { value: "other", label: "Sem fase" },
   { value: "none", label: "Fora do CRM" },
 ];
 
@@ -240,6 +304,7 @@ export function TrafficMeetings() {
   const [page, setPage] = useState(0);
   const { isAdmin } = useAuth();
   const [reloadKey, setReloadKey] = useState(0);
+  const [historyCats, setHistoryCats] = useState<Map<string, string[]>>(new Map());
   const [selected, setSelected] = useState<LeadRef | null>(null);
   const [editing, setEditing] = useState<LeadRef | null>(null);
   const [deleting, setDeleting] = useState<LeadRef | null>(null);
@@ -258,7 +323,16 @@ export function TrafficMeetings() {
     setError(null);
     const until = todayBRT();
     fetchCrmLeads(createClient(), { since: shiftDate(until, -(Number(days) - 1)), until })
-      .then((r) => !cancelled && setRows(r))
+      .then(async (r) => {
+        if (cancelled) return;
+        setRows(r);
+        // Histórico de etapas dos leads que estão no CRM, pra marcar o caminho no funil.
+        const cats = await fetchStageHistoryCategories(
+          createClient(),
+          r.filter((x) => x.crm_lead_id).map((x) => x.id)
+        ).catch(() => new Map<string, string[]>());
+        if (!cancelled) setHistoryCats(cats);
+      })
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : "Erro ao carregar"))
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -340,15 +414,16 @@ export function TrafficMeetings() {
 
   const { steps, lost, other } = useMemo(() => {
     const cats = base.map(categoryOf);
+    const reach = base.map((r) => reachOf(r, historyCats.get(r.id)));
     const steps: FunnelStep[] = FUNNEL.map((f, i) => ({
       label: f.label,
       color: f.color,
-      // quem está numa categoria à frente também já passou por esta
-      reached: cats.filter((c) => typeof c === "number" && c >= i).length,
+      // o caminho do lead: quem chegou numa categoria à frente já passou por todas as anteriores
+      reached: reach.filter((x) => x >= i).length,
       now: cats.filter((c) => c === i).length,
     }));
     return { steps, lost: cats.filter((c) => c === "lost").length, other: cats.filter((c) => c === "other").length };
-  }, [base]);
+  }, [base, historyCats]);
 
   const byStage = useMemo(() => {
     const map = new Map<string, number>();
@@ -380,12 +455,11 @@ export function TrafficMeetings() {
   // Categoria / clique no funil: só a lista. Os contadores das abas refletem esse recorte.
   const listBase = useMemo(() => {
     return base.filter((r) => {
-      const c = categoryOf(r);
-      if (reachedIdx !== null && !(typeof c === "number" && c >= reachedIdx)) return false;
+      if (reachedIdx !== null && reachOf(r, historyCats.get(r.id)) < reachedIdx) return false;
       if (category && categoryKey(r) !== category) return false;
       return true;
     });
-  }, [base, category, reachedIdx]);
+  }, [base, category, reachedIdx, historyCats]);
 
   const filtered = useMemo(() => {
     if (filter === "crm") return listBase.filter((r) => r.crm_lead_id);
@@ -497,7 +571,7 @@ export function TrafficMeetings() {
           <CardBody>
             <FunnelChart steps={steps} activeIdx={reachedIdx ?? (/^\d+$/.test(category) ? Number(category) : null)} onSelect={selectFunnel} />
             <p className="mt-2 text-xs text-gray-500">
-              O número em cada camada são os leads que chegaram até ali (quem está numa categoria à frente já passou pelas anteriores). Venda perdida fica fora do funil. Clique em uma camada para filtrar a lista abaixo.
+              O número em cada camada são os leads que chegaram até ali: quem está numa categoria à frente já passou por todas as anteriores (conta pela categoria atual, pelo histórico de etapas e pelas reuniões). Venda perdida conta até onde o lead tinha chegado e também aparece separada ao lado. Clique em uma camada para filtrar a lista abaixo.
             </p>
           </CardBody>
         </Card>
@@ -529,9 +603,9 @@ export function TrafficMeetings() {
           {other > 0 && (
             <Card>
               <CardBody>
-                <p className="text-[11px] font-bold uppercase text-gray-500">Outras categorias</p>
+                <p className="text-[11px] font-bold uppercase text-gray-500">Sem fase</p>
                 <p className="mt-1 text-2xl font-bold text-blue-900">{numberFormatter.format(other)}</p>
-                <p className="mt-0.5 text-xs text-gray-500">Leads em categorias que não fazem parte do funil acima.</p>
+                <p className="mt-0.5 text-xs text-gray-500">Etapas sem fase no CRM (Formulário Nativo, Leads para Evento), fora do funil.</p>
               </CardBody>
             </Card>
           )}
@@ -667,7 +741,19 @@ export function TrafficMeetings() {
                   </td>
                   <td className="px-4 py-2.5">{r.crm_lead_id ? <Badge tone="success">No CRM</Badge> : <Badge tone="danger">Fora do CRM</Badge>}</td>
                   <td className="px-4 py-2.5">{one(r.matched_campaign)?.name ?? <span className="text-gray-300">—</span>}</td>
-                  <td className="px-4 py-2.5">{r.crm_category_name ?? <span className="text-gray-300">—</span>}</td>
+                  <td className="px-4 py-2.5">
+                    {(() => {
+                      const c = categoryLabel(r);
+                      if (!c) return <span className="text-gray-300">—</span>;
+                      return c.inferred ? (
+                        <span className="italic text-gray-600" title="O CRM não enviou a fase deste lead; deduzida pela etapa">
+                          {c.label}
+                        </span>
+                      ) : (
+                        c.label
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-2.5">{r.crm_stage_name ?? <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-2.5">{r.crm_lead_id ? r.meetings_count : <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-2.5">{r.crm_lead_id ? r.meetings_no_show : <span className="text-gray-300">—</span>}</td>

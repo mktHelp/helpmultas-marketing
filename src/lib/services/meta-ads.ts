@@ -563,6 +563,32 @@ export async function loadTrafficDaily(supabase: SupabaseClient): Promise<Traffi
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Categorias por onde cada lead já passou (histórico de etapas do CRM), pra montar o
+// "caminho" no funil. Em lotes, porque a URL do PostgREST tem limite de tamanho.
+export async function fetchStageHistoryCategories(supabase: SupabaseClient, leadIds: string[]): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  for (let i = 0; i < leadIds.length; i += 100) {
+    const part = leadIds.slice(i, i + 100);
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("crm_lead_stage_history")
+        .select("lead_id, category_name, stage_name")
+        .in("lead_id", part)
+        .range(from, from + 999);
+      if (error) throw error;
+      for (const r of data ?? []) {
+        // categoria e etapa: o CRM às vezes manda a etapa sem fase (categoria vazia)
+        const list = out.get(r.lead_id) ?? [];
+        if (r.category_name) list.push(r.category_name);
+        if (r.stage_name) list.push(r.stage_name);
+        out.set(r.lead_id, list);
+      }
+      if (!data || data.length < 1000) break;
+    }
+  }
+  return out;
+}
+
 export interface MeetingLeadRow {
   id: string;
   name: string;
