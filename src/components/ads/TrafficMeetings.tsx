@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import gsap from "gsap";
 import { AlertTriangle, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Tabs } from "@/components/ui/Tabs";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { FilterMultiSelect, FilterSelect } from "@/components/ui/FilterBar";
+import { FilterButton, FilterChips, FilterDate, type FilterChip } from "@/components/ui/FilterBar";
+import { RightDrawer } from "@/components/shared/RightDrawer";
+import { EMPTY_MEETING_FILTERS, MeetingsFilterPanel, countMeetingFilters, type MeetingFilters } from "./MeetingsFilterPanel";
 import { numberFormatter } from "@/lib/format";
 import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
@@ -20,9 +23,12 @@ import { LeadDetailDialog } from "./LeadDetail";
 const PAGE_SIZE = 25;
 
 const PERIODS = [
+  { key: "1", label: "Hoje" },
   { key: "7", label: "7 dias" },
   { key: "30", label: "30 dias" },
   { key: "90", label: "90 dias" },
+  { key: "all", label: "Todo o período" },
+  { key: "custom", label: "Personalizado" },
 ];
 
 // Categorias do funil do CRM, na ordem. O casamento é por padrão no nome
@@ -142,66 +148,178 @@ interface FunnelStep {
 // posicionado em % da altura, pra continuarem legíveis quando o funil encolhe.
 const F_W = 400;
 const F_CX = F_W / 2;
-const F_H = 70;
+const F_H = 78; // passo entre camadas
+const F_GAP = 14; // vão visível entre uma camada e a seguinte
+const F_LH = F_H - F_GAP; // altura desenhada de cada camada
 const F_TOP = 32;
 const F_WTOP = 380;
 const F_WBOTTOM = 64;
 const fWidth = (i: number, n: number) => F_WTOP - ((F_WTOP - F_WBOTTOM) * i) / n;
 const fRy = (w: number) => (w / 2) * 0.16;
 
+const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Brilho neutro/ativo da camada, no mesmo formato pra o GSAP interpolar o filter.
+const GLOW_OFF = "drop-shadow(0px 0px 0px rgba(0,0,0,0)) brightness(1) saturate(1)";
+const GLOW_ON = "drop-shadow(0px 10px 14px rgba(0,0,0,0.35)) brightness(1.06) saturate(1.1)";
+const GLOW_DIM = "drop-shadow(0px 0px 0px rgba(0,0,0,0)) brightness(1.03) saturate(0.55)";
+
 function FunnelChart({ steps, activeIdx, onSelect }: { steps: FunnelStep[]; activeIdx: number | null; onSelect: (i: number) => void }) {
   const n = steps.length;
-  const totalH = F_TOP + n * F_H + fRy(fWidth(n, n)) + 6;
+  const totalH = F_TOP + n * F_H - F_GAP + fRy(fWidth(n, n)) + 6;
   const topCount = steps[0].reached;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const prevCounts = useRef<number[]>(steps.map(() => 0));
 
   // Centro visível de cada faixa: as bordas de cima e de baixo são arcos que
   // descem no meio, então o centro real fica abaixo do ponto médio da reta.
   const centers = steps.map((_, i) => {
     const y = F_TOP + i * F_H;
-    return y + F_H / 2 + (fRy(fWidth(i, n)) + fRy(fWidth(i + 1, n))) / 2;
+    return y + F_LH / 2 + (fRy(fWidth(i, n)) + fRy(fWidth(i + F_LH / F_H, n))) / 2;
   });
   const pctY = (y: number) => `${(y / totalH) * 100}%`;
   // Com uma camada selecionada, as demais ficam esmaecidas.
   const dim = (i: number) => (activeIdx !== null && activeIdx !== i ? 0.35 : 1);
 
+  // Entrada: o cone "desce" camada a camada, rótulos e cartões deslizam dos lados;
+  // depois, um respiro contínuo e suave (as camadas alargam/estreitam em onda).
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || reducedMotion()) return;
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline();
+      tl.from(".f-ellipse", { opacity: 0, scaleX: 0.4, transformOrigin: "50% 50%", duration: 0.7, ease: "power2.out" })
+        .from(".f-layer", { opacity: 0, y: -40, duration: 0.8, ease: "back.out(1.7)", stagger: 0.12 }, "-=0.35")
+        .from(
+          ".f-side",
+          { opacity: 0, x: (_i, el: HTMLElement) => (el.dataset.side === "l" ? -28 : 28), duration: 0.55, ease: "power3.out", stagger: 0.08 },
+          "-=0.8"
+        )
+        .add(() => {
+          gsap.to(".f-layer", {
+            scaleX: 1.014,
+            transformOrigin: "50% 50%",
+            duration: 2.6,
+            ease: "sine.inOut",
+            yoyo: true,
+            repeat: -1,
+            stagger: 0.3,
+          });
+          gsap.to(".f-ellipse", { opacity: 0.8, duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: -1 });
+        });
+    }, root);
+    return () => ctx.revert();
+  }, []);
+
+  // Contagem: os números sobem até o valor novo sempre que os dados mudam.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const tweens: gsap.core.Tween[] = [];
+    root.querySelectorAll<SVGTextElement>("[data-count]").forEach((el, i) => {
+      const to = steps[i]?.reached ?? 0;
+      const from = prevCounts.current[i] ?? 0;
+      if (reducedMotion() || from === to) {
+        el.textContent = numberFormatter.format(to);
+        return;
+      }
+      const o = { v: from };
+      tweens.push(
+        gsap.to(o, {
+          v: to,
+          duration: 1.3,
+          delay: 0.4 + i * 0.1,
+          ease: "power2.out",
+          onUpdate: () => {
+            el.textContent = numberFormatter.format(Math.round(o.v));
+          },
+        })
+      );
+    });
+    prevCounts.current = steps.map((s) => s.reached);
+    return () => tweens.forEach((tw) => tw.kill());
+  }, [steps]);
+
+  // Hover: a camada "salta" com brilho e sombra, as outras perdem cor, e o rótulo e o
+  // cartão da mesma camada avançam em direção ao cone.
+  const hover = useCallback((active: number | null) => {
+    const root = rootRef.current;
+    if (!root || reducedMotion()) return;
+    root.querySelectorAll<SVGGElement>(".f-hover").forEach((el) => {
+      const on = Number(el.dataset.i) === active;
+      gsap.to(el, {
+        scale: on ? 1.045 : 1,
+        transformOrigin: "50% 50%",
+        filter: on ? GLOW_ON : active !== null ? GLOW_DIM : GLOW_OFF,
+        duration: 0.4,
+        ease: on ? "back.out(2)" : "power3.out",
+        overwrite: "auto",
+      });
+    });
+    root.querySelectorAll<HTMLElement>(".f-side").forEach((el) => {
+      const on = Number(el.dataset.i) === active;
+      const left = el.dataset.side === "l";
+      gsap.to(el, {
+        scale: on ? 1.07 : 1,
+        x: on ? (left ? 8 : -8) : 0,
+        transformOrigin: left ? "100% 50%" : "0% 50%",
+        boxShadow: on && !left ? "0 8px 20px rgba(31,58,77,0.25)" : "0 1px 2px rgba(0,0,0,0.05)",
+        duration: 0.35,
+        ease: "power3.out",
+        overwrite: "auto",
+      });
+    });
+  }, []);
+
   return (
-    <div className="mx-auto grid w-full max-w-[780px] grid-cols-[36%_64%] sm:grid-cols-[1fr_minmax(0,400px)_150px]">
+    <div
+      ref={rootRef}
+      onMouseOver={(e) => {
+        const el = (e.target as Element).closest<HTMLElement | SVGElement>("[data-i]");
+        hover(el ? Number(el.dataset.i) : null);
+      }}
+      onMouseLeave={() => hover(null)}
+      className="mx-auto grid w-full max-w-[780px] grid-cols-[36%_64%] sm:grid-cols-[1fr_minmax(0,400px)_150px]"
+    >
       {/* rótulos */}
       <div className="relative">
         {steps.map((s, i) => (
           <button
             key={s.label}
             type="button"
+            data-i={i}
             onClick={() => onSelect(i)}
             title="Filtrar a lista pelos leads que chegaram até aqui"
             className="absolute right-1 -translate-y-1/2 cursor-pointer text-right transition-opacity hover:opacity-100 sm:right-2"
             style={{ top: pctY(centers[i]), opacity: dim(i) }}
           >
-            <p className="text-[10px] font-bold uppercase leading-tight sm:text-xs" style={{ color: s.color }}>
-              {s.label}
-            </p>
-            <p className="text-[10px] leading-tight text-gray-500 sm:text-[11px]">{numberFormatter.format(s.now)} aqui agora</p>
-            <p className="text-[10px] font-semibold leading-tight text-blue-900 sm:hidden">
-              {pct(s.reached, topCount)}
-              {i > 0 && ` · ${pct(s.reached, steps[i - 1].reached)} ant.`}
-            </p>
+            <div className="f-side" data-i={i} data-side="l">
+              <p className="text-[10px] font-bold uppercase leading-tight sm:text-xs" style={{ color: s.color }}>
+                {s.label}
+              </p>
+              <p className="text-[10px] leading-tight text-gray-500 sm:text-[11px]">{numberFormatter.format(s.now)} aqui agora</p>
+              <p className="text-[10px] font-semibold leading-tight text-blue-900 sm:hidden">
+                {pct(s.reached, topCount)}
+                {i > 0 && ` · ${pct(s.reached, steps[i - 1].reached)} ant.`}
+              </p>
+            </div>
           </button>
         ))}
       </div>
 
       {/* cone */}
-      <svg viewBox={`0 0 ${F_W} ${totalH}`} className="block h-auto w-full" role="img" aria-label="Funil de categorias do CRM">
-        <ellipse cx={F_CX} cy={F_TOP} rx={F_WTOP / 2} ry={fRy(F_WTOP)} fill={steps[0].color} opacity={0.55} />
+      <svg viewBox={`0 0 ${F_W} ${totalH}`} className="block h-auto w-full overflow-visible" role="img" aria-label="Funil de categorias do CRM">
+        <ellipse className="f-ellipse" cx={F_CX} cy={F_TOP} rx={F_WTOP / 2} ry={fRy(F_WTOP)} fill={steps[0].color} opacity={0.55} />
         {steps.map((s, i) => {
           const wt = fWidth(i, n);
-          const wb = fWidth(i + 1, n);
+          const wb = fWidth(i + F_LH / F_H, n);
           const y = F_TOP + i * F_H;
           const rt = wt / 2;
           const rb = wb / 2;
           const d = [
             `M ${F_CX - rt} ${y}`,
-            `L ${F_CX - rb} ${y + F_H}`,
-            `A ${rb} ${fRy(wb)} 0 0 0 ${F_CX + rb} ${y + F_H}`,
+            `L ${F_CX - rb} ${y + F_LH}`,
+            `A ${rb} ${fRy(wb)} 0 0 0 ${F_CX + rb} ${y + F_LH}`,
             `L ${F_CX + rt} ${y}`,
             `A ${rt} ${fRy(wt)} 0 0 1 ${F_CX - rt} ${y}`,
             "Z",
@@ -209,30 +327,34 @@ function FunnelChart({ steps, activeIdx, onSelect }: { steps: FunnelStep[]; acti
           const cy = centers[i];
           const edge = F_CX - (wt + wb) / 4;
           return (
-            <g
-              key={s.label}
-              onClick={() => onSelect(i)}
-              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(i)}
-              role="button"
-              tabIndex={0}
-              aria-label={`Filtrar leads que chegaram até ${s.label}`}
-              className="cursor-pointer outline-none transition-opacity hover:opacity-100"
-              style={{ opacity: dim(i) }}
-            >
-              <path d={d} fill={s.color} />
-              <line x1={0} y1={cy} x2={edge - 2} y2={cy} stroke={s.color} strokeWidth={1.5} strokeDasharray="3 3" />
-              <text
-                x={F_CX}
-                y={cy}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={24}
-                fontWeight={700}
-                fill="#fff"
-                style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.18)", strokeWidth: 3 }}
+            // g externa: entrada + respiro. g interna: hover e clique (transforms independentes).
+            <g key={s.label} className="f-layer">
+              <g
+                className="f-hover cursor-pointer outline-none"
+                data-i={i}
+                onClick={() => onSelect(i)}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(i)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Filtrar leads que chegaram até ${s.label}`}
+                style={{ opacity: dim(i) }}
               >
-                {numberFormatter.format(s.reached)}
-              </text>
+                <path d={d} fill={s.color} />
+                <line x1={0} y1={cy} x2={edge - 2} y2={cy} stroke={s.color} strokeWidth={1.5} strokeDasharray="3 3" />
+                <text
+                  data-count
+                  x={F_CX}
+                  y={cy}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={24}
+                  fontWeight={700}
+                  fill="#fff"
+                  style={{ paintOrder: "stroke", stroke: "rgba(0,0,0,0.18)", strokeWidth: 3 }}
+                >
+                  {numberFormatter.format(s.reached)}
+                </text>
+              </g>
             </g>
           );
         })}
@@ -243,22 +365,30 @@ function FunnelChart({ steps, activeIdx, onSelect }: { steps: FunnelStep[]; acti
         {steps.map((s, i) => (
           <div
             key={s.label}
-            className="absolute left-3 right-0 -translate-y-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1.5 pl-3 pr-2 shadow-sm"
-            style={{ top: pctY(centers[i]), borderLeft: `5px solid ${s.color}` }}
+            data-i={i}
+            className="absolute left-3 right-0 -translate-y-1/2"
+            style={{ top: pctY(centers[i]) }}
           >
-            <p className="flex items-baseline gap-1.5 whitespace-nowrap leading-none">
-              <span className="text-base font-bold text-blue-900">{pct(s.reached, topCount)}</span>
-              <span className="text-[10px] text-gray-500">do topo</span>
-            </p>
-            <p className="mt-1 whitespace-nowrap text-[11px] leading-none text-gray-500">
-              {i > 0 ? (
-                <>
-                  <span className="font-semibold text-blue-900">{pct(s.reached, steps[i - 1].reached)}</span> da anterior
-                </>
-              ) : (
-                "base do funil"
-              )}
-            </p>
+            <div
+              className="f-side overflow-hidden rounded-xl border border-gray-200 bg-white py-1.5 pl-3 pr-2 shadow-sm"
+              data-i={i}
+              data-side="r"
+              style={{ borderLeft: `5px solid ${s.color}` }}
+            >
+              <p className="flex items-baseline gap-1.5 whitespace-nowrap leading-none">
+                <span className="text-base font-bold text-blue-900">{pct(s.reached, topCount)}</span>
+                <span className="text-[10px] text-gray-500">do topo</span>
+              </p>
+              <p className="mt-1 whitespace-nowrap text-[11px] leading-none text-gray-500">
+                {i > 0 ? (
+                  <>
+                    <span className="font-semibold text-blue-900">{pct(s.reached, steps[i - 1].reached)}</span> da anterior
+                  </>
+                ) : (
+                  "base do funil"
+                )}
+              </p>
+            </div>
           </div>
         ))}
       </div>
@@ -297,6 +427,11 @@ function meetingMatches(r: MeetingLeadRow, f: string) {
 
 export function TrafficMeetings() {
   const [days, setDays] = useState("30");
+  // Período personalizado: começa nos últimos 30 dias.
+  const [custom, setCustom] = useState(() => {
+    const until = todayBRT();
+    return { since: shiftDate(until, -29), until };
+  });
   const [rows, setRows] = useState<MeetingLeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -308,21 +443,25 @@ export function TrafficMeetings() {
   const [selected, setSelected] = useState<LeadRef | null>(null);
   const [editing, setEditing] = useState<LeadRef | null>(null);
   const [deleting, setDeleting] = useState<LeadRef | null>(null);
+  // Busca da tabela e clique no funil: só a lista. Os filtros da gaveta valem pra página toda.
   const [search, setSearch] = useState("");
-  const [campaignIds, setCampaignIds] = useState<string[]>([]);
-  const [stage, setStage] = useState("");
-  const [meetingFilter, setMeetingFilter] = useState("");
-  const [meetingStatus, setMeetingStatus] = useState("");
-  // Só afetam a lista (não o funil, que precisa continuar inteiro pra ser clicado).
-  const [category, setCategory] = useState("");
+  const [filters, setFilters] = useState<MeetingFilters>(EMPTY_MEETING_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [reachedIdx, setReachedIdx] = useState<number | null>(null);
+
+  // "Todo o período" não limita o início; "Personalizado" usa as datas escolhidas.
+  const range = useMemo(() => {
+    const until = todayBRT();
+    if (days === "all") return { since: "1970-01-01", until };
+    if (days === "custom") return custom;
+    return { since: shiftDate(until, -(Number(days) - 1)), until };
+  }, [days, custom]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const until = todayBRT();
-    fetchCrmLeads(createClient(), { since: shiftDate(until, -(Number(days) - 1)), until })
+    fetchCrmLeads(createClient(), range)
       .then(async (r) => {
         if (cancelled) return;
         setRows(r);
@@ -338,12 +477,12 @@ export function TrafficMeetings() {
     return () => {
       cancelled = true;
     };
-  }, [days, reloadKey]);
+  }, [range, reloadKey]);
 
   // Exclusão/edição (aqui ou na aba Leads) e novas sincronizações do CRM atualizam a tela.
   useRealtimeChanges(["landing_page_leads"], () => setReloadKey((k) => k + 1));
 
-  useEffect(() => setPage(0), [filter, days, search, campaignIds, stage, meetingFilter, meetingStatus, category, reachedIdx]);
+  useEffect(() => setPage(0), [filter, days, search, filters, reachedIdx]);
 
   const campaignOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -362,41 +501,38 @@ export function TrafficMeetings() {
     [rows]
   );
 
-  // Filtros gerais: valem pra página toda (cards, funil, tabelas e lista).
+  // Filtros da gaveta: valem pra página toda (cards, funil, tabelas e lista).
   const base = useMemo(() => {
-    const term = normalize(search);
     return rows.filter((r) => {
-      if (term && !normalize(`${r.name} ${r.phone} ${r.email}`).includes(term)) return false;
-      if (campaignIds.length && !campaignIds.includes(one(r.matched_campaign)?.id ?? "none")) return false;
-      if (stage && r.crm_stage_name !== stage) return false;
-      if (!meetingMatches(r, meetingFilter)) return false;
-      if (meetingStatus && r.last_meeting_status !== meetingStatus) return false;
+      if (filters.campaignIds.length && !filters.campaignIds.includes(one(r.matched_campaign)?.id ?? "none")) return false;
+      if (filters.stages.length && !filters.stages.includes(r.crm_stage_name ?? "")) return false;
+      if (filters.categories.length && !filters.categories.includes(categoryKey(r))) return false;
+      if (!meetingMatches(r, filters.meeting)) return false;
+      if (filters.statuses.length && !filters.statuses.includes(r.last_meeting_status ?? "")) return false;
       return true;
     });
-  }, [rows, search, campaignIds, stage, meetingFilter, meetingStatus]);
+  }, [rows, filters]);
 
-  const hasFilters = !!(search || campaignIds.length || stage || meetingFilter || meetingStatus || category || reachedIdx !== null || filter !== "all");
+  const filterCount = countMeetingFilters(filters);
+  const hasFilters = !!(search || filterCount || reachedIdx !== null || filter !== "all");
   function clearFilters() {
     setSearch("");
-    setCampaignIds([]);
-    setStage("");
-    setMeetingFilter("");
-    setMeetingStatus("");
-    setCategory("");
+    setFilters(EMPTY_MEETING_FILTERS);
     setReachedIdx(null);
     setFilter("all");
   }
+  const only = (list: string[], v: string) => list.length === 1 && list[0] === v;
   function jumpToList() {
     document.getElementById("lista-reunioes")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function selectFunnel(i: number) {
-    setCategory("");
     setReachedIdx((cur) => (cur === i ? null : i));
     if (reachedIdx !== i) jumpToList();
   }
-  function selectCategory(value: string) {
+  // Alterna um filtro de valor único (clique em card/linha): só ele ou nenhum.
+  function toggleOnly(key: "campaignIds" | "stages" | "categories", value: string) {
     setReachedIdx(null);
-    setCategory(value);
+    setFilters((f) => ({ ...f, [key]: only(f[key], value) ? [] : [value] }));
   }
 
   const stats = useMemo(() => {
@@ -452,14 +588,23 @@ export function TrafficMeetings() {
     return [...map.values()].sort((a, b) => b.withMeeting - a.withMeeting || b.leads - a.leads);
   }, [base]);
 
-  // Categoria / clique no funil: só a lista. Os contadores das abas refletem esse recorte.
+  // Busca da tabela e clique no funil: só a lista. Os contadores das abas refletem esse recorte.
   const listBase = useMemo(() => {
+    const term = normalize(search);
     return base.filter((r) => {
       if (reachedIdx !== null && reachOf(r, historyCats.get(r.id)) < reachedIdx) return false;
-      if (category && categoryKey(r) !== category) return false;
+      if (term) {
+        const hay = normalize(
+          [
+            r.name, r.phone, r.email, one(r.matched_campaign)?.name, one(r.matched_ad)?.name,
+            categoryLabel(r)?.label, r.crm_stage_name, r.crm_funnel_name, r.last_meeting_status,
+          ].join(" ")
+        );
+        if (!hay.includes(term)) return false;
+      }
       return true;
     });
-  }, [base, category, reachedIdx, historyCats]);
+  }, [base, search, reachedIdx, historyCats]);
 
   const filtered = useMemo(() => {
     if (filter === "crm") return listBase.filter((r) => r.crm_lead_id);
@@ -474,65 +619,50 @@ export function TrafficMeetings() {
     meeting: listBase.filter((r) => r.meetings_count > 0).length,
   };
 
+  const campaignName = new Map(campaignOptions.map((o) => [o.value, o.label]));
+  const categoryName = new Map(CATEGORY_FILTERS.map((o) => [o.value, o.label]));
+  const chips: FilterChip[] = [
+    ...filters.campaignIds.map((v) => ({ key: `c-${v}`, label: campaignName.get(v) ?? v, remove: () => setFilters((f) => ({ ...f, campaignIds: f.campaignIds.filter((x) => x !== v) })) })),
+    ...filters.categories.map((v) => ({
+      key: `k-${v}`,
+      label: categoryName.get(v) ?? v,
+      color: /^\d+$/.test(v) ? FUNNEL[Number(v)].color : undefined,
+      remove: () => setFilters((f) => ({ ...f, categories: f.categories.filter((x) => x !== v) })),
+    })),
+    ...filters.stages.map((v) => ({ key: `s-${v}`, label: v, remove: () => setFilters((f) => ({ ...f, stages: f.stages.filter((x) => x !== v) })) })),
+    ...(filters.meeting ? [{ key: "m", label: MEETING_FILTERS.find((m) => m.value === filters.meeting)?.label ?? filters.meeting, remove: () => setFilters((f) => ({ ...f, meeting: "" })) }] : []),
+    ...filters.statuses.map((v) => ({ key: `t-${v}`, label: `Reunião: ${v}`, remove: () => setFilters((f) => ({ ...f, statuses: f.statuses.filter((x) => x !== v) })) })),
+  ];
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const th = "sticky top-0 whitespace-nowrap bg-blue-900 px-4 py-3 text-left text-white";
 
   return (
     <div className="space-y-6">
-      <Tabs tabs={PERIODS} active={days} onChange={setDays} />
-
-      <div className="space-y-3 rounded-3xl border border-gray-100 bg-gray-050/80 p-3 sm:p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome, telefone ou e-mail..." className="sm:max-w-md" />
-          <FilterMultiSelect
-            label="Campanha"
-            allLabel="Todas as campanhas"
-            pluralLabel="campanhas"
-            options={campaignOptions}
-            selected={campaignIds}
-            onChange={setCampaignIds}
-          />
-          <FilterSelect value={stage} onChange={(e) => setStage(e.target.value)} aria-label="Etapa do CRM">
-            <option value="">Todas as etapas</option>
-            {stageOptions.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </FilterSelect>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <FilterSelect value={category} onChange={(e) => selectCategory(e.target.value)} aria-label="Categoria do CRM">
-            <option value="">Todas as categorias</option>
-            {CATEGORY_FILTERS.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </FilterSelect>
-          <FilterSelect value={meetingFilter} onChange={(e) => setMeetingFilter(e.target.value)} aria-label="Reuniões">
-            {MEETING_FILTERS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </FilterSelect>
-          <FilterSelect value={meetingStatus} onChange={(e) => setMeetingStatus(e.target.value)} aria-label="Status da última reunião">
-            <option value="">Todos os status de reunião</option>
-            {statusOptions.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </FilterSelect>
-          {reachedIdx !== null && (
-            <span className="flex items-center gap-1 rounded-full bg-blue-900 px-3 py-1.5 text-xs font-semibold text-white">
-              Funil: chegaram até {FUNNEL[reachedIdx].label}
-              <button type="button" onClick={() => setReachedIdx(null)} aria-label="Remover filtro do funil">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          )}
-          {hasFilters && (
-            <button onClick={clearFilters} className="flex items-center gap-1 text-xs font-semibold text-blue-900 hover:underline">
-              <X className="h-3.5 w-3.5" /> Limpar filtros
-            </button>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Tabs tabs={PERIODS} active={days} onChange={setDays} />
+        {days === "custom" && (
+          <div className="flex flex-wrap items-center gap-3">
+            <FilterDate
+              label="De"
+              value={custom.since}
+              max={custom.until}
+              onChange={(v) => v && setCustom((c) => ({ ...c, since: v }))}
+            />
+            <FilterDate
+              label="até"
+              value={custom.until}
+              min={custom.since}
+              max={todayBRT()}
+              onChange={(v) => v && setCustom((c) => ({ ...c, until: v }))}
+            />
+          </div>
+        )}
+        <FilterButton count={filterCount} onClick={() => setFiltersOpen(true)} />
       </div>
+
+      <FilterChips chips={chips} onClear={() => setFilters(EMPTY_MEETING_FILTERS)} className="!mb-0" />
       {error && <p className="text-sm text-[color:var(--color-danger)]">{error}</p>}
 
       {!loading && stats.notInCrm > 0 && (
@@ -569,7 +699,7 @@ export function TrafficMeetings() {
             <CardTitle>Funil por categoria do CRM</CardTitle>
           </CardHeader>
           <CardBody>
-            <FunnelChart steps={steps} activeIdx={reachedIdx ?? (/^\d+$/.test(category) ? Number(category) : null)} onSelect={selectFunnel} />
+            <FunnelChart steps={steps} activeIdx={reachedIdx ?? (filters.categories.length === 1 && /^\d+$/.test(filters.categories[0]) ? Number(filters.categories[0]) : null)} onSelect={selectFunnel} />
             <p className="mt-2 text-xs text-gray-500">
               O número em cada camada são os leads que chegaram até ali: quem está numa categoria à frente já passou por todas as anteriores (conta pela categoria atual, pelo histórico de etapas e pelas reuniões). Venda perdida conta até onde o lead tinha chegado e também aparece separada ao lado. Clique em uma camada para filtrar a lista abaixo.
             </p>
@@ -580,12 +710,9 @@ export function TrafficMeetings() {
           <Card
             role="button"
             tabIndex={0}
-            onClick={() => {
-              selectCategory(category === "lost" ? "" : "lost");
-              jumpToList();
-            }}
-            onKeyDown={(e) => e.key === "Enter" && selectCategory(category === "lost" ? "" : "lost")}
-            className={cn("cursor-pointer transition-shadow hover:shadow-md", category === "lost" && "ring-2 ring-[color:var(--color-danger)]")}
+            onClick={() => toggleOnly("categories", "lost")}
+            onKeyDown={(e) => e.key === "Enter" && toggleOnly("categories", "lost")}
+            className={cn("cursor-pointer transition-shadow hover:shadow-md", only(filters.categories, "lost") && "ring-2 ring-[color:var(--color-danger)]")}
           >
             <CardBody>
               <p className="text-[11px] font-bold uppercase text-gray-500">Venda perdida</p>
@@ -623,11 +750,8 @@ export function TrafficMeetings() {
               <button
                 key={name}
                 type="button"
-                onClick={() => {
-                  setStage((cur) => (cur === name ? "" : name));
-                  jumpToList();
-                }}
-                className={cn("block w-full rounded-lg px-2 py-1 text-left transition-colors hover:bg-gray-050", stage === name && "bg-yellow-100/60 ring-1 ring-yellow-600/40")}
+                onClick={() => toggleOnly("stages", name)}
+                className={cn("block w-full rounded-lg px-2 py-1 text-left transition-colors hover:bg-gray-050", only(filters.stages, name) && "bg-yellow-100/60 ring-1 ring-yellow-600/40")}
               >
                 <div className="flex justify-between text-sm text-blue-900">
                   <span>{name}</span>
@@ -663,11 +787,8 @@ export function TrafficMeetings() {
                 {byCampaign.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => {
-                      setCampaignIds((cur) => (cur.length === 1 && cur[0] === c.id ? [] : [c.id]));
-                      jumpToList();
-                    }}
-                    className={cn("cursor-pointer border-b border-gray-100 text-blue-900 hover:bg-gray-050", campaignIds.length === 1 && campaignIds[0] === c.id && "bg-yellow-100/60")}
+                    onClick={() => toggleOnly("campaignIds", c.id)}
+                    className={cn("cursor-pointer border-b border-gray-100 text-blue-900 hover:bg-gray-050", only(filters.campaignIds, c.id) && "bg-yellow-100/60")}
                   >
                     <td className="px-4 py-2.5">{c.name}</td>
                     <td className="px-4 py-2.5">{c.leads}</td>
@@ -693,6 +814,17 @@ export function TrafficMeetings() {
               {loading ? "Carregando..." : `${numberFormatter.format(filtered.length)} ${filtered.length === 1 ? "lead" : "leads"} · mesma base da aba Leads`}
             </p>
           </div>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar lead, campanha, etapa, status…" className="w-full sm:w-72" />
+            <FilterButton count={filterCount} onClick={() => setFiltersOpen(true)} />
+            {hasFilters && (
+              <button type="button" onClick={clearFilters} className="inline-flex h-11 items-center gap-1 rounded-full px-3 text-xs font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-900 sm:h-10">
+                <X className="h-3.5 w-3.5" /> Limpar tudo
+              </button>
+            )}
+          </div>
+        </CardHeader>
+        <div className="px-5 pb-3">
           <Tabs
             tabs={[
               { key: "all", label: "Todos", count: listCounts.all },
@@ -703,7 +835,15 @@ export function TrafficMeetings() {
             active={filter}
             onChange={(k) => setFilter(k as Filter)}
           />
-        </CardHeader>
+          {reachedIdx !== null && (
+            <span className="ml-3 inline-flex items-center gap-1 rounded-full bg-blue-900 px-3 py-1.5 text-xs font-semibold text-white">
+              Funil: chegaram até {FUNNEL[reachedIdx].label}
+              <button type="button" onClick={() => setReachedIdx(null)} aria-label="Remover filtro do funil">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          )}
+        </div>
         <CardBody className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead>
@@ -799,6 +939,24 @@ export function TrafficMeetings() {
           )}
         </CardBody>
       </Card>
+
+      <RightDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} label="Filtros das reuniões">
+        <MeetingsFilterPanel
+          applied={filters}
+          campaignOptions={campaignOptions}
+          stageOptions={stageOptions.map((s) => ({ value: s, label: s }))}
+          categoryOptions={CATEGORY_FILTERS.map((c) => ({ ...c, color: /^\d+$/.test(c.value) ? FUNNEL[Number(c.value)].color : c.value === "lost" ? "#c0392b" : undefined }))}
+          meetingOptions={MEETING_FILTERS}
+          statusOptions={statusOptions.map((s) => ({ value: s, label: s }))}
+          resultCount={base.length}
+          onClose={() => setFiltersOpen(false)}
+          onApply={(next) => {
+            setFilters(next);
+            setReachedIdx(null);
+            setFiltersOpen(false);
+          }}
+        />
+      </RightDrawer>
 
       <LeadDetailDialog
         leadId={selected?.id ?? null}

@@ -654,8 +654,8 @@ function StepMercado({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: 
           </div>
         </div>
       </Section>
-      <ItemList title="Quem você alcança" items={S.mercado} onChange={(mercado) => patch({ mercado })} total="Total de pessoas alcançadas" />
-      <Section title="Parceiros" hint="indicações recorrentes">
+      <ItemList title="Capital Social (Rede de Relacionamentos)" items={S.mercado} onChange={(mercado) => patch({ mercado })} total="Total de pessoas alcançadas" />
+      <Section title="Parceiros (despachante, autoescola, advogados, corretores de seguro)" hint="indicações recorrentes">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Quantos parceiros você consegue fazer na sua região?" help="Contadores, despachantes, autoescolas, oficinas, etc.">
             <NumInput value={S.parceiros} onChange={(parceiros) => patch({ parceiros })} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bot, Calculator, Contact, LayoutDashboard, Megaphone, TrendingUp, type LucideIcon } from "lucide-react";
+import { Bot, Calculator, CalendarCheck, Contact, LayoutDashboard, Megaphone, TrendingUp, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { hasTab } from "@/lib/access";
 import { SidebarHelpinho, SidebarLink, SidebarSectionTitle, type TipHandlers } from "@/components/layout/SidebarParts";
@@ -33,6 +33,13 @@ export const EXPANSION_SECTIONS = {
     icon: Contact,
     title: "Leads",
     description: "Leads recebidos da Landing Page com rastreamento de anúncio de origem via UTM.",
+    tone: "traffic",
+  },
+  meetings: {
+    label: "Reuniões",
+    icon: CalendarCheck,
+    title: "Reuniões",
+    description: "Funil do CRM por lead: etapa atual, 1ª/2ª reunião, no-show e reagendamentos, ligados à campanha de origem.",
     tone: "traffic",
   },
   dre: {
