@@ -593,8 +593,8 @@ function Live({ c, children, zero }: { c: DreResult; children?: ReactNode; zero?
       <div className="relative mt-4 grid grid-cols-2 gap-3">
         <Stat label="Faturamento líquido / mês" value={brlShort(p.resultado)} accent />
         <Stat label="Faturamento / mês" value={brlShort(p.faturamento)} />
-        <Stat label="Clientes / mês" value={(zero ? 0 : c.casosMes).toFixed(1).replace(".", ",")} />
-        <Stat label="Ticket médio" value={brl(zero ? 0 : c.ticket)} />
+        <Stat label="Clientes / mês" value={c.casosMes.toFixed(1).replace(".", ",")} />
+        <Stat label="Ticket médio" value={brl(c.ticket)} />
       </div>
       {children && <div className="relative mt-5 border-t border-white/15 pt-5">{children}</div>}
     </div>

@@ -31,7 +31,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     summary: "A seção “Quem é o lead?” virou “Futuro Franqueado” e o Tráfego Pago já vem com R$ 600.",
     details: [
       "Na DRE de Expansão, a seção que identifica o lead agora se chama “Futuro Franqueado”.",
-      "O painel “Sua DRE ao vivo” aparece zerado na primeira etapa; a estimativa só começa a partir da segunda etapa.",
+      "O painel “Sua DRE ao vivo” mostra só Clientes / mês e Ticket médio na primeira etapa; o resto da estimativa começa na segunda etapa.",
       "A despesa Tráfego Pago vem pré-definida em R$ 600 nos modelos Home Based e Loja (pode ser alterada). Simulações já salvas mantêm os valores que tinham.",
     ],
   },
