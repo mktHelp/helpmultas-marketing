@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  Cake, AtSign, Image as ImageIcon, Mic, HandCoins, TrendingUp, Gauge, Contact, CalendarCheck, ChevronDown, Lightbulb,
+  Cake, AtSign, Image as ImageIcon, Mic, HandCoins, TrendingUp, Gauge, Contact, CalendarCheck, ChevronDown, Lightbulb, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pathAllowed } from "@/lib/access";
@@ -56,6 +56,7 @@ const SECTIONS: { title: string; items: SidebarItem[] }[] = [
 const TRAFFIC_NAV: SidebarItem[] = [
   { href: "/trafego-pago/dashboard", label: "Dashboard", icon: Gauge, exact: true },
   { href: "/creatives", label: "Criativos", icon: ImageIcon },
+  { href: "/distribuicao", label: "Distribuição", icon: Send },
   { href: "/trafego-pago", label: "Tráfego Pago", icon: TrendingUp, exact: true },
   { href: "/trafego-pago/leads", label: "Leads", icon: Contact, exact: true },
   { href: "/trafego-pago/reunioes", label: "Reuniões", icon: CalendarCheck, exact: true },

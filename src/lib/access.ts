@@ -45,6 +45,7 @@ export const APP_TAB_GROUPS: TabGroup[] = [
     tabs: [
       { key: "/trafego-pago/dashboard", label: "Dashboard de Tráfego" },
       { key: "/creatives", label: "Criativos" },
+      { key: "/distribuicao", label: "Distribuição" },
       { key: "/trafego-pago", label: "Tráfego Pago" },
       { key: "/trafego-pago/leads", label: "Leads" },
       { key: "/trafego-pago/reunioes", label: "Reuniões" },

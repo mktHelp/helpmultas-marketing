@@ -608,3 +608,30 @@ export interface ContentIdeaRun {
   started_at: string;
   finished_at: string | null;
 }
+
+export interface DistributionPost {
+  id: string;
+  active: boolean;
+  unit: string;
+  unit_name: string;
+  boost_start: string | null;
+  boost_end: string | null;
+  nomenclature: string;
+  post_link: string;
+  investment: number | null;
+  test_days: number | null;
+  daily_value: number | null;
+  post_category: "" | "bom" | "medio" | "ruim";
+  followers_before: number | null;
+  followers_after: number | null;
+  paid_followers: number | null;
+  cost_per_follower: number | null;
+  format: string;
+  what_is: string;
+  pillar: string;
+  row_color: string;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
