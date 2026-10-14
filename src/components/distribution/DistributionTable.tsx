@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Copy, ExternalLink, Layers, Palette, Plus, Trash2, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Layers, ListFilter, Palette, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Pagination } from "@/components/ui/Pagination";
+import { RightDrawer } from "@/components/shared/RightDrawer";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterButton, FilterChips } from "@/components/ui/FilterBar";
 import { createClient } from "@/lib/supabase/client";
 import {
   createDistributionPost, deleteDistributionPost, listDistributionPosts, updateDistributionPost,
 } from "@/lib/services/distribution";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { FRANCHISE_UNITS } from "@/lib/franchise-units";
 import type { DistributionPost } from "@/types/database";
 
@@ -175,11 +178,167 @@ function ColorSelect({ value, options, onChange }: { value: string; options: Opt
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Filtros                                                             */
+/* ------------------------------------------------------------------ */
+
+interface Filters {
+  search: string;
+  active: string; // "" | "sim" | "nao"
+  unit: string[];
+  category: string[];
+  format: string[];
+  whatIs: string[];
+  pillar: string[];
+  startFrom: string;
+  startTo: string;
+  cost: string; // "" | "meta" (<= 0,50) | "acima" | "sem"
+}
+
+const EMPTY_FILTERS: Filters = {
+  search: "", active: "", unit: [], category: [], format: [], whatIs: [], pillar: [], startFrom: "", startTo: "", cost: "",
+};
+
+const COST_GOAL = 0.5;
+
+function countFilters(f: Filters, withSearch = true) {
+  return (
+    (withSearch && f.search.trim() ? 1 : 0) + (f.active ? 1 : 0) + (f.unit.length ? 1 : 0) + (f.category.length ? 1 : 0) +
+    (f.format.length ? 1 : 0) + (f.whatIs.length ? 1 : 0) + (f.pillar.length ? 1 : 0) +
+    (f.startFrom || f.startTo ? 1 : 0) + (f.cost ? 1 : 0)
+  );
+}
+
+const dateInput =
+  "h-11 w-full min-w-0 rounded-xl border border-gray-200 bg-white px-2.5 text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10";
+
+function Chip({ active, color, onClick, children }: { active: boolean; color?: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+        active ? "border-transparent text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+      )}
+      style={active ? { backgroundColor: color ?? "#243746" } : undefined}
+    >
+      {active && <Check className="ast-pop h-3 w-3" strokeWidth={3} />}
+      {children}
+    </button>
+  );
+}
+
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-t border-gray-100 px-4 py-4 first:border-t-0">
+      <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-gray-500">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function MultiChips({ options, selected, onChange }: { options: Opt[]; selected: string[]; onChange: (v: string[]) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      <Chip active={selected.length === 0} onClick={() => onChange([])}>Todos</Chip>
+      {options.map((o) => (
+        <Chip
+          key={o.value}
+          active={selected.includes(o.value)}
+          color={o.color}
+          onClick={() => onChange(selected.includes(o.value) ? selected.filter((v) => v !== o.value) : [...selected, o.value])}
+        >
+          {o.label}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
+function FilterPanel({ applied, resultCount, onApply, onClose }: { applied: Filters; resultCount: number; onApply: (f: Filters) => void; onClose: () => void }) {
+  const [draft, setDraft] = useState<Filters>(applied);
+  const set = <K extends keyof Filters>(key: K, value: Filters[K]) => setDraft((d) => ({ ...d, [key]: value }));
+  const count = countFilters(draft, false);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-900 text-yellow-500">
+          <ListFilter className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="font-display text-sm font-bold text-blue-900">Filtros</p>
+          <p className="text-[11px] text-gray-500">
+            {resultCount} {resultCount === 1 ? "post" : "posts"} · {count > 0 ? `${count} ${count === 1 ? "selecionado" : "selecionados"}` : "sem filtros"}
+          </p>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Fechar filtros" className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <Group title="Ativo">
+          <div className="flex flex-wrap gap-1.5">
+            {([["", "Todos"], ["sim", "Ativos"], ["nao", "Inativos"]] as const).map(([v, label]) => (
+              <Chip key={v || "all"} active={draft.active === v} color={v === "sim" ? "#2f8f5b" : v === "nao" ? "#8a99a3" : undefined} onClick={() => set("active", v)}>
+                {label}
+              </Chip>
+            ))}
+          </div>
+        </Group>
+        <Group title="Unidade"><MultiChips options={UNIT_OPTIONS} selected={draft.unit} onChange={(v) => set("unit", v)} /></Group>
+        <Group title="Categoria do post"><MultiChips options={CATEGORY_OPTIONS} selected={draft.category} onChange={(v) => set("category", v)} /></Group>
+        <Group title="Formato"><MultiChips options={FORMAT_OPTIONS} selected={draft.format} onChange={(v) => set("format", v)} /></Group>
+        <Group title="O que é?"><MultiChips options={WHAT_OPTIONS} selected={draft.whatIs} onChange={(v) => set("whatIs", v)} /></Group>
+        <Group title="Pilar"><MultiChips options={PILLAR_OPTIONS} selected={draft.pillar} onChange={(v) => set("pillar", v)} /></Group>
+        <Group title="Início do impulsionamento">
+          <div className="grid grid-cols-2 gap-2">
+            <input type="date" aria-label="Início de" value={draft.startFrom} onChange={(e) => set("startFrom", e.target.value)} className={dateInput} />
+            <input type="date" aria-label="Início até" value={draft.startTo} onChange={(e) => set("startTo", e.target.value)} className={dateInput} />
+          </div>
+        </Group>
+        <Group title="Custo por seguidor (meta R$ 0,50)">
+          <div className="flex flex-wrap gap-1.5">
+            {([["", "Todos"], ["meta", "Dentro da meta"], ["acima", "Acima da meta"], ["sem", "Sem custo"]] as const).map(([v, label]) => (
+              <Chip key={v || "all"} active={draft.cost === v} color={v === "meta" ? "#2f8f5b" : v === "acima" ? "#d64545" : undefined} onClick={() => set("cost", v)}>
+                {label}
+              </Chip>
+            ))}
+          </div>
+        </Group>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2 border-t border-gray-100 bg-white p-3">
+        <button
+          type="button"
+          onClick={() => setDraft({ ...EMPTY_FILTERS, search: applied.search })}
+          disabled={count === 0}
+          className="h-10 rounded-full px-4 font-display text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-40"
+        >
+          Limpar
+        </button>
+        <button
+          type="button"
+          onClick={() => onApply({ ...draft, search: applied.search })}
+          className="h-10 flex-1 rounded-full bg-yellow-500 font-display text-sm font-semibold text-blue-900 shadow-sm transition-all hover:bg-yellow-600 active:scale-[0.97]"
+        >
+          Aplicar filtros
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function DistributionTable({ addSignal }: { addSignal?: number }) {
   const supabase = createClient();
   const [rows, setRows] = useState<DistributionPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [palette, setPalette] = useState<{ id: string; x: number; y: number } | null>(null);
 
   async function load() {
@@ -232,27 +391,89 @@ export function DistributionTable({ addSignal }: { addSignal?: number }) {
     await deleteDistributionPost(supabase, id).catch(() => {});
   }
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const visibleRows = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (q && !`${r.nomenclature} ${r.post_link} ${r.unit_name}`.toLowerCase().includes(q)) return false;
+      if (filters.active && r.active !== (filters.active === "sim")) return false;
+      if (filters.unit.length && !filters.unit.includes(r.unit)) return false;
+      if (filters.category.length && !filters.category.includes(r.post_category)) return false;
+      if (filters.format.length && !filters.format.includes(r.format)) return false;
+      if (filters.whatIs.length && !filters.whatIs.includes(r.what_is)) return false;
+      if (filters.pillar.length && !filters.pillar.includes(r.pillar)) return false;
+      if (filters.startFrom && (!r.boost_start || r.boost_start < filters.startFrom)) return false;
+      if (filters.startTo && (!r.boost_start || r.boost_start > filters.startTo)) return false;
+      if (filters.cost === "sem" && r.cost_per_follower != null) return false;
+      if (filters.cost === "meta" && (r.cost_per_follower == null || r.cost_per_follower > COST_GOAL)) return false;
+      if (filters.cost === "acima" && (r.cost_per_follower == null || r.cost_per_follower <= COST_GOAL)) return false;
+      return true;
+    });
+  }, [rows, filters]);
+
+  const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const pageRows = useMemo(() => rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), [rows, currentPage]);
+  const pageRows = useMemo(() => visibleRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), [visibleRows, currentPage]);
+
+  const labelOf = (opts: Opt[], v: string) => opts.find((o) => o.value === v)?.label ?? v;
+  const drop = (patch: Partial<Filters>) => () => {
+    setFilters((f) => ({ ...f, ...patch }));
+    setPage(1);
+  };
+  const chips: { key: string; label: string; remove: () => void }[] = [];
+  if (filters.search.trim()) chips.push({ key: "q", label: `“${filters.search.trim()}”`, remove: drop({ search: "" }) });
+  if (filters.active) chips.push({ key: "act", label: filters.active === "sim" ? "Ativos" : "Inativos", remove: drop({ active: "" }) });
+  if (filters.unit.length) chips.push({ key: "unit", label: filters.unit.join(", "), remove: drop({ unit: [] }) });
+  if (filters.category.length) chips.push({ key: "cat", label: `Categoria: ${filters.category.map((v) => labelOf(CATEGORY_OPTIONS, v)).join(", ")}`, remove: drop({ category: [] }) });
+  if (filters.format.length) chips.push({ key: "fmt", label: `Formato: ${filters.format.map((v) => labelOf(FORMAT_OPTIONS, v)).join(", ")}`, remove: drop({ format: [] }) });
+  if (filters.whatIs.length) chips.push({ key: "what", label: `O que é: ${filters.whatIs.map((v) => labelOf(WHAT_OPTIONS, v)).join(", ")}`, remove: drop({ whatIs: [] }) });
+  if (filters.pillar.length) chips.push({ key: "pil", label: `Pilar: ${filters.pillar.map((v) => labelOf(PILLAR_OPTIONS, v)).join(", ")}`, remove: drop({ pillar: [] }) });
+  if (filters.startFrom || filters.startTo)
+    chips.push({ key: "dt", label: `Início ${filters.startFrom ? formatDate(filters.startFrom) : "…"} – ${filters.startTo ? formatDate(filters.startTo) : "…"}`, remove: drop({ startFrom: "", startTo: "" }) });
+  if (filters.cost) chips.push({ key: "cost", label: { meta: "Custo dentro da meta", acima: "Custo acima da meta", sem: "Sem custo" }[filters.cost] ?? "", remove: drop({ cost: "" }) });
 
   const paletteRow = palette ? rows.find((r) => r.id === palette.id) : undefined;
 
   return (
     <div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <SearchInput
+          value={filters.search}
+          onChange={(search) => {
+            setFilters((f) => ({ ...f, search }));
+            setPage(1);
+          }}
+          placeholder="Buscar por nomenclatura, link ou unidade…"
+        />
+        <FilterButton count={countFilters(filters, false)} onClick={() => setFiltersOpen(true)} />
+      </div>
+
+      <FilterChips
+        chips={chips}
+        onClear={() => {
+          setFilters(EMPTY_FILTERS);
+          setPage(1);
+        }}
+      />
+
       {loading ? (
         <div className="space-y-2" role="status" aria-label="Carregando distribuição">
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="ast-skeleton h-14 rounded-2xl" style={{ animationDelay: `${i * 90}ms` }} />
           ))}
         </div>
-      ) : rows.length === 0 ? (
+      ) : visibleRows.length === 0 ? (
         <div className="ast-fade-up flex flex-col items-center gap-3 rounded-3xl border border-dashed border-gray-200 bg-gray-050/60 px-6 py-14 text-center">
           <Layers className="h-8 w-8 text-gray-300" />
-          <p className="text-sm text-gray-500">Nenhum post cadastrado ainda.</p>
-          <Button size="sm" onClick={addRow} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Cadastrar o primeiro
-          </Button>
+          <p className="text-sm text-gray-500">{rows.length === 0 ? "Nenhum post cadastrado ainda." : "Nenhum resultado para os filtros aplicados."}</p>
+          {rows.length === 0 ? (
+            <Button size="sm" onClick={addRow} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Cadastrar o primeiro
+            </Button>
+          ) : (
+            <Button size="sm" variant="secondary" onClick={() => setFilters(EMPTY_FILTERS)}>
+              Limpar filtros
+            </Button>
+          )}
         </div>
       ) : (
         <>
@@ -370,7 +591,20 @@ export function DistributionTable({ addSignal }: { addSignal?: number }) {
         </>
       )}
 
-      <Pagination page={currentPage} pageSize={PAGE_SIZE} total={rows.length} onPageChange={setPage} />
+      <Pagination page={currentPage} pageSize={PAGE_SIZE} total={visibleRows.length} onPageChange={setPage} />
+
+      <RightDrawer open={filtersOpen} onClose={() => setFiltersOpen(false)} label="Filtros da distribuição">
+        <FilterPanel
+          applied={filters}
+          resultCount={visibleRows.length}
+          onClose={() => setFiltersOpen(false)}
+          onApply={(next) => {
+            setFilters(next);
+            setPage(1);
+            setFiltersOpen(false);
+          }}
+        />
+      </RightDrawer>
 
       {palette && paletteRow && (
         <>
