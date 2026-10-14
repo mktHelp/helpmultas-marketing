@@ -94,6 +94,9 @@ export default function PautasPage() {
   }
 
   const countOf = (s: string) => ideas.filter((i) => i.status === s).length;
+  // Contagem por conta respeita a aba de status ativa, para bater com o que aparece na lista.
+  const accountCount = (a: string) =>
+    ideas.filter((i) => (a === "todas" || i.account === a) && (status === "todas" || i.status === status)).length;
 
   return (
     <div>
@@ -108,9 +111,9 @@ export default function PautasPage() {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Tabs
           tabs={[
-            { key: "todas", label: "Todas as contas" },
-            { key: "franchising", label: "Franchising" },
-            { key: "roberson", label: "Roberson" },
+            { key: "todas", label: "Todas as contas", count: accountCount("todas") },
+            { key: "franchising", label: "Franchising", count: accountCount("franchising") },
+            { key: "roberson", label: "Roberson", count: accountCount("roberson") },
           ]}
           active={account}
           onChange={setAccount}
