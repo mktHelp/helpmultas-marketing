@@ -93,7 +93,7 @@ export default function PautasPage() {
     }
   }
 
-  const newCount = ideas.filter((i) => i.status === "nova").length;
+  const countOf = (s: string) => ideas.filter((i) => i.status === s).length;
 
   return (
     <div>
@@ -117,10 +117,10 @@ export default function PautasPage() {
         />
         <Tabs
           tabs={[
-            { key: "nova", label: "Novas", count: newCount },
-            { key: "aprovada", label: "Aprovadas" },
-            { key: "descartada", label: "Descartadas" },
-            { key: "todas", label: "Todas" },
+            { key: "nova", label: "Novas", count: countOf("nova") },
+            { key: "aprovada", label: "Aprovadas", count: countOf("aprovada") },
+            { key: "descartada", label: "Descartadas", count: countOf("descartada") },
+            { key: "todas", label: "Todas", count: ideas.length },
           ]}
           active={status}
           onChange={setStatus}
@@ -238,7 +238,7 @@ function IdeaCard({
         )}
       </div>
 
-      <div className="mt-auto flex flex-wrap gap-2 pt-4">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
         {idea.status === "nova" ? (
           <>
             <Button size="sm" onClick={onApprove} disabled={busy} className="gap-1"><Check className="h-4 w-4" /> Virar tarefa</Button>
@@ -249,8 +249,12 @@ function IdeaCard({
           </>
         ) : (
           <>
-            {idea.task_id && <Link href={`/tasks/${idea.task_id}`} className="text-xs font-bold text-blue-800 hover:underline">Abrir tarefa →</Link>}
-            {idea.teleprompter_script_id && <Link href="/teleprompter" className="text-xs font-bold text-blue-800 hover:underline">Abrir no Teleprompter →</Link>}
+            {(idea.task_id || idea.teleprompter_script_id) && (
+              <div className="flex basis-full flex-wrap gap-x-4 gap-y-1">
+                {idea.task_id && <Link href={`/tasks/${idea.task_id}`} className="text-xs font-bold text-blue-800 hover:underline">Abrir tarefa →</Link>}
+                {idea.teleprompter_script_id && <Link href="/teleprompter" className="text-xs font-bold text-blue-800 hover:underline">Abrir no Teleprompter →</Link>}
+              </div>
+            )}
             {idea.status === "aprovada" && isVideo && !idea.teleprompter_script_id && (
               <Button size="sm" variant="secondary" onClick={onTeleprompter} disabled={busy} className="gap-1"><Mic className="h-4 w-4" /> Teleprompter</Button>
             )}
