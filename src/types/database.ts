@@ -34,7 +34,8 @@ export type NotificationType =
   | "status_changed"
   | "birthday"
   | "work_anniversary"
-  | "conversation_shared";
+  | "conversation_shared"
+  | "content_ideas";
 
 export interface Profile {
   id: string;
@@ -565,4 +566,45 @@ export interface InstagramAudienceRow {
   kind: "profile" | "age" | "gender" | "city" | "country";
   data: InstagramProfileInfo | { key: string; value: number }[];
   synced_at: string;
+}
+
+export type ContentIdeaStatus = "nova" | "aprovada" | "descartada";
+
+export interface ContentIdea {
+  id: string;
+  batch_date: string;
+  period: "manha" | "tarde";
+  account: "franchising" | "roberson";
+  format: "reels" | "feed" | "carrossel" | "stories";
+  title: string;
+  hook: string | null;
+  script: string | null;
+  caption: string | null;
+  cta: string | null;
+  why: string | null;
+  reference_permalink: string | null;
+  reference_note: string | null;
+  source_title: string | null;
+  source_url: string | null;
+  source_name: string | null;
+  score: number | null;
+  status: ContentIdeaStatus;
+  task_id: string | null;
+  teleprompter_script_id: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
+
+export interface ContentIdeaRun {
+  id: string;
+  source: "agendado" | "manual";
+  triggered_by: string | null;
+  status: "running" | "done" | "error";
+  step: number;
+  step_label: string;
+  ideas_count: number | null;
+  error_message: string | null;
+  started_at: string;
+  finished_at: string | null;
 }

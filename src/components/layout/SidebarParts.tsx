@@ -19,6 +19,8 @@ export interface SidebarItem {
   icon: LucideIcon;
   /** só marca como ativo quando o caminho é exatamente este */
   exact?: boolean;
+  /** aviso de "novidade" (ex.: pautas novas não vistas) */
+  badge?: number;
 }
 
 export function isItemActive(pathname: string, item: Pick<SidebarItem, "href" | "exact">) {
@@ -100,6 +102,18 @@ export function SidebarLink({
         <Icon className="h-[17px] w-[17px]" strokeWidth={2.2} />
       </span>
       {!collapsed && <span className="truncate whitespace-nowrap">{item.label}</span>}
+      {!!item.badge && (
+        <span
+          aria-label={`${item.badge} novidade(s)`}
+          className={cn(
+            "flex items-center justify-center rounded-full bg-red-500 font-bold text-white ring-2 ring-blue-900",
+            collapsed ? "absolute right-0.5 top-0.5 h-3 w-3" : "ml-auto h-5 min-w-5 px-1.5 text-[10px]"
+          )}
+        >
+          {!collapsed && (item.badge > 9 ? "9+" : item.badge)}
+          <span className="absolute inset-0 animate-ping rounded-full bg-red-500/50" aria-hidden />
+        </span>
+      )}
     </Link>
   );
 }

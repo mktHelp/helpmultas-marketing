@@ -84,7 +84,9 @@ export function NotificationDropdown() {
                       ? `/assistente?conversationId=${n.conversation_id}`
                       : n.type === "birthday" || n.type === "work_anniversary"
                         ? "/birthdays"
-                        : "#"
+                        : n.type === "content_ideas"
+                          ? "/pautas"
+                          : "#"
                 }
                 onClick={async () => {
                   await markAsRead(supabase, n.id);

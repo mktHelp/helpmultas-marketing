@@ -29,6 +29,7 @@ export const APP_TAB_GROUPS: TabGroup[] = [
       { key: "/projects", label: "Projetos" },
       { key: "/campaigns", label: "Campanhas" },
       { key: "/content", label: "Conteúdos" },
+      { key: "/pautas", label: "Pautas do Dia" },
     ],
   },
   {

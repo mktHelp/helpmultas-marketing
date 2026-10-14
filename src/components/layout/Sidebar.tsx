@@ -5,12 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  Cake, AtSign, Image as ImageIcon, Mic, HandCoins, TrendingUp, Gauge, Contact, CalendarCheck, ChevronDown,
+  Cake, AtSign, Image as ImageIcon, Mic, HandCoins, TrendingUp, Gauge, Contact, CalendarCheck, ChevronDown, Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pathAllowed } from "@/lib/access";
 import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
+import { unreadIdeasCount } from "@/lib/services/contentIdeas";
 import {
   SIDEBAR_WIDTH, SidebarFrame, SidebarHelpinho, SidebarLink, SidebarSectionTitle, SidebarUser, isItemActive, useSidebarTip,
   type SidebarItem,
@@ -37,6 +38,7 @@ const SECTIONS: { title: string; items: SidebarItem[] }[] = [
       { href: "/projects", label: "Projetos", icon: FolderKanban },
       { href: "/campaigns", label: "Campanhas", icon: Megaphone },
       { href: "/content", label: "Conteúdos", icon: FileText },
+      { href: "/pautas", label: "Pautas do Dia", icon: Lightbulb },
     ],
   },
   {
@@ -89,8 +91,24 @@ export function Sidebar({
   const { profile } = useAuth();
   const { tip, tipNode } = useSidebarTip(collapsed);
 
+  // Pautas novas do Radar de Pauta (n8n) ainda não vistas → bolinha na aba.
+  const [ideasBadge, setIdeasBadge] = useState(0);
+  useEffect(() => {
+    if (!profile) return;
+    const supabase = createClient();
+    const load = () => unreadIdeasCount(supabase, profile.id).then(setIdeasBadge).catch(() => {});
+    load();
+    const interval = setInterval(load, 60000);
+    window.addEventListener("content-ideas-seen", load);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("content-ideas-seen", load);
+    };
+  }, [profile]);
+
   // Abas liberadas para este usuário (profiles.allowed_tabs); null = tudo do papel.
-  const visible = (items: SidebarItem[]) => items.filter((i) => pathAllowed(profile, i.href));
+  const visible = (items: SidebarItem[]) =>
+    items.filter((i) => pathAllowed(profile, i.href)).map((i) => (i.href === "/pautas" ? { ...i, badge: ideasBadge } : i));
   const sections = SECTIONS.map((s) => ({ ...s, items: visible(s.items) })).filter((s) => s.items.length > 0);
   const trafficNav = visible(TRAFFIC_NAV);
   const instagramNav = visible(INSTAGRAM_NAV);
