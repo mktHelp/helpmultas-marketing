@@ -578,8 +578,8 @@ function ItemList({ title, items, onChange, total, unit = "" }: { title: string;
   );
 }
 
-function Live({ c, children }: { c: DreResult; children?: ReactNode }) {
-  const p = c.pico;
+function Live({ c, children, zero }: { c: DreResult; children?: ReactNode; zero?: boolean }) {
+  const p = zero ? { resultado: 0, faturamento: 0 } : c.pico;
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-[#2c5a73] p-5 text-white shadow-[var(--shadow-md)] sm:p-6">
       <div className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
@@ -588,13 +588,13 @@ function Live({ c, children }: { c: DreResult; children?: ReactNode }) {
       </p>
       <div className="relative mt-3">
         <p className="text-xs text-blue-100">Retorno do investimento</p>
-        <p className="font-display text-4xl font-bold text-yellow-500">{c.pay ? `Mês ${c.pay}` : "> 36 meses"}</p>
+        <p className="font-display text-4xl font-bold text-yellow-500">{zero ? "—" : c.pay ? `Mês ${c.pay}` : "> 36 meses"}</p>
       </div>
       <div className="relative mt-4 grid grid-cols-2 gap-3">
         <Stat label="Faturamento líquido / mês" value={brlShort(p.resultado)} accent />
         <Stat label="Faturamento / mês" value={brlShort(p.faturamento)} />
-        <Stat label="Clientes / mês" value={c.casosMes.toFixed(1).replace(".", ",")} />
-        <Stat label="Ticket médio" value={brl(c.ticket)} />
+        <Stat label="Clientes / mês" value={(zero ? 0 : c.casosMes).toFixed(1).replace(".", ",")} />
+        <Stat label="Ticket médio" value={brl(zero ? 0 : c.ticket)} />
       </div>
       {children && <div className="relative mt-5 border-t border-white/15 pt-5">{children}</div>}
     </div>
@@ -631,7 +631,7 @@ function StepMercado({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: 
     <Split
       insights={<><InsightsCard step={0} S={S} c={c} /><InsightsCard step={1} S={S} c={c} /></>}
       aside={
-        <Live c={c}>
+        <Live c={c} zero>
           <p className="mb-3 text-sm font-semibold">Composição do mercado</p>
           <Bars items={S.mercado.map((x) => ({ n: x.n, v: +x.v || 0, fmt: num }))} />
           <p className="mt-3 text-xs text-blue-100">{num(c.mercado)} pessoas alcançadas</p>
@@ -639,7 +639,7 @@ function StepMercado({ S, c, patch, pickRegiao }: StepProps & { pickRegiao: (r: 
       }
     >
       <PreencherTexto S={S} onApply={patch} />
-      <Section title="Quem é o lead?">
+      <Section title="Futuro Franqueado">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Nome do lead">
             <input value={S.lead} onChange={(e) => patch({ lead: e.target.value })} placeholder="Ex.: Roberson Alvarenga" className={inputCls} />
