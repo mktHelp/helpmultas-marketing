@@ -37,7 +37,7 @@ export function Dialog({
   const sizes = { sm: "max-w-md", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div
         className="absolute inset-0 bg-blue-900/40 backdrop-blur-[2px] animate-in fade-in duration-150"
         onClick={onClose}

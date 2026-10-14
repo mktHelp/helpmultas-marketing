@@ -453,6 +453,7 @@ export const TeleprompterStage = forwardRef<
   return (
     <div
       ref={stageRef}
+      data-update-block={fullscreen ? "" : undefined}
       className={cn("fixed inset-0 z-[100] flex-col bg-black", fullscreen ? "flex" : "hidden")}
       style={{
         paddingTop: "env(safe-area-inset-top)",

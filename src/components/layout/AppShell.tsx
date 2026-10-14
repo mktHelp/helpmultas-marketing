@@ -6,6 +6,7 @@ import { AccessGuard } from "./AccessGuard";
 import { Topbar } from "./Topbar";
 import { LiveCursors } from "@/components/shared/LiveCursors";
 import { HelpinhoWidget } from "@/components/assistant/HelpinhoWidget";
+import { UpdateNotifier } from "@/components/updates/UpdateNotifier";
 import { useSmoothScroll } from "@/components/shared/SmoothScroll";
 
 const STORAGE_KEY = "hm-sidebar-collapsed";
@@ -76,6 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     >
       <LiveCursors />
       <HelpinhoWidget />
+      <UpdateNotifier />
       <div className="hidden lg:block">
         <Sidebar collapsed={collapsed} animate={animate} onToggle={toggleCollapsed} />
       </div>

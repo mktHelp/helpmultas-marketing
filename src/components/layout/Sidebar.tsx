@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar,
   FolderKanban, Megaphone, FileText, Users, BarChart3, Settings, Trash2,
-  Cake, AtSign, Image as ImageIcon, Mic, HandCoins, TrendingUp, Gauge, Contact, CalendarCheck, ChevronDown, Lightbulb, Send,
+  Cake, AtSign, Image as ImageIcon, Mic, HandCoins, TrendingUp, Gauge, Contact, CalendarCheck, ChevronDown, Lightbulb, Send, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pathAllowed } from "@/lib/access";
@@ -70,6 +70,7 @@ const AREAS_NAV: SidebarItem[] = [{ href: "/expansao", label: "Expansão", icon:
 const TOOLS_NAV: SidebarItem[] = [
   { href: "/trash", label: "Lixeira", icon: Trash2 },
   { href: "/settings", label: "Configurações", icon: Settings },
+  { href: "/atualizacoes", label: "Atualizações", icon: Sparkles },
 ];
 
 const ROLE_LABEL: Record<string, string> = { master: "Master", gestor: "Gestor", membro: "Membro", expansao: "Expansão" };
