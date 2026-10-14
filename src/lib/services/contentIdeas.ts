@@ -80,7 +80,7 @@ export function discardIdea(supabase: SupabaseClient, id: string, userId: string
 }
 
 export function reopenIdea(supabase: SupabaseClient, id: string, userId: string) {
-  return decide(supabase, id, userId, { status: "nova" });
+  return decide(supabase, id, userId, { status: "nova", task_id: null });
 }
 
 /** Aprova a pauta e cria a tarefa com briefing, roteiro e legenda já preenchidos. */

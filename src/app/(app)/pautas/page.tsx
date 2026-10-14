@@ -151,7 +151,7 @@ export default function PautasPage() {
                       onApprove={() => run(idea.id, () => approveIdeaAsTask(supabase, idea, profile!.id), "Pauta aprovada — tarefa criada!")}
                       onTeleprompter={() => run(idea.id, () => sendIdeaToTeleprompter(supabase, idea, profile!.id), "Roteiro enviado ao Teleprompter!")}
                       onDiscard={() => run(idea.id, () => discardIdea(supabase, idea.id, profile!.id), "Pauta descartada.")}
-                      onReopen={() => run(idea.id, () => reopenIdea(supabase, idea.id, profile!.id), "Pauta reaberta.")}
+                      onReopen={() => run(idea.id, () => reopenIdea(supabase, idea.id, profile!.id), "Pauta voltou para Novas.")}
                     />
                   ))}
                 </div>
@@ -251,9 +251,10 @@ function IdeaCard({
           <>
             {idea.task_id && <Link href={`/tasks/${idea.task_id}`} className="text-xs font-bold text-blue-800 hover:underline">Abrir tarefa →</Link>}
             {idea.teleprompter_script_id && <Link href="/teleprompter" className="text-xs font-bold text-blue-800 hover:underline">Abrir no Teleprompter →</Link>}
-            {idea.status === "descartada" && (
-              <Button size="sm" variant="ghost" onClick={onReopen} disabled={busy} className="gap-1"><RotateCcw className="h-4 w-4" /> Reabrir</Button>
+            {idea.status === "aprovada" && isVideo && !idea.teleprompter_script_id && (
+              <Button size="sm" variant="secondary" onClick={onTeleprompter} disabled={busy} className="gap-1"><Mic className="h-4 w-4" /> Teleprompter</Button>
             )}
+            <Button size="sm" variant="ghost" onClick={onReopen} disabled={busy} className="gap-1"><RotateCcw className="h-4 w-4" /> Voltar</Button>
           </>
         )}
       </div>
