@@ -23,6 +23,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-15-validacao-de-leads",
+    date: "2026-10-15",
+    tag: "novo",
+    area: "Tráfego Pago",
+    title: "Validação de leads LP/nativo × CRM a cada 3h",
+    summary: "Nova página mostra quantos e quais leads da LP e do formulário nativo não chegaram ao CRM, e os duplicados.",
+    details: [
+      "A cada 3h o Hub puxa os leads do formulário nativo direto da Meta e compara, junto com os da LP, com o que o CRM exportou (por telefone e e-mail).",
+      "Em Tráfego Pago › Validação de leads: totais por origem, lista de quem está fora do CRM e grupos de duplicados (na LP, no nativo e no próprio CRM).",
+      "Leads com menos de 3h30 aparecem como “aguardando”, porque ainda podem vir no próximo export do CRM. Dá para rodar na hora com “Validar agora”.",
+    ],
+  },
+  {
     id: "2026-10-15-exportar-leads-reunioes",
     date: "2026-10-15",
     tag: "novo",

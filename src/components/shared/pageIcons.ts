@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar, FolderKanban, Megaphone, FileText, Users, BarChart3,
-  Settings, Trash2, Cake, AtSign, Image as ImageIcon, Bot, Mic, HandCoins, TrendingUp, UserCircle, Gauge, Contact, Calculator, CalendarCheck, Send, Sparkles,
+  Settings, Trash2, Cake, AtSign, Image as ImageIcon, Bot, Mic, HandCoins, TrendingUp, UserCircle, Gauge, Contact, Calculator, CalendarCheck, Send, Sparkles, ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +21,7 @@ const ICONS: [string, LucideIcon][] = [
   ["/reports", BarChart3],
   ["/instagram", AtSign],
   ["/trafego-pago/dashboard", Gauge],
+  ["/trafego-pago/leads/validacao", ShieldCheck],
   ["/trafego-pago/leads", Contact],
   ["/trafego-pago/reunioes", CalendarCheck],
   ["/trafego-pago", TrendingUp],
