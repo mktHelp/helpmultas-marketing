@@ -293,7 +293,7 @@ export function OverviewTab({
                 <stop offset="100%" stopColor={metric.color} stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
             <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
             <RTooltip content={<ChartTooltip total={showSplit} />} />
@@ -307,8 +307,8 @@ export function OverviewTab({
               </>
             ) : (
               <Area isAnimationActive={false}
-                type="monotone" dataKey="value" name={metric.label} stroke={metric.color} strokeWidth={2.5} fill="url(#mainFill)"
-                dot={{ r: 2.5, fill: metric.color }} activeDot={{ r: 5 }}
+                type="monotone" dataKey="value" name={metric.label} stroke={metric.color} strokeWidth={2} fill="url(#mainFill)"
+                dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
               />
             )}
           </AreaChart>
@@ -348,12 +348,12 @@ export function OverviewTab({
             </div>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={typeSeries} margin={{ left: -10, right: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
                 <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
                 <RTooltip content={<ChartTooltip total />} cursor={{ fill: "#f4f6f8" }} />
                 {typeCats.map((c) => (
-                  <Bar isAnimationActive={false} key={c} dataKey={c} name={`${CATEGORY_LABEL[c]} · ${typeMetricLabel}`} stackId="type" fill={CATEGORY_COLOR[c]} />
+                  <Bar maxBarSize={28} isAnimationActive={false} key={c} dataKey={c} name={`${CATEGORY_LABEL[c]} · ${typeMetricLabel}`} stackId="type" fill={CATEGORY_COLOR[c]} />
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -435,12 +435,12 @@ export function OverviewTab({
               </div>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={postsByDay} margin={{ left: -24, right: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                   <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
                   <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
                   <RTooltip content={<ChartTooltip total />} cursor={{ fill: "#f4f6f8" }} />
                   {presentCats.filter((c) => !hiddenCats.has(c)).map((c) => (
-                    <Bar isAnimationActive={false} key={c} dataKey={c} name={CATEGORY_LABEL[c]} stackId="posts" fill={CATEGORY_COLOR[c]} radius={[2, 2, 0, 0]} />
+                    <Bar maxBarSize={28} isAnimationActive={false} key={c} dataKey={c} name={CATEGORY_LABEL[c]} stackId="posts" fill={CATEGORY_COLOR[c]} radius={[2, 2, 0, 0]} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -464,22 +464,22 @@ export function OverviewTab({
               {followerEvolution.length > 1 && (
                 <ResponsiveContainer width="100%" height={130}>
                   <ComposedChart data={followerEvolution} margin={{ left: -4, right: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                    <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                     <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
                     <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} domain={["dataMin - 20", "dataMax + 20"]} tickFormatter={compact} />
                     <RTooltip content={<ChartTooltip />} />
-                    <Line isAnimationActive={false} type="monotone" dataKey="followers" name="Seguidores" stroke={BRAND.blue} strokeWidth={2.5} dot={false} />
+                    <Line isAnimationActive={false} type="monotone" dataKey="followers" name="Seguidores" stroke={BRAND.blue} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               )}
               <ResponsiveContainer width="100%" height={130}>
                 <BarChart data={netRows.map((r) => ({ label: shortDate(r.date), tip: tipDate(r.date), v: r.net_followers }))} margin={{ left: -4, right: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                   <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
                   <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} />
                   <RTooltip content={<ChartTooltip format={signed} />} cursor={{ fill: "#f4f6f8" }} />
                   <ReferenceLine y={0} stroke="#9aa7af" />
-                  <Bar isAnimationActive={false} dataKey="v" name="Ganho líquido" radius={[3, 3, 0, 0]}>
+                  <Bar maxBarSize={28} isAnimationActive={false} dataKey="v" name="Ganho líquido" radius={[4, 4, 0, 0]}>
                     {netRows.map((r) => (
                       <Cell key={r.date} fill={r.net_followers >= 0 ? BRAND.green : BRAND.red} />
                     ))}
@@ -524,13 +524,13 @@ export function OverviewTab({
       <Panel title="Desempenho por dia da semana" subtitle="Média de visualizações (barras) e de publicações no feed/reels (linha)">
         <ResponsiveContainer width="100%" height={260}>
           <ComposedChart data={weekday} margin={{ left: -10, right: -10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
             <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
             <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals />
             <RTooltip content={<ChartTooltip format={(n) => (Number.isInteger(n) ? fmt(n) : n.toFixed(1).replace(".", ","))} />} cursor={{ fill: "#f4f6f8" }} />
-            <Bar isAnimationActive={false} yAxisId="l" dataKey="views" name="Views (média)" fill={BRAND.blue} radius={[6, 6, 0, 0]} />
-            <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="posts" name="Publicações (média)" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} />
+            <Bar maxBarSize={28} isAnimationActive={false} yAxisId="l" dataKey="views" name="Views (média)" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+            <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="posts" name="Publicações (média)" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
           </ComposedChart>
         </ResponsiveContainer>
       </Panel>

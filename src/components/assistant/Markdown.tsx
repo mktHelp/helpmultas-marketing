@@ -114,7 +114,7 @@ export function Markdown({ children, reveal = false, className }: { children: st
               <table className="w-full border-collapse text-left text-[13px]">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-blue-900 text-white">{children}</thead>,
+          thead: ({ children }) => <thead className="bg-gray-050 text-gray-500">{children}</thead>,
           th: ({ children }) => <th className="whitespace-nowrap px-3 py-2 font-display text-xs font-semibold">{children}</th>,
           tbody: ({ children }) => <tbody className="divide-y divide-gray-100 [&>tr:nth-child(even)]:bg-gray-050">{children}</tbody>,
           td: ({ children }) => <td className="px-3 py-2 align-top text-blue-900">{children}</td>,

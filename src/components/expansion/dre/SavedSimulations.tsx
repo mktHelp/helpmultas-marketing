@@ -119,7 +119,7 @@ export function SavedSimulations({
                     type="button"
                     disabled={busy}
                     onClick={() => onPrint(r.id)}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-full border-2 border-blue-900 px-3.5 text-xs font-bold text-blue-900 hover:bg-blue-050 disabled:opacity-50"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-blue-900 px-3.5 text-xs font-bold text-blue-900 hover:bg-blue-050 disabled:opacity-50"
                   >
                     <Printer className="h-3.5 w-3.5" /> PDF
                   </button>

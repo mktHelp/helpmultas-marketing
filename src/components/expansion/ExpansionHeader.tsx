@@ -141,8 +141,8 @@ export function ExpansionShell({
         </div>
       )}
 
-      <div className="min-w-0 flex-1 print:!block">
-        <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 lg:hidden print:!hidden" style={{ paddingTop: "max(env(safe-area-inset-top), 0.75rem)" }}>
+      <div className="min-w-0 flex-1 bg-[color:var(--surface-app)] lg:my-2 lg:mr-2 lg:min-h-[calc(100vh-16px)] lg:rounded-[18px] print:!m-0 print:!block print:bg-white">
+        <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-gray-200 bg-[color:var(--surface-app)] px-4 py-3 lg:hidden print:!hidden" style={{ paddingTop: "max(env(safe-area-inset-top), 0.75rem)" }}>
           <button type="button" onClick={() => setMobileOpen(true)} aria-label="Abrir menu" className="rounded-lg p-2 text-gray-700 hover:bg-gray-100">
             <Menu className="h-5 w-5" />
           </button>
@@ -150,7 +150,7 @@ export function ExpansionShell({
           {userName && <span className="ml-auto"><UserAvatar name={userName} /></span>}
         </header>
 
-        <main className="p-4 lg:p-8 print:p-0">
+        <main className="p-4 lg:px-7 lg:py-6 print:p-0">
           <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>

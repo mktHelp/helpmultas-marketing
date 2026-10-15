@@ -35,12 +35,12 @@ export function ReportsTasks({ model, label }: { model: ReportModel; label: stri
       <Panel title="Fluxo de tarefas" subtitle={`Criadas × concluídas por dia — ${label}`}>
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={flow} margin={{ left: -10, right: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
             <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
             <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-            <Bar isAnimationActive={false} dataKey="completed" name="Concluídas" fill={BRAND.green} radius={[4, 4, 0, 0]} />
-            <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} />
+            <Bar maxBarSize={28} isAnimationActive={false} dataKey="completed" name="Concluídas" fill={BRAND.green} radius={[4, 4, 0, 0]} />
+            <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
           </ComposedChart>
         </ResponsiveContainer>
       </Panel>
@@ -55,23 +55,23 @@ export function ReportsTasks({ model, label }: { model: ReportModel; label: stri
                   <stop offset="100%" stopColor={BRAND.blue} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip content={<ChartTooltip />} />
-              <Area isAnimationActive={false} type="monotone" dataKey="backlog" name="Backlog" stroke={BRAND.blue} strokeWidth={2.5} fill="url(#rp-backlog)" />
+              <Area isAnimationActive={false} type="monotone" dataKey="backlog" name="Backlog" stroke={BRAND.blue} strokeWidth={2} fill="url(#rp-backlog)" />
             </AreaChart>
           </ResponsiveContainer>
         </Panel>
         <Panel title="Ritmo por dia da semana" subtitle="Média de entregas (barras) e criações (linha)">
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={t.weekday} margin={{ left: -14, right: 6 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <RTooltip content={<ChartTooltip format={(n) => n.toFixed(1).replace(".", ",")} />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} dataKey="completed" name="Concluídas (média)" fill={BRAND.blue} radius={[6, 6, 0, 0]} />
-              <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas (média)" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} />
+              <Bar maxBarSize={28} isAnimationActive={false} dataKey="completed" name="Concluídas (média)" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+              <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas (média)" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </ComposedChart>
           </ResponsiveContainer>
         </Panel>

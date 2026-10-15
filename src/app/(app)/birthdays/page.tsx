@@ -192,8 +192,8 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
           className={cn(
             "ast-fade-up relative mb-5 overflow-hidden rounded-3xl p-5 sm:p-6",
             heroToday
-              ? "bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-400 text-blue-900"
-              : "bg-gradient-to-r from-blue-900 via-blue-800 to-blue-700 text-white"
+              ? "bg-yellow-500 text-blue-900"
+              : "bg-blue-900 text-white"
           )}
         >
           {heroToday &&
@@ -271,7 +271,7 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
               type="button"
               onClick={() => setMonthFilter(null)}
               className={cn(
-                "shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-all active:scale-95",
+                "shrink-0 rounded-lg border px-3 py-1 text-xs font-bold transition-all active:scale-95",
                 monthFilter === null ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
               )}
             >
@@ -287,7 +287,7 @@ function AnniversaryBoard<T extends { id: string; name: string; notes: string | 
                   onClick={() => setMonthFilter(active ? null : i + 1)}
                   disabled={count === 0 && !active}
                   className={cn(
-                    "shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-all active:scale-95 disabled:opacity-35",
+                    "shrink-0 rounded-lg border px-3 py-1 text-xs font-bold transition-all active:scale-95 disabled:opacity-35",
                     active ? "border-transparent text-white" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                   )}
                   style={active ? { backgroundColor: MONTH_COLORS[i] } : undefined}

@@ -430,7 +430,7 @@ function MenuSimulacao({ outroModelo, onTrocarModelo, onSalvas }: { outroModelo:
 
 function ModeloPicker({ onPick, onSaved, draft, onContinue }: { onPick: (m: Modelo) => void; onSaved: () => void; draft: { lead: string } | null; onContinue: () => void }) {
   const cards = [
-    { m: "home" as const, title: "Home Based", desc: "Operação enxuta, a partir de casa ou de uma sala própria.", icon: Home, tags: ["Sem ponto físico", "Custo fixo baixo"], card: "bg-gradient-to-br from-blue-900 via-blue-800 to-[#2c5a73] text-white", chip: "bg-yellow-500 text-blue-900", sub: "text-blue-100", tag: "bg-white/10 text-blue-100", cta: "bg-yellow-500 text-blue-900" },
+    { m: "home" as const, title: "Home Based", desc: "Operação enxuta, a partir de casa ou de uma sala própria.", icon: Home, tags: ["Sem ponto físico", "Custo fixo baixo"], card: "bg-blue-900 text-white", chip: "bg-yellow-500 text-blue-900", sub: "text-blue-100", tag: "bg-white/10 text-blue-100", cta: "bg-yellow-500 text-blue-900" },
     { m: "loja" as const, title: "Loja", desc: "Operação com ponto físico e estrutura própria.", icon: Store, tags: ["Ponto físico", "DRE detalhada"], card: "bg-white text-blue-900 ring-1 ring-gray-200", chip: "bg-blue-900 text-yellow-500", sub: "text-gray-500", tag: "bg-blue-050 text-blue-800", cta: "bg-blue-900 text-white" },
   ];
   return (
@@ -451,7 +451,6 @@ function ModeloPicker({ onPick, onSaved, draft, onContinue }: { onPick: (m: Mode
               onClick={() => onPick(m)}
               className={cn("group relative flex min-h-[300px] flex-col items-start overflow-hidden rounded-3xl p-7 text-left shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]", card)}
             >
-              <span className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
               <span className={cn("relative flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg", chip)}><Icon className="h-7 w-7" /></span>
               <span className="relative mt-6 block font-display text-3xl font-bold">{title}</span>
               <span className={cn("relative mt-1 block text-sm", sub)}>{desc}</span>
@@ -581,8 +580,7 @@ function ItemList({ title, items, onChange, total, unit = "" }: { title: string;
 function Live({ c, children, zero }: { c: DreResult; children?: ReactNode; zero?: boolean }) {
   const p = zero ? { resultado: 0, faturamento: 0 } : c.pico;
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-[#2c5a73] p-5 text-white shadow-[var(--shadow-md)] sm:p-6">
-      <div className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
+    <div className="relative overflow-hidden rounded-3xl bg-blue-900 p-5 text-white shadow-[var(--shadow-md)] sm:p-6">
       <p className="relative flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-100">
         <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-500" /> Sua DRE ao vivo
       </p>
@@ -836,7 +834,7 @@ function StepProjecao({ S, c, patch }: StepProps) {
           <NumInput value={S.rampa} onChange={(rampa) => patch({ rampa })} suffix="meses" className="w-36 shrink-0 [&_input]:h-9" />
         </div>
       </Section>
-      <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-400 px-5 py-4 text-blue-900">
+      <div className="flex items-center gap-4 rounded-2xl bg-yellow-500 px-5 py-4 text-blue-900">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-sm font-bold text-yellow-500">60d</span>
         <div>
           <p className="font-display text-sm font-bold">Após 60 dias - recompra e indicação</p>

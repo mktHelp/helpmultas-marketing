@@ -3,15 +3,17 @@
 // Peças da sidebar compartilhadas pelo Hub (Marketing/Tarefas) e pela Expansão, para as
 // duas terem exatamente a mesma estrutura, cores e comportamento:
 // cabeçalho com marca + recolher, Helpinho em destaque, navegação por seções e rodapé do usuário.
+// A aba ativa usa bordas invertidas: ganha a cor da folha de trabalho e se funde a ela.
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bot, LogOut, PanelLeftClose, PanelLeftOpen, Sparkles, X, type LucideIcon } from "lucide-react";
+import { Bot, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isNavActive } from "@/lib/navigation";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 
-export const SIDEBAR_WIDTH = { expanded: 256, collapsed: 76 };
+export const SIDEBAR_WIDTH = { expanded: 248, collapsed: 72 };
 
 export interface SidebarItem {
   href: string;
@@ -23,9 +25,7 @@ export interface SidebarItem {
   badge?: number;
 }
 
-export function isItemActive(pathname: string, item: Pick<SidebarItem, "href" | "exact">) {
-  return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/");
-}
+export const isItemActive = isNavActive;
 
 /* ---------------- tooltip do modo recolhido ---------------- */
 
@@ -48,7 +48,7 @@ export function useSidebarTip(collapsed: boolean) {
   };
   const node =
     collapsed && state ? (
-      <div className="pointer-events-none fixed z-[60] -translate-y-1/2" style={{ top: state.top, left: SIDEBAR_WIDTH.collapsed + 10 }}>
+      <div className="pointer-events-none fixed z-[60] -translate-y-1/2" style={{ top: state.top, left: SIDEBAR_WIDTH.collapsed + 12 }}>
         <div role="tooltip" className="sb-item-in whitespace-nowrap rounded-lg bg-blue-900 px-2.5 py-1.5 text-xs font-bold text-white shadow-lg ring-1 ring-white/10">
           {state.label}
         </div>
@@ -86,45 +86,67 @@ export function SidebarLink({
       onMouseLeave={tip.hide}
       onFocus={(e) => collapsed && tip.show(item.label, e.currentTarget)}
       onBlur={tip.hide}
-      style={{ animationDelay: `${Math.min(index, 10) * 28}ms` }}
+      style={{ animationDelay: `${Math.min(index, 14) * 18}ms` }}
       className={cn(
-        "sb-item-in group relative flex items-center rounded-xl text-sm font-semibold transition-all duration-200",
-        collapsed ? "mx-auto h-11 w-11 justify-center" : "gap-3 px-2.5 py-2",
-        active ? "bg-yellow-500 text-blue-900 shadow-md shadow-yellow-500/20" : "text-blue-100 hover:bg-white/10 hover:text-white",
-        !active && !collapsed && "hover:translate-x-0.5"
+        "sb-item-in group relative flex items-center rounded-[10px] text-[13px] font-semibold transition-colors duration-150",
+        collapsed ? "h-10 justify-center" : "h-9 gap-2.5 pl-2.5",
+        active
+          ? cn("sb-tab-active rounded-r-none text-blue-900", collapsed ? "mr-0 pr-[10px]" : "mr-0 pr-5")
+          : cn("text-blue-100/75 hover:bg-white/[0.07] hover:text-white", collapsed ? "mr-[10px]" : "mr-3 pr-2.5")
       )}
     >
-      {active && <span className="sb-bar-in absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-yellow-400" aria-hidden />}
-      <span
-        className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110", !active && "text-blue-100 group-hover:text-white")}
-        style={{ backgroundColor: active ? "rgba(36,55,70,0.14)" : "rgba(255,255,255,0.07)" }}
-      >
-        <Icon className="h-[17px] w-[17px]" strokeWidth={2.2} />
-      </span>
+      <Icon
+        className={cn("h-[17px] w-[17px] shrink-0 transition-colors", active ? "text-blue-900" : "text-blue-200/70 group-hover:text-yellow-500")}
+        strokeWidth={active ? 2.3 : 2}
+      />
       {!collapsed && <span className="truncate whitespace-nowrap">{item.label}</span>}
+      {active && !collapsed && <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-yellow-500" aria-hidden />}
       {!!item.badge && (
         <span
           aria-label={`${item.badge} novidade(s)`}
           className={cn(
-            "flex items-center justify-center rounded-full bg-red-500 font-bold text-white ring-2 ring-blue-900",
-            collapsed ? "absolute right-0.5 top-0.5 h-3 w-3" : "ml-auto h-5 min-w-5 px-1.5 text-[10px]"
+            "relative flex items-center justify-center rounded-full bg-red-500 font-bold text-white",
+            collapsed ? "absolute right-1.5 top-1.5 h-2.5 w-2.5" : cn("h-[18px] min-w-[18px] px-1 text-[10px]", active ? "ml-1.5" : "ml-auto")
           )}
         >
           {!collapsed && (item.badge > 9 ? "9+" : item.badge)}
-          <span className="absolute inset-0 animate-ping rounded-full bg-red-500/50" aria-hidden />
         </span>
       )}
     </Link>
   );
 }
 
-export function SidebarSectionTitle({ title, collapsed }: { title: string; collapsed: boolean }) {
-  if (collapsed) return <div className="mx-auto my-2 h-px w-8 rounded-full bg-white/15" aria-hidden />;
+/**
+ * Título de seção. Com `onToggle`, vira um botão que recolhe/expande a seção.
+ * No modo recolhido, vira apenas um separador.
+ */
+export function SidebarSectionTitle({
+  title,
+  collapsed,
+  open = true,
+  onToggle,
+  count,
+}: {
+  title: string;
+  collapsed: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+  /** quantidade de itens (aparece quando a seção está fechada) */
+  count?: number;
+}) {
+  if (collapsed) return <div className="my-2 mr-[10px] h-px rounded-full bg-white/10" aria-hidden />;
+  const content = (
+    <>
+      <span className="whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.14em] text-blue-200/55 transition-colors group-hover:text-blue-100">{title}</span>
+      {!open && count ? <span className="rounded-full bg-white/10 px-1.5 text-[10px] font-bold text-blue-100/70">{count}</span> : null}
+      {onToggle && <ChevronDown className={cn("ml-auto h-3.5 w-3.5 text-blue-200/50 transition-transform duration-200 group-hover:text-blue-100", !open && "-rotate-90")} />}
+    </>
+  );
+  if (!onToggle) return <div className="group mr-3 flex items-center gap-2 px-2.5 pb-1 pt-4">{content}</div>;
   return (
-    <div className="flex items-center gap-2 px-2.5 pb-1 pt-3">
-      <p className="whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.12em] text-blue-200/70">{title}</p>
-      <span className="h-px flex-1 bg-gradient-to-r from-white/15 to-transparent" aria-hidden />
-    </div>
+    <button type="button" onClick={onToggle} aria-expanded={open} className="group mr-3 flex w-[calc(100%-12px)] items-center gap-2 rounded-md px-2.5 pb-1 pt-4 text-left">
+      {content}
+    </button>
   );
 }
 
@@ -141,23 +163,22 @@ export function SidebarHelpinho({ href, active, collapsed, onNavigate, tip }: { 
       onFocus={(e) => collapsed && tip.show("Helpinho", e.currentTarget)}
       onBlur={tip.hide}
       className={cn(
-        "sb-glow sb-sweep group relative flex items-center overflow-hidden rounded-xl bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-400 font-bold text-blue-900 transition-transform duration-200 hover:scale-[1.03]",
-        collapsed ? "mx-auto h-11 w-11 justify-center" : "gap-3 px-2.5 py-2.5 text-sm",
-        active && "ring-2 ring-white/70"
+        "group relative flex items-center rounded-xl border font-semibold transition-colors duration-200",
+        collapsed ? "mx-auto h-10 w-10 justify-center" : "gap-2.5 px-2 py-2 text-[13px]",
+        active ? "border-yellow-500/60 bg-yellow-500/15 text-white" : "border-white/10 bg-white/[0.04] text-blue-50 hover:border-yellow-500/40 hover:bg-white/[0.08]"
       )}
     >
-      <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-900 shadow-inner">
-        <Bot className="sb-bob h-[18px] w-[18px] text-yellow-400" strokeWidth={2.2} />
+      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-yellow-500 text-blue-900">
+        <Bot className="h-4 w-4" strokeWidth={2.3} />
+        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[color:var(--surface-frame)]" aria-hidden />
       </span>
       {!collapsed && (
-        <>
-          <span className="min-w-0 flex-1 leading-tight">
-            <span className="block whitespace-nowrap">Helpinho</span>
-            <span className="block whitespace-nowrap text-[11px] font-semibold text-blue-900/65">Assistente de marketing</span>
-          </span>
-          <Sparkles className="sb-twinkle h-4 w-4 shrink-0 text-blue-900/75" />
-        </>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block whitespace-nowrap">Helpinho</span>
+          <span className="block whitespace-nowrap text-[11px] font-medium text-blue-200/60">Assistente de marketing</span>
+        </span>
       )}
+      {!collapsed && <kbd className="rounded border border-white/10 px-1.5 py-0.5 font-sans text-[10px] font-bold text-blue-200/60">IA</kbd>}
     </Link>
   );
 }
@@ -182,7 +203,7 @@ export function SidebarUser({
   tip: TipHandlers;
   extra?: React.ReactNode;
 }) {
-  const avatar = <UserAvatar name={name || "?"} avatarUrl={avatarUrl} />;
+  const avatar = <UserAvatar name={name || "?"} avatarUrl={avatarUrl} size="sm" />;
   const avatarNode = profileHref ? (
     <Link href={profileHref} aria-label="Meu perfil" onMouseEnter={(e) => collapsed && tip.show(name || "Meu perfil", e.currentTarget)} onMouseLeave={tip.hide} className="rounded-full ring-2 ring-transparent transition-all hover:ring-yellow-500/70">
       {avatar}
@@ -191,27 +212,27 @@ export function SidebarUser({
     avatar
   );
   return (
-    <div className={cn("relative shrink-0 border-t border-white/10", collapsed ? "px-2 py-3" : "p-4")}>
-      {extra && <div className={cn("mb-3 space-y-0.5", collapsed && "flex flex-col items-center")}>{extra}</div>}
+    <div className={cn("relative shrink-0 border-t border-white/[0.08]", collapsed ? "px-2 py-3" : "px-3 py-3")}>
+      {extra && <div className={cn("mb-2 space-y-0.5", collapsed && "flex flex-col items-center")}>{extra}</div>}
       {collapsed ? (
         <div className="flex flex-col items-center gap-2">
           {avatarNode}
-          <button type="button" onClick={onLogout} aria-label="Sair" onMouseEnter={(e) => tip.show("Sair", e.currentTarget)} onMouseLeave={tip.hide} className="rounded-full p-2 text-blue-200 transition-colors hover:bg-white/10 hover:text-white">
+          <button type="button" onClick={onLogout} aria-label="Sair" onMouseEnter={(e) => tip.show("Sair", e.currentTarget)} onMouseLeave={tip.hide} className="rounded-lg p-2 text-blue-200/70 transition-colors hover:bg-white/10 hover:text-white">
             <LogOut className="h-4 w-4" />
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 rounded-xl px-1.5 py-1">
           {avatarNode}
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 leading-tight">
             {profileHref ? (
-              <Link href={profileHref} className="block truncate text-sm font-semibold text-white hover:underline">{name || "Carregando..."}</Link>
+              <Link href={profileHref} className="block truncate text-[13px] font-semibold text-white hover:underline">{name || "Carregando..."}</Link>
             ) : (
-              <p className="truncate text-sm font-semibold text-white">{name || "Carregando..."}</p>
+              <p className="truncate text-[13px] font-semibold text-white">{name || "Carregando..."}</p>
             )}
-            {subtitle && <p className="text-xs text-blue-200">{subtitle}</p>}
+            {subtitle && <p className="text-[11px] text-blue-200/60">{subtitle}</p>}
           </div>
-          <button type="button" onClick={onLogout} title="Sair" aria-label="Sair" className="rounded-full p-2 text-blue-200 transition-colors hover:bg-white/10 hover:text-white">
+          <button type="button" onClick={onLogout} title="Sair" aria-label="Sair" className="rounded-lg p-2 text-blue-200/70 transition-colors hover:bg-white/10 hover:text-white">
             <LogOut className="h-4 w-4" />
           </button>
         </div>
@@ -248,44 +269,57 @@ export function SidebarFrame({
   return (
     <div
       className={cn(
-        "sb-nav relative flex h-full shrink-0 flex-col overflow-hidden bg-gradient-to-b from-blue-900 via-blue-900 to-[#1b2b38]",
+        "sb-nav relative flex h-full shrink-0 flex-col overflow-hidden bg-[color:var(--surface-frame)]",
         animate && "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
       )}
       style={{ width: collapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded, paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-yellow-500/10 blur-3xl" aria-hidden />
-      <div className="pointer-events-none absolute -bottom-20 -right-16 h-52 w-52 rounded-full bg-sky-500/10 blur-3xl" aria-hidden />
-
       {/* marca + recolher */}
-      <div className={cn("relative flex shrink-0", collapsed ? "flex-col items-center gap-3 px-2 py-5" : "items-start justify-between px-4 py-5")}>
+      <div className={cn("relative flex h-14 shrink-0 items-center", collapsed ? "justify-center px-2" : "justify-between pl-4 pr-3")}>
         {collapsed ? (
-          <Image src="/logos/mark-white.png" alt="Help Multas" width={32} height={32} priority className="h-8 w-8 object-contain" />
+          onToggle ? (
+            <button type="button" onClick={onToggle} aria-label="Expandir menu" title="Expandir menu (Ctrl+B)" className="group relative flex h-10 w-10 items-center justify-center rounded-xl hover:bg-white/10">
+              <Image src="/logos/mark-white.png" alt="Help Multas" width={26} height={26} priority className="h-[26px] w-[26px] object-contain transition-opacity group-hover:opacity-0" />
+              <PanelLeftOpen className="absolute h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+            </button>
+          ) : (
+            <Image src="/logos/mark-white.png" alt="Help Multas" width={26} height={26} priority className="h-[26px] w-[26px] object-contain" />
+          )
         ) : (
-          <Image src="/logos/wordmark-white.png" alt="Help Multas" width={112} height={28} priority />
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Image src="/logos/wordmark-white.png" alt="Help Multas" width={100} height={25} priority style={{ width: 100, height: "auto" }} />
+            <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-yellow-500">Hub</span>
+          </div>
         )}
-        <div className="flex items-center gap-1">
-          {onToggle && (
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-              title={collapsed ? "Expandir menu (Ctrl+B)" : "Recolher menu (Ctrl+B)"}
-              className="hidden rounded-lg p-2 text-blue-200 transition-colors hover:bg-white/10 hover:text-white lg:block"
-            >
-              {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-            </button>
-          )}
-          {onClose && (
-            <button type="button" onClick={onClose} aria-label="Fechar menu" className="rounded-full p-1 text-white/70 hover:bg-white/10 lg:hidden">
-              <X className="h-5 w-5" />
-            </button>
-          )}
-        </div>
+        {!collapsed && (
+          <div className="flex items-center gap-1">
+            {onToggle && (
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-label="Recolher menu"
+                title="Recolher menu (Ctrl+B)"
+                className="hidden rounded-lg p-1.5 text-blue-200/70 transition-colors hover:bg-white/10 hover:text-white lg:block"
+              >
+                <PanelLeftClose className="h-[18px] w-[18px]" />
+              </button>
+            )}
+            {onClose && (
+              <button type="button" onClick={onClose} aria-label="Fechar menu" className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 lg:hidden">
+                <X className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className={cn("relative shrink-0 pb-2", collapsed ? "px-2" : "px-3")}>{helpinho}</div>
+      <div className={cn("relative shrink-0 pb-1", collapsed ? "px-2" : "px-3")}>{helpinho}</div>
 
-      <nav aria-label="Navegação principal" className={cn("sb-scroll relative min-h-0 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden pb-3", collapsed ? "px-2" : "px-3")} onScroll={onNavScroll}>
+      <nav
+        aria-label="Navegação principal"
+        className={cn("relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", collapsed ? "pl-[10px]" : "pl-3")}
+        onScroll={onNavScroll}
+      >
         {children}
       </nav>
 

@@ -328,12 +328,12 @@ export function TrafficReport(props: Props) {
           <div className="mb-5">
             {mounted && (
               <ComposedChart width={CHART_W} height={200} data={chartDaily} margin={{ left: -6, right: -6, top: 6 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={18} />
                 <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
                 <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Bar yAxisId="l" dataKey="spend" fill={BRAND.blue} isAnimationActive={false} radius={[3, 3, 0, 0]} />
-                <Line yAxisId="r" type="monotone" dataKey="leads" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+                <Bar maxBarSize={28} yAxisId="l" dataKey="spend" fill={BRAND.blue} isAnimationActive={false} radius={[4, 4, 0, 0]} />
+                <Line yAxisId="r" type="monotone" dataKey="leads" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
               </ComposedChart>
             )}
             <p className="mt-1 text-center text-[9px] text-gray-500"><span style={{ color: BRAND.blue }}>■</span> Investido (R$) &nbsp; <span style={{ color: BRAND.yellow }}>━</span> Leads</p>
@@ -344,10 +344,10 @@ export function TrafficReport(props: Props) {
               <SectionTitle hint={t.leads ? `Médio ${brl(cpl(t))}` : ""}>Custo por lead por dia</SectionTitle>
               {mounted && (
                 <ComposedChart width={330} height={170} data={cplDaily} margin={{ left: -14, right: 4, top: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                   <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
                   <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
-                  <Line type="monotone" dataKey="cpl" stroke={BRAND.red} strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="cpl" stroke={BRAND.red} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
                 </ComposedChart>
               )}
             </div>
@@ -355,12 +355,12 @@ export function TrafficReport(props: Props) {
               <SectionTitle>Por dia da semana</SectionTitle>
               {mounted && (
                 <ComposedChart width={330} height={170} data={weekdayData} margin={{ left: -14, right: -10, top: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                   <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
                   <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
                   <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} />
-                  <Bar yAxisId="l" dataKey="spend" fill={BRAND.blue} isAnimationActive={false} radius={[4, 4, 0, 0]} />
-                  <Line yAxisId="r" type="monotone" dataKey="leads" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} isAnimationActive={false} />
+                  <Bar maxBarSize={28} yAxisId="l" dataKey="spend" fill={BRAND.blue} isAnimationActive={false} radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="r" type="monotone" dataKey="leads" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
                 </ComposedChart>
               )}
               <p className="text-center text-[9px] text-gray-500">Média de investimento (barras) e leads (linha) nos dias com gasto</p>
@@ -492,10 +492,10 @@ export function TrafficReport(props: Props) {
                 <p className="mb-1 text-[11px] font-bold text-blue-900">Leads por dia</p>
                 {mounted && (
                   <BarChart width={330} height={150} data={lpByDay} margin={{ left: -24, right: 4, top: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                    <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                     <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
                     <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Bar dataKey="leads" fill={BRAND.green} isAnimationActive={false} radius={[3, 3, 0, 0]} />
+                    <Bar maxBarSize={28} dataKey="leads" fill={BRAND.green} isAnimationActive={false} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 )}
               </div>

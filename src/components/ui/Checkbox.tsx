@@ -10,7 +10,7 @@ export const Checkbox = forwardRef<HTMLInputElement, React.InputHTMLAttributes<H
       <input ref={ref} type="checkbox" checked={checked} className="peer sr-only" {...props} />
       <span
         className={cn(
-          "flex h-5 w-5 items-center justify-center rounded-md border-2 border-gray-300 bg-white transition-colors",
+          "flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border-[1.5px] border-gray-300 bg-white transition-colors",
           "peer-checked:border-yellow-500 peer-checked:bg-yellow-500",
           "peer-focus-visible:ring-2 peer-focus-visible:ring-yellow-500 peer-focus-visible:ring-offset-1"
         )}

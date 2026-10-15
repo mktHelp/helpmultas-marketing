@@ -45,7 +45,7 @@ export function ReportsTraffic({ model, label, range }: { model: ReportModel; la
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-end gap-2">
-        <Link href="/trafego-pago/dashboard" className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:border-blue-900">
+        <Link href="/trafego-pago/dashboard" className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:border-blue-900">
           Dashboard completa <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
         <a
@@ -72,13 +72,13 @@ export function ReportsTraffic({ model, label, range }: { model: ReportModel; la
       <Panel title="Investido × leads por dia" subtitle={label}>
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={series} margin={{ left: -6, right: -6 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
             <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
             <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
             <RTooltip content={<ChartTooltip format={(n) => (Number.isInteger(n) ? fmt(n) : brl(n))} />} cursor={{ fill: "#f4f6f8" }} />
-            <Bar isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
-            <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} />
+            <Bar maxBarSize={28} isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+            <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
           </ComposedChart>
         </ResponsiveContainer>
       </Panel>
@@ -103,13 +103,13 @@ export function ReportsTraffic({ model, label, range }: { model: ReportModel; la
         <Panel title="Dia da semana" subtitle="Média de investimento (barras) e leads (linha) nos dias com gasto">
           <ResponsiveContainer width="100%" height={230}>
             <ComposedChart data={weekday} margin={{ left: -6, right: -6 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <RTooltip content={<ChartTooltip format={(n) => (n >= 50 ? brl(n) : n.toFixed(1).replace(".", ","))} />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido (média)" fill={BRAND.blue} radius={[6, 6, 0, 0]} />
-              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads (média)" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} />
+              <Bar maxBarSize={28} isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido (média)" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads (média)" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </ComposedChart>
           </ResponsiveContainer>
         </Panel>

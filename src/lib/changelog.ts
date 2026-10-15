@@ -23,6 +23,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-15-gestor-trafego-predefinido",
+    date: "2026-10-15",
+    tag: "melhoria",
+    area: "Expansão",
+    title: "Gestor de Tráfego e Tráfego Pago pré-definidos",
+    summary: "A DRE já vem com R$ 1.000 de Gestor de Tráfego e R$ 2.000/mês de Tráfego Pago.",
+    details: [
+      "Nos modelos Home Based e Loja, a despesa Gestor de Tráfego vem pré-definida em R$ 1.000 e o Tráfego Pago em R$ 2.000 por mês (o mínimo recomendado). Os dois podem ser alterados.",
+      "Simulações já salvas mantêm os valores que tinham.",
+    ],
+  },
+  {
+    id: "2026-10-15-repaginacao-erp-v3",
+    date: "2026-10-15",
+    tag: "melhoria",
+    area: "Hub inteiro",
+    title: "Hub repaginado: visual de ERP, menu por seções e tabelas editáveis",
+    summary: "Novo visual mais limpo em todas as abas, menu lateral organizado por seções, bordas invertidas, gráficos padronizados e planilhas editáveis.",
+    details: [
+      "Menu lateral reorganizado por seções (Visão geral, Tarefas, Planejamento, Produção, Tráfego Pago, Redes sociais, Análises, Pessoas, Áreas e Sistema). Clique no nome de uma seção para recolher/expandir; a escolha fica salva.",
+      "A aba aberta no menu se encaixa na área de trabalho (bordas invertidas), e o topo mostra sempre “Seção › Página” para você saber onde está.",
+      "A busca do topo (Ctrl+K) agora também leva direto para qualquer página do menu; use as setas e Enter para navegar.",
+      "Cabeçalhos de página mais enxutos, cards e indicadores com o ícone encaixado no canto e abas de seção em formato de pasta (Relatórios, Instagram, Validação de leads).",
+      "Gráficos no mesmo padrão em todo o sistema: grade discreta, linhas finas, barras com largura uniforme e tooltip único.",
+      "Tabelas com cabeçalho claro e fixo. Em Todas as Tarefas, Minhas Tarefas (visão Tabela), Projetos e Campanhas dá para editar título, status, prioridade, datas, objetivo e verba direto na linha — é só clicar na célula.",
+      "Projetos e Campanhas ganharam indicadores no topo e a opção Planilha × Cartões (a escolha fica salva).",
+    ],
+  },
+  {
     id: "2026-10-15-validacao-leads-expansao",
     date: "2026-10-15",
     tag: "novo",

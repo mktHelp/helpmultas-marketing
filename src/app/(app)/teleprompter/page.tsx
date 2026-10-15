@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -429,38 +430,28 @@ function TeleprompterContent() {
 
   return (
     <div className="pb-24 md:pb-0">
-      {/* Banner (compacto no celular) */}
-      <div className="ast-fade-up relative mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 p-4 text-white sm:mb-5 sm:p-6">
-        <div className="pointer-events-none absolute -right-10 -top-12 h-52 w-52 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
-        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-48 w-48 rounded-full bg-sky-400/10 blur-3xl" aria-hidden />
-        <div className="relative flex flex-wrap items-center gap-3 sm:gap-4">
-          <span className="ast-float flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-yellow-500 text-blue-900 shadow-lg sm:h-14 sm:w-14">
-            <MonitorPlay className="h-6 w-6 sm:h-7 sm:w-7" />
-          </span>
-          <div className="min-w-0 flex-1 basis-40">
-            <h1 className="font-display text-xl font-bold sm:text-2xl">Teleprompter</h1>
-            <p className="mt-0.5 hidden text-sm text-blue-100 sm:block">
-              Escreva no editor, peça ajuda ao Helpinho (que escreve no estilo do Rober), selecione um trecho e mande para o teleprompter.
-            </p>
-          </div>
+      <PageHeader
+        icon={MonitorPlay}
+        title="Teleprompter"
+        description="Escreva no editor, peça ajuda ao Helpinho (que escreve no estilo do Rober), selecione um trecho e mande para o teleprompter."
+        action={
           <div className="hidden items-center gap-2 md:flex">
-            <Button onClick={handleNew} variant="secondary" className="gap-1.5 border-white/40 bg-white/10 text-white hover:bg-white/20">
+            <Button onClick={handleNew} variant="secondary" className="gap-1.5">
               <Plus className="h-4 w-4" /> Novo roteiro
             </Button>
             <Button onClick={() => openStage(editorRef.current?.getSelectionText() ?? "")} disabled={wordCount === 0} className="gap-1.5">
               <Play className="h-4 w-4" /> Abrir teleprompter
             </Button>
           </div>
-        </div>
-        <div className="relative mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold sm:mt-4 sm:gap-2 sm:text-xs">
-          <span className="rounded-full bg-white/10 px-2.5 py-1">{pendingCount} {pendingCount === 1 ? "pendente" : "pendentes"}</span>
-          <span className="rounded-full bg-white/10 px-2.5 py-1">{recordedCount} {recordedCount === 1 ? "gravado" : "gravados"}</span>
-          {overdueCount > 0 && <span className="rounded-full bg-red-500/90 px-2.5 py-1">{overdueCount} atrasado{overdueCount === 1 ? "" : "s"}</span>}
-        </div>
-      </div>
+        }
+      >
+        <span className="rounded-md border border-gray-200 bg-white px-2.5 py-1">{pendingCount} {pendingCount === 1 ? "pendente" : "pendentes"}</span>
+        <span className="rounded-md border border-gray-200 bg-white px-2.5 py-1">{recordedCount} {recordedCount === 1 ? "gravado" : "gravados"}</span>
+        {overdueCount > 0 && <span className="rounded-md bg-[color:var(--color-danger-bg)] px-2.5 py-1 text-[color:var(--color-danger)]">{overdueCount} atrasado{overdueCount === 1 ? "" : "s"}</span>}
+      </PageHeader>
 
       {/* Abas — tablet/desktop (no celular elas ficam na barra inferior) */}
-      <div className="sticky top-0 z-20 -mx-1 mb-5 hidden bg-gradient-to-b from-white via-white to-transparent px-1 pb-2 pt-1 md:block">
+      <div className="sticky top-0 z-20 -mx-1 mb-5 hidden bg-gradient-to-b from-[color:var(--surface-app)] via-[color:var(--surface-app)] to-transparent px-1 pb-2 pt-1 md:block">
         <div className="flex gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-[var(--shadow-sm)]" role="tablist">
           {NAV_TABS.filter((t) => !t.mobileOnly).map((t) => {
             const Icon = t.icon;
@@ -566,7 +557,7 @@ function TeleprompterContent() {
               <button
                 type="button"
                 onClick={startWithHelpinho}
-                className="group flex flex-col items-start gap-2 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-400 p-3.5 text-left text-blue-900 shadow-md shadow-yellow-500/25 transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+                className="group flex flex-col items-start gap-2 rounded-2xl bg-yellow-500 p-3.5 text-left text-blue-900 transition-all hover:-translate-y-0.5 active:scale-[0.98]"
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-900 text-yellow-400 transition-transform group-hover:rotate-6 group-hover:scale-110">
                   <Wand2 className="h-5 w-5" />
@@ -642,7 +633,7 @@ function TeleprompterContent() {
                 <button
                   type="button"
                   onClick={() => setFolderDialog({ mode: "create" })}
-                  className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-xs font-bold text-blue-800 transition-colors hover:bg-blue-050 active:scale-95 sm:py-1.5"
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-blue-800 transition-colors hover:bg-blue-050 active:scale-95 sm:py-1.5"
                 >
                   <FolderPlus className="h-3.5 w-3.5" /> Nova pasta
                 </button>
@@ -664,7 +655,7 @@ function TeleprompterContent() {
                         onClick={() => setFolderFilter(f.key)}
                         aria-pressed={active}
                         className={cn(
-                          "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95",
+                          "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all active:scale-95",
                           active ? "border-transparent text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                         )}
                         style={active ? { backgroundColor: f.color } : undefined}
@@ -1030,7 +1021,7 @@ function TeleprompterContent() {
                     onClick={() => void toggleRecorded(selected)}
                     aria-pressed={selected.is_recorded}
                     className={cn(
-                      "inline-flex h-10 items-center gap-2 rounded-full border-2 px-4 font-display text-sm font-semibold transition-all active:scale-95",
+                      "inline-flex h-10 items-center gap-2 rounded-lg border px-4 font-display text-sm font-semibold transition-all active:scale-95",
                       selected.is_recorded
                         ? "border-[color:var(--color-success)] bg-[color:var(--color-success)] text-white"
                         : "border-gray-300 bg-white text-gray-700 hover:border-[color:var(--color-success)] hover:text-[color:var(--color-success)]"
@@ -1045,7 +1036,7 @@ function TeleprompterContent() {
                   onClick={() => setAiOpen((v) => !v)}
                   aria-pressed={aiOpen}
                   className={cn(
-                    "ml-auto hidden h-10 items-center gap-2 rounded-full border-2 px-4 font-display text-sm font-semibold transition-all active:scale-95 lg:inline-flex",
+                    "ml-auto hidden h-10 items-center gap-2 rounded-lg border px-4 font-display text-sm font-semibold transition-all active:scale-95 lg:inline-flex",
                     aiOpen ? "border-blue-900 bg-blue-900 text-white" : "border-blue-900 bg-white text-blue-900 hover:bg-blue-050"
                   )}
                 >
@@ -1160,7 +1151,7 @@ function TeleprompterContent() {
                   aria-pressed={mirrored}
                   title="Espelhar texto (para vidro de teleprompter físico)"
                   className={cn(
-                    "inline-flex h-12 items-center justify-center gap-1.5 rounded-full border-2 px-3 font-display text-sm font-semibold transition-all active:scale-95",
+                    "inline-flex h-12 items-center justify-center gap-1.5 rounded-lg border px-3 font-display text-sm font-semibold transition-all active:scale-95",
                     mirrored ? "border-blue-900 bg-blue-900 text-white" : "border-blue-900 bg-white text-blue-900 hover:bg-blue-050"
                   )}
                 >
@@ -1172,7 +1163,7 @@ function TeleprompterContent() {
                   onClick={() => openStage(editorRef.current?.getSelectionText() ?? "", true)}
                   disabled={wordCount === 0}
                   title="Gravar em modo selfie com teleprompter na tela"
-                  className="inline-flex h-12 items-center justify-center gap-1.5 rounded-full border-2 border-blue-900 bg-white px-3 font-display text-sm font-semibold text-blue-900 transition-all hover:bg-blue-050 active:scale-95 disabled:opacity-40"
+                  className="inline-flex h-12 items-center justify-center gap-1.5 rounded-lg border border-blue-900 bg-white px-3 font-display text-sm font-semibold text-blue-900 transition-all hover:bg-blue-050 active:scale-95 disabled:opacity-40"
                 >
                   <Camera className="h-4 w-4" /> Gravar selfie
                 </button>

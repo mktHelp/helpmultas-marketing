@@ -685,7 +685,7 @@ export function TrafficMeetings() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const th = "sticky top-0 whitespace-nowrap bg-blue-900 px-4 py-3 text-left text-white";
+  const th = "sticky top-0 whitespace-nowrap border-b border-gray-200 bg-gray-050 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500";
 
   return (
     <div className="space-y-6">
@@ -726,7 +726,7 @@ export function TrafficMeetings() {
               setFilter("none");
               document.getElementById("lista-reunioes")?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
-            className="rounded-full border border-blue-900 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-900 hover:text-white"
+            className="rounded-lg border border-blue-900 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-900 hover:text-white"
           >
             Ver quais são
           </button>
@@ -873,7 +873,7 @@ export function TrafficMeetings() {
                 onClick={() => runExport(k)}
                 disabled={loading || filtered.length === 0 || exporting !== null}
                 title={`Exportar ${filtered.length} leads em ${k.toUpperCase()} com os filtros aplicados`}
-                className="inline-flex h-11 items-center gap-1.5 rounded-full border border-gray-200 px-4 text-xs font-semibold text-blue-900 transition-colors hover:border-blue-900 disabled:opacity-40 sm:h-10"
+                className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-gray-200 px-4 text-xs font-semibold text-blue-900 transition-colors hover:border-blue-900 disabled:opacity-40 sm:h-10"
               >
                 {exporting === k ? <Download className="h-4 w-4 animate-pulse" /> : k === "pdf" ? <FileText className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" />}
                 {k === "pdf" ? "PDF" : "XLSX"}

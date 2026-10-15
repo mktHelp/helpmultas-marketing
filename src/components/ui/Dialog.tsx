@@ -44,7 +44,7 @@ export function Dialog({
       />
       <div
         className={cn(
-          "relative z-10 w-full rounded-[20px] bg-white shadow-[var(--shadow-lg)] max-h-[90dvh] overflow-y-auto",
+          "relative z-10 w-full rounded-2xl bg-white shadow-[var(--shadow-lg)] max-h-[90dvh] overflow-y-auto",
           sizes[size],
           className
         )}
@@ -86,5 +86,5 @@ export function DialogBody({ className, children }: { className?: string; childr
 }
 
 export function DialogFooter({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center justify-end gap-2 border-t border-gray-200 p-5">{children}</div>;
+  return <div className="flex items-center justify-end gap-2 rounded-b-2xl border-t border-gray-200 bg-gray-050/70 px-5 py-3.5">{children}</div>;
 }

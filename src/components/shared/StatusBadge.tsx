@@ -14,9 +14,10 @@ export function StatusBadge({ status }: { status: string }) {
 
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide"
-      style={{ backgroundColor: `${s.color}22`, color: s.color }}
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold"
+      style={{ backgroundColor: `${s.color}1a`, color: s.color }}
     >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
       {s.label}
     </span>
   );

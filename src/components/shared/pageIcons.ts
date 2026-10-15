@@ -1,36 +1,10 @@
-import {
-  LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar, FolderKanban, Megaphone, FileText, Users, BarChart3,
-  Settings, Trash2, Cake, AtSign, Image as ImageIcon, Bot, Mic, HandCoins, TrendingUp, UserCircle, Gauge, Contact, Calculator, CalendarCheck, Send, Sparkles, ShieldCheck,
-  type LucideIcon,
-} from "lucide-react";
+import { Bot, Calculator, HandCoins, UserCircle, type LucideIcon } from "lucide-react";
+import { NAV_SECTIONS } from "@/lib/navigation";
 
 // Ícone de cada página (o mesmo da sidebar), usado pelo cabeçalho padrão quando a
 // página não informa um. Vale o prefixo mais específico.
 const ICONS: [string, LucideIcon][] = [
-  ["/dashboard", LayoutDashboard],
-  ["/my-day", Sun],
-  ["/my-tasks", ListChecks],
-  ["/tasks", ListTodo],
-  ["/board", Kanban],
-  ["/calendar", Calendar],
-  ["/projects", FolderKanban],
-  ["/campaigns", Megaphone],
-  ["/content", FileText],
-  ["/team", Users],
-  ["/birthdays", Cake],
-  ["/reports", BarChart3],
-  ["/instagram", AtSign],
-  ["/trafego-pago/dashboard", Gauge],
-  ["/trafego-pago/leads/validacao", ShieldCheck],
-  ["/trafego-pago/leads", Contact],
-  ["/trafego-pago/reunioes", CalendarCheck],
-  ["/trafego-pago", TrendingUp],
-  ["/creatives", ImageIcon],
-  ["/distribuicao", Send],
-  ["/teleprompter", Mic],
-  ["/trash", Trash2],
-  ["/settings", Settings],
-  ["/atualizacoes", Sparkles],
+  ...NAV_SECTIONS.flatMap((s) => s.items.map((i): [string, LucideIcon] => [i.href, i.icon])),
   ["/assistente", Bot],
   ["/profile", UserCircle],
   ["/expansao/assistente", Bot],

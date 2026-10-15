@@ -84,7 +84,7 @@ export function ReportsInstagram({
           ))}
         </div>
         <div className="flex gap-2">
-          <Link href="/instagram" className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:border-blue-900">
+          <Link href="/instagram" className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:border-blue-900">
             Dashboard completa <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
           <a
@@ -113,13 +113,13 @@ export function ReportsInstagram({
       <Panel title="Visualizações por dia" subtitle={`${label}${lines.length > 1 ? " — uma linha por perfil" : ""}`}>
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={series} margin={{ left: -10, right: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
             <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
             <RTooltip content={<ChartTooltip />} />
             {lines.map((a) => {
               const idx = ig.accounts.findIndex((x) => x.id === a.id);
-              return <Line key={a.id} isAnimationActive={false} type="monotone" dataKey={a.id} name={a.label} stroke={ACCOUNT_COLORS[idx % ACCOUNT_COLORS.length]} strokeWidth={2.5} dot={false} />;
+              return <Line key={a.id} isAnimationActive={false} type="monotone" dataKey={a.id} name={a.label} stroke={ACCOUNT_COLORS[idx % ACCOUNT_COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />;
             })}
           </ComposedChart>
         </ResponsiveContainer>

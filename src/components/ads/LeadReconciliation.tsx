@@ -83,7 +83,7 @@ export function LeadReconciliation({ tabParam = "aba" }: { tabParam?: string } =
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-blue-900 to-[#2f4a5e] p-4 text-white shadow-[var(--shadow-sm)] sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-blue-900 p-4 text-white shadow-[var(--shadow-sm)] sm:px-6">
         <div className="flex items-center gap-3">
           <span className={cn("relative flex h-3 w-3", !run && "opacity-0")}>
             <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", run?.status === "error" ? "bg-red-400" : "bg-green-400")} />
@@ -98,7 +98,7 @@ export function LeadReconciliation({ tabParam = "aba" }: { tabParam?: string } =
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className="h-10 rounded-full border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white outline-none [&>option]:text-blue-900"
+            className="h-10 rounded-lg border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white outline-none [&>option]:text-blue-900"
             value={run?.id ?? ""}
             onChange={(e) => setSelected(e.target.value)}
             aria-label="Ciclo"

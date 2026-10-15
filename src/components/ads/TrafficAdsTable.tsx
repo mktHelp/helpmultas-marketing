@@ -86,7 +86,7 @@ function SpendCell({ value, max }: { value: number; max: number }) {
     <div className="min-w-[96px]">
       <span className="font-semibold tabular-nums text-blue-900">{currencyFormatter.format(value)}</span>
       <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100">
-        <div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-indigo-500" style={{ width: `${max > 0 ? Math.max(3, (value / max) * 100) : 0}%` }} />
+        <div className="h-full rounded-full bg-blue-600" style={{ width: `${max > 0 ? Math.max(3, (value / max) * 100) : 0}%` }} />
       </div>
     </div>
   );
@@ -180,12 +180,12 @@ function SortableTable<T extends { id: string }>({
         </ul>
       )}
 
-      <div className={cn("max-h-[70vh] overflow-auto rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-sm)]", mobileCard && "hidden md:block")}>
+      <div className={cn("max-h-[70vh] overflow-auto rounded-2xl border border-gray-200/80 bg-white", mobileCard && "hidden md:block")}>
         <table className="w-full min-w-[1100px] border-collapse text-sm">
           <thead>
-            <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-white">
+            <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
               {columns.map((col) => (
-                <th key={col.key} className={cn("sticky top-0 z-20 bg-blue-900 px-4 py-3", col.widthClass)}>
+                <th key={col.key} className={cn("sticky top-0 z-20 border-b border-gray-200 bg-gray-050 px-4 py-2.5", col.widthClass)}>
                   {col.sortValue ? (
                     <button
                       onClick={() => toggleSort(col.key)}
@@ -505,6 +505,16 @@ function AdsSection({
   );
 }
 
+// Cores sóbrias do padrão v3 no lugar dos gradientes coloridos.
+const TONE: Record<string, string> = {
+  "from-sky-500 to-indigo-500": "#243746",
+  "from-violet-500 to-fuchsia-500": "#6b8cae",
+  "from-emerald-500 to-teal-500": "#2f8f5b",
+  "from-amber-500 to-orange-500": "#c99400",
+  "from-rose-500 to-pink-500": "#c23b3b",
+};
+const toneOf = (gradient: string) => TONE[gradient] ?? "#243746";
+
 function Kpi({
   icon: Icon,
   label,
@@ -520,22 +530,20 @@ function Kpi({
   gradient: string;
   index: number;
 }) {
+  const color = toneOf(gradient);
   return (
     <div
-      style={{ animationDelay: `${index * 60}ms` }}
-      className="ast-fade-up group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-3.5 shadow-[var(--shadow-sm)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]"
+      style={{ animationDelay: `${index * 50}ms` }}
+      className="hm-card ast-fade-up relative min-h-[88px] rounded-2xl p-3.5 shadow-[var(--shadow-sm)]"
     >
-      <span className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", gradient)} aria-hidden />
-      <div className="flex items-center gap-2.5">
-        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110", gradient)}>
-          <Icon className="h-[18px] w-[18px]" />
+      <span className="ic-slot">
+        <span className="flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ backgroundColor: `${color}1a`, color }}>
+          <Icon className="h-4 w-4" />
         </span>
-        <div className="min-w-0 leading-tight">
-          <p className="truncate font-display text-lg font-bold tabular-nums text-blue-900 sm:text-xl">{value}</p>
-          <p className="truncate text-[11px] font-bold uppercase tracking-wide text-gray-500">{label}</p>
-          {hint && <p className="truncate text-[10px] text-gray-400">{hint}</p>}
-        </div>
-      </div>
+      </span>
+      <p className="truncate pr-10 text-xs font-semibold text-gray-500">{label}</p>
+      <p className="mt-1 truncate font-display text-xl font-semibold tabular-nums text-blue-900">{value}</p>
+      {hint && <p className="truncate text-[11px] text-gray-400">{hint}</p>}
     </div>
   );
 }
@@ -665,7 +673,7 @@ export function TrafficAdsTable() {
   return (
     <div>
       {/* Período */}
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-3xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-sm)]">
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200/80 bg-white p-3 shadow-[var(--shadow-sm)]">
         <div className="flex flex-wrap gap-1.5">
           {([7, 14, 30, 60] as const).map((d) => (
             <button
@@ -674,7 +682,7 @@ export function TrafficAdsTable() {
               onClick={() => quickRange(d)}
               aria-pressed={rangeDays === d}
               className={cn(
-                "rounded-full border px-3.5 py-2 text-xs font-bold transition-all active:scale-95 sm:py-1.5",
+                "rounded-lg border px-3.5 py-2 text-xs font-bold transition-all active:scale-95 sm:py-1.5",
                 rangeDays === d ? "border-transparent bg-blue-900 text-white shadow-sm" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-050"
               )}
             >
@@ -687,7 +695,7 @@ export function TrafficAdsTable() {
             disabled={!structure.minDate}
             aria-pressed={isAll}
             className={cn(
-              "rounded-full border px-3.5 py-2 text-xs font-bold transition-all active:scale-95 disabled:opacity-40 sm:py-1.5",
+              "rounded-lg border px-3.5 py-2 text-xs font-bold transition-all active:scale-95 disabled:opacity-40 sm:py-1.5",
               isAll ? "border-transparent bg-blue-900 text-white shadow-sm" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-050"
             )}
           >
@@ -702,7 +710,7 @@ export function TrafficAdsTable() {
             max={dateRange.until}
             min={structure.minDate ?? undefined}
             onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, since: e.target.value }))}
-            className="h-10 rounded-full border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-9"
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-9"
           />
           até
           <input
@@ -712,7 +720,7 @@ export function TrafficAdsTable() {
             min={dateRange.since}
             max={structure.maxDate ?? undefined}
             onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, until: e.target.value }))}
-            className="h-10 rounded-full border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-9"
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-9"
           />
         </div>
         {structure.minDate && <p className="w-full text-[11px] text-gray-400">Dados sincronizados desde {formatDay(structure.minDate)}.</p>}
@@ -748,7 +756,7 @@ export function TrafficAdsTable() {
               onClick={() => setTab(l.key)}
               className={cn(
                 "group relative flex flex-col items-center gap-1 rounded-2xl border-2 px-2 py-2.5 transition-all duration-200 active:scale-[0.98] sm:flex-row sm:justify-center sm:gap-2.5 sm:py-3",
-                active ? "border-transparent bg-gradient-to-r from-blue-900 to-sky-800 text-white shadow-md" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                active ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
               )}
             >
               <Icon className={cn("h-5 w-5 transition-transform duration-200 group-hover:scale-110", active ? "text-yellow-400" : "text-blue-700")} />

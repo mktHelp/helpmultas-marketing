@@ -88,7 +88,7 @@ export function SocialFollowersCard({
 
   return (
     <Card className="p-5">
-      <h3 className="font-display text-[17px] font-semibold text-blue-900">Seguidores</h3>
+      <h3 className="font-display text-[15px] font-semibold text-blue-900">Seguidores</h3>
       <p className="mt-0.5 text-xs text-gray-500">Instagram · variação diária</p>
 
       {accounts.length === 0 ? (

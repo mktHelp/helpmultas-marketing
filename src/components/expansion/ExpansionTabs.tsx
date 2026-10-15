@@ -45,7 +45,7 @@ export function ExpansionTabs() {
         action={
           section === "dre" ? (
             modelo ? (
-              <span className="inline-flex items-center gap-2 rounded-full bg-yellow-500 px-4 py-2 text-sm font-bold text-blue-900 shadow-lg">
+              <span className="inline-flex items-center gap-2 rounded-[10px] bg-yellow-500 px-3.5 py-2 text-[13px] font-bold text-blue-900">
                 {modelo === "loja" ? <Store className="h-4 w-4" /> : <Home className="h-4 w-4" />} Modelo {MODELO_LABEL[modelo]}
               </span>
             ) : undefined

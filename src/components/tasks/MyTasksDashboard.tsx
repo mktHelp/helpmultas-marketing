@@ -375,11 +375,11 @@ export function MyTasksDashboard({
         <Panel title="Suas entregas" subtitle="Concluídas por dia nos últimos 14 dias">
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={spark14} margin={{ left: -24, right: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={14} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} dataKey="count" name="Concluídas" fill={BRAND.green} radius={[4, 4, 0, 0]} />
+              <Bar maxBarSize={28} isAnimationActive={false} dataKey="count" name="Concluídas" fill={BRAND.green} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
@@ -442,7 +442,7 @@ export function MyTasksDashboard({
               </FilterSelect>
           )}
           {hasFilter && (
-            <button onClick={clearFilters} className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:border-blue-900">
+            <button onClick={clearFilters} className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:border-blue-900">
               <X className="h-3.5 w-3.5" /> Limpar
             </button>
           )}

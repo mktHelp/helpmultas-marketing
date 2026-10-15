@@ -214,11 +214,11 @@ export function ExecutiveReport({
                 <p className="mb-1 text-[11px] font-bold text-blue-900">Visualizações por dia</p>
                 {mounted && (
                   <ComposedChart width={CHART_W} height={180} data={igSeries} margin={{ left: -6, right: 8, top: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                    <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                     <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={18} />
                     <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
                     {ig.accounts.map((a, i) => (
-                      <Line key={a.id} type="monotone" dataKey={a.id} stroke={ACCOUNT_COLORS[i % ACCOUNT_COLORS.length]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                      <Line key={a.id} type="monotone" dataKey={a.id} stroke={ACCOUNT_COLORS[i % ACCOUNT_COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
                     ))}
                   </ComposedChart>
                 )}
@@ -331,12 +331,12 @@ export function ExecutiveReport({
                 <p className="mb-1 text-[11px] font-bold text-blue-900">Investido × leads por dia</p>
                 {mounted && (
                   <ComposedChart width={CHART_W} height={170} data={trSeries} margin={{ left: -6, right: -6, top: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                    <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                     <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={18} />
                     <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
                     <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Bar yAxisId="l" dataKey="spend" fill={BRAND.blue} radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                    <Line yAxisId="r" type="monotone" dataKey="leads" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+                    <Bar maxBarSize={28} yAxisId="l" dataKey="spend" fill={BRAND.blue} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                    <Line yAxisId="r" type="monotone" dataKey="leads" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
                   </ComposedChart>
                 )}
 
@@ -412,11 +412,11 @@ export function ExecutiveReport({
             <p className="mb-1 text-[11px] font-bold text-blue-900">Concluídas (barras) e criadas (linha) por dia</p>
             {mounted && (
               <ComposedChart width={CHART_W} height={170} data={flowSeries} margin={{ left: -24, right: 8, top: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={18} />
                 <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Bar dataKey="completed" fill={BRAND.green} radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                <Line type="monotone" dataKey="created" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} isAnimationActive={false} />
+                <Bar maxBarSize={28} dataKey="completed" fill={BRAND.green} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Line type="monotone" dataKey="created" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
               </ComposedChart>
             )}
 

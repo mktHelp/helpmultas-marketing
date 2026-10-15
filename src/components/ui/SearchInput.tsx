@@ -31,7 +31,7 @@ export function SearchInput({
         placeholder={placeholder}
         aria-label={placeholder}
         // 16px no celular evita o zoom automático do iOS ao focar
-        className="h-11 w-full appearance-none rounded-full border border-gray-200 bg-white pl-10 pr-9 text-base text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10 sm:text-sm [&::-webkit-search-cancel-button]:appearance-none"
+        className="h-11 w-full appearance-none rounded-[10px] border border-gray-200 bg-white pl-10 pr-9 text-base text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-yellow-500 focus:shadow-[var(--shadow-focus)] sm:h-9 sm:text-[13px] [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value && (
         <button type="button" onClick={() => onChange("")} aria-label="Limpar busca" className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-blue-900">

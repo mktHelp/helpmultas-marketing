@@ -60,7 +60,7 @@ const axisMoney = (v: number) => brlShort(v).replace("R$ ", "");
 function MonthlyChart({ c }: { c: DreResult }) {
   return (
     <AreaChart width={W} height={210} data={c.meses} margin={{ left: 0, right: 12, top: 18, bottom: 0 }}>
-      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+      <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
       <XAxis dataKey="m" tick={{ fontSize: 9 }} tickLine={false} interval={2} />
       <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={48} tickFormatter={axisMoney} />
       <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
@@ -74,7 +74,7 @@ function MonthlyChart({ c }: { c: DreResult }) {
 function CashChart({ c }: { c: DreResult }) {
   return (
     <AreaChart width={W} height={210} data={c.meses} margin={{ left: 0, right: 12, top: 18, bottom: 0 }}>
-      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+      <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
       <XAxis dataKey="m" tick={{ fontSize: 9 }} tickLine={false} interval={2} />
       <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={48} tickFormatter={axisMoney} />
       <ReferenceLine y={0} stroke={NAVY} />
@@ -91,12 +91,12 @@ function YearChart({ c }: { c: DreResult }) {
   });
   return (
     <BarChart width={W / 2 - 8} height={190} data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+      <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
       <XAxis dataKey="ano" tick={{ fontSize: 9 }} tickLine={false} />
       <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={44} tickFormatter={axisMoney} />
       <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
-      <Bar isAnimationActive={false} dataKey="Faturamento" fill={NAVY} radius={[5, 5, 0, 0]} label={{ position: "top", fontSize: 8, fill: NAVY, formatter: (v: unknown) => axisMoney(Number(v)) }} />
-      <Bar isAnimationActive={false} dataKey="Fat. líquido" fill={YELLOW} radius={[5, 5, 0, 0]} label={{ position: "top", fontSize: 8, fill: "#8a6a00", formatter: (v: unknown) => axisMoney(Number(v)) }} />
+      <Bar maxBarSize={28} isAnimationActive={false} dataKey="Faturamento" fill={NAVY} radius={[4, 4, 0, 0]} label={{ position: "top", fontSize: 8, fill: NAVY, formatter: (v: unknown) => axisMoney(Number(v)) }} />
+      <Bar maxBarSize={28} isAnimationActive={false} dataKey="Fat. líquido" fill={YELLOW} radius={[4, 4, 0, 0]} label={{ position: "top", fontSize: 8, fill: "#8a6a00", formatter: (v: unknown) => axisMoney(Number(v)) }} />
     </BarChart>
   );
 }
@@ -184,14 +184,14 @@ function JornadaChart({ S, c }: { S: DreInput; c: DreResult }) {
         ))}
       </div>
     <LineChart width={W} height={230} data={data} margin={{ left: 0, right: 12, top: 18, bottom: 0 }}>
-      <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+      <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
       <XAxis dataKey="m" tick={{ fontSize: 9 }} tickLine={false} interval={2} />
       <YAxis tick={{ fontSize: 9 }} tickLine={false} axisLine={false} width={48} tickFormatter={axisMoney} />
       <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
       <ReferenceLine y={0} stroke={NAVY} label={{ value: "Investimento recuperado", position: "insideTopLeft", fontSize: 9, fill: NAVY }} />
-      <Line isAnimationActive={false} type="monotone" dataKey="Conservador" stroke={ORANGE} strokeWidth={2} dot={false} />
-      <Line isAnimationActive={false} type="monotone" dataKey="Otimista" stroke={GREEN} strokeWidth={2} dot={false} />
-      <Line isAnimationActive={false} type="monotone" dataKey="Realista" stroke={NAVY} strokeWidth={3} dot={false} />
+      <Line isAnimationActive={false} type="monotone" dataKey="Conservador" stroke={ORANGE} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
+      <Line isAnimationActive={false} type="monotone" dataKey="Otimista" stroke={GREEN} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
+      <Line isAnimationActive={false} type="monotone" dataKey="Realista" stroke={NAVY} strokeWidth={3} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
     </LineChart>
     </div>
   );

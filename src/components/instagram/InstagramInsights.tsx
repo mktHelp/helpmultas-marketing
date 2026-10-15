@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AtSign, ExternalLink, FileDown } from "lucide-react";
+import { AtSign, ExternalLink, FileDown, LayoutGrid, Image as ImageIcon, Users } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Tabs } from "@/components/ui/Tabs";
+import { FolderTabs } from "@/components/ui/FolderTabs";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { OverviewTab } from "@/components/instagram/OverviewTab";
@@ -21,9 +22,9 @@ import type {
 } from "@/types/database";
 
 const SECTIONS = [
-  { key: "overview", label: "Visão geral" },
-  { key: "content", label: "Conteúdo" },
-  { key: "audience", label: "Público" },
+  { key: "overview", label: "Visão geral", icon: LayoutGrid },
+  { key: "content", label: "Conteúdo", icon: ImageIcon },
+  { key: "audience", label: "Público", icon: Users },
 ];
 
 function DateField({
@@ -183,14 +184,22 @@ export function InstagramInsights({
             <FileDown className="h-4 w-4" />
             Exportar PDF
           </Button>
-          <Tabs tabs={SECTIONS} active={section} onChange={setSection} />
-          {section !== "audience" && (
+        </div>
+      </div>
+
+      <FolderTabs
+        tabs={SECTIONS}
+        active={section}
+        onChange={setSection}
+        bodyClassName="space-y-5"
+        aside={
+          section !== "audience" ? (
             <div className="w-full min-w-0 max-w-full overflow-x-auto sm:w-auto">
               <Tabs tabs={PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as PeriodKey)} />
             </div>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      >
 
       {section !== "audience" && (
         <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
@@ -252,7 +261,7 @@ export function InstagramInsights({
       {/* Comparativo */}
       {section === "overview" && comparison.length > 1 && (
         <Card className="overflow-x-auto p-5">
-          <h3 className="font-display text-[17px] font-semibold text-blue-900">Comparativo dos perfis</h3>
+          <h3 className="font-display text-[15px] font-semibold text-blue-900">Comparativo dos perfis</h3>
           <p className="mt-0.5 text-xs text-gray-500">{label}</p>
           <table className="mt-3 w-full min-w-[560px] text-sm">
             <thead>
@@ -286,6 +295,8 @@ export function InstagramInsights({
           </table>
         </Card>
       )}
+
+      </FolderTabs>
 
       {lastSync && (
         <p className="text-center text-[11px] text-gray-400">

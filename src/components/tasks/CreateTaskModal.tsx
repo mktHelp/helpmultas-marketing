@@ -181,8 +181,7 @@ export function CreateTaskModal({
         }}
       >
         {/* Cabeçalho */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 px-5 py-5 text-white sm:px-7">
-          <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-yellow-500/20 blur-3xl" aria-hidden />
+        <div className="relative overflow-hidden bg-blue-900 px-5 py-5 text-white sm:px-7">
           <div className="relative flex items-center gap-3.5">
             <span className="ast-float flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-500 text-blue-900 shadow-lg">
               <ListPlus className="h-6 w-6" />
@@ -340,7 +339,7 @@ export function CreateTaskModal({
                           type="button"
                           onClick={() => update("estimated_minutes", String(p.minutes))}
                           className={cn(
-                            "rounded-full border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+                            "rounded-lg border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
                             form.estimated_minutes === String(p.minutes) ? "border-yellow-500 bg-yellow-100 text-blue-900" : "border-gray-200 text-gray-600 hover:bg-gray-050"
                           )}
                         >

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AtSign, Download, FileText, LayoutGrid, ListTodo, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
+import { FolderTabs } from "@/components/ui/FolderTabs";
 import { ReportsOverview, summaryRows } from "@/components/reports/ReportsOverview";
 import { ReportsTasks } from "@/components/reports/ReportsTasks";
 import { ReportsInstagram } from "@/components/reports/ReportsInstagram";
@@ -14,7 +15,6 @@ import { shiftDate, todayBRT, type DateRange } from "@/lib/period";
 import { downloadCsv } from "@/lib/csv";
 import { cpl, ctr } from "@/lib/traffic-analytics";
 import type { ReportsRawData } from "@/lib/services/reports";
-import { cn } from "@/lib/utils";
 
 // Aba Relatórios: visão geral consolidada (Instagram + Tráfego + Produção) e
 // uma aba por frente, todas com o mesmo período e a mesma base de cálculo
@@ -111,24 +111,12 @@ export function ReportsHub({ raw }: { raw: ReportsRawData }) {
   const pdfHref = `/relatorio/geral?period=custom&from=${range.from}&to=${range.to}&sections=${pdfSections}&print=1`;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {SECTIONS.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setSection(s.key)}
-              className={cn(
-                "flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors",
-                section === s.key ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-blue-900 hover:text-blue-900"
-              )}
-            >
-              <s.icon className="h-4 w-4" />
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+    <FolderTabs
+      tabs={SECTIONS.map((s) => ({ key: s.key, label: s.label, icon: s.icon }))}
+      active={section}
+      onChange={(k) => setSection(k as typeof section)}
+      aside={
+        <>
           <Button variant="secondary" size="sm" onClick={exportCsv} className="gap-1.5">
             <Download className="h-4 w-4" /> Exportar CSV
           </Button>
@@ -137,10 +125,11 @@ export function ReportsHub({ raw }: { raw: ReportsRawData }) {
               <FileText className="h-4 w-4" /> Baixar PDF
             </Button>
           </a>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
+        </>
+      }
+      bodyClassName="space-y-5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
         <div className="min-w-0 max-w-full overflow-x-auto">
           <Tabs tabs={REPORT_PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as ReportPeriodKey)} />
         </div>
@@ -150,21 +139,20 @@ export function ReportsHub({ raw }: { raw: ReportsRawData }) {
             <DateField label="Até" value={custom.to} max={today} onChange={(v) => setCustom((c) => ({ ...c, to: v }))} />
           </div>
         )}
+        <p className="w-full text-xs text-gray-500 lg:w-auto">
+          <span className="font-semibold text-blue-900">{label}</span>
+          {` · ${shiftLabel(range.from)} a ${shiftLabel(range.to)}`}
+          {model.closed
+            ? ` · comparado a ${shiftLabel(model.prevRange.from)} – ${shiftLabel(model.prevRange.to)}`
+            : " · o período inclui hoje (parcial): sem comparação com o período anterior"}
+        </p>
       </div>
-
-      <p className="text-xs text-gray-500">
-        <span className="font-semibold text-blue-900">{label}</span>
-        {` · ${shiftLabel(range.from)} a ${shiftLabel(range.to)}`}
-        {model.closed
-          ? ` · comparado a ${shiftLabel(model.prevRange.from)} – ${shiftLabel(model.prevRange.to)}`
-          : " · o período inclui hoje (parcial): sem comparação com o período anterior"}
-      </p>
 
       {section === "overview" && <ReportsOverview model={model} label={label} />}
       {section === "tasks" && <ReportsTasks model={model} label={label} />}
       {section === "instagram" && <ReportsInstagram model={model} label={label} period={period} range={range} />}
       {section === "traffic" && <ReportsTraffic model={model} label={label} range={range} />}
-    </div>
+    </FolderTabs>
   );
 }
 

@@ -171,7 +171,7 @@ export function ExpansionCreativesTable() {
           <thead>
             <tr className="text-left text-xs font-bold uppercase text-gray-500">
               {COLUMNS.map((col) => (
-                <th key={col.label} className={cn(STICKY_TH, "px-4 py-3", col.widthClass)}>
+                <th key={col.label} className={cn(STICKY_TH, "px-4 py-2.5", col.widthClass)}>
                   {col.key ? (
                     <button
                       onClick={() => toggleSort(col.key!)}

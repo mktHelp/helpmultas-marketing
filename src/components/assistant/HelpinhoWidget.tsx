@@ -313,7 +313,7 @@ export function HelpinhoWidget() {
           >
             <span className="ast-ring absolute inset-0 rounded-full bg-yellow-500/50" aria-hidden />
             <span className="ast-ring absolute inset-0 rounded-full bg-yellow-500/40" style={{ animationDelay: "1.2s" }} aria-hidden />
-            <span className="ast-float relative flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-blue-800 to-blue-900 shadow-lg shadow-blue-900/30 ring-2 ring-yellow-500">
+            <span className="ast-float relative flex h-full w-full items-center justify-center rounded-full bg-blue-900 shadow-lg shadow-blue-900/30 ring-2 ring-yellow-500">
               <Bot className="h-8 w-8 text-yellow-500 transition-transform duration-200 group-hover:rotate-6" />
             </span>
             <Sparkles className="sb-twinkle absolute -right-0.5 -top-0.5 h-5 w-5 text-yellow-400 drop-shadow" />
@@ -326,11 +326,11 @@ export function HelpinhoWidget() {
         <section
           role="dialog"
           aria-label="Conversa com o Helpinho"
-          className="hw-pop-in print:hidden fixed inset-x-2 bottom-2 top-16 z-[45] flex flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-lg)] sm:inset-x-auto sm:bottom-5 sm:right-5 sm:top-auto sm:h-[min(640px,calc(100dvh-2.5rem))] sm:w-[400px]"
+          className="hw-pop-in print:hidden fixed inset-x-2 bottom-2 top-16 z-[45] flex flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[var(--shadow-lg)] sm:inset-x-auto sm:bottom-5 sm:right-5 sm:top-auto sm:h-[min(640px,calc(100dvh-2.5rem))] sm:w-[400px]"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
           {/* Cabeçalho */}
-          <header className="flex shrink-0 items-center gap-2 bg-gradient-to-r from-blue-900 to-blue-800 px-3 py-3 text-white">
+          <header className="flex shrink-0 items-center gap-2 bg-blue-900 px-3 py-3 text-white">
             {view === "list" ? (
               <button type="button" onClick={() => setView("chat")} aria-label="Voltar à conversa" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10">
                 <ChevronLeft className="h-5 w-5" />
@@ -490,7 +490,7 @@ export function HelpinhoWidget() {
                     <button
                       type="button"
                       onClick={() => chat.activeId && void chat.reloadHistory(chat.activeId)}
-                      className="mt-2 inline-flex items-center gap-1.5 rounded-full border-2 border-blue-900 px-4 py-1.5 text-xs font-semibold text-blue-900"
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-blue-900 px-4 py-1.5 text-xs font-semibold text-blue-900"
                     >
                       <RotateCcw className="h-3.5 w-3.5" /> Tentar novamente
                     </button>

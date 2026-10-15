@@ -74,7 +74,7 @@ export function TodayAnniversaries({ onlyMine = false }: { onlyMine?: boolean })
   return (
     <Card className="p-5">
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 font-display text-[17px] font-semibold text-blue-900">
+        <h3 className="flex items-center gap-2 font-display text-[15px] font-semibold text-blue-900">
           <Cake className="h-5 w-5 text-yellow-600" /> Aniversários de hoje
         </h3>
         <Link href="/birthdays" className="text-xs font-semibold text-blue-800 hover:underline">

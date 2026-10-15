@@ -63,7 +63,7 @@ export function GoalsPanel({
   return (
     <Card className="p-5">
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-[17px] font-semibold text-blue-900">Metas</h3>
+        <h3 className="font-display text-[15px] font-semibold text-blue-900">Metas</h3>
         {canManage && (
           <button
             onClick={() => {
@@ -90,7 +90,7 @@ export function GoalsPanel({
             return (
               <div
                 key={goal.id}
-                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-400 to-yellow-500 p-4 shadow-lg shadow-yellow-500/25 transition-transform hover:scale-[1.02]"
+                className="group relative overflow-hidden rounded-2xl bg-yellow-500 p-4 transition-transform hover:scale-[1.02]"
               >
                 <Target
                   className="pointer-events-none absolute -right-4 -top-4 h-24 w-24 text-blue-900/10"

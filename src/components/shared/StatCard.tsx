@@ -60,25 +60,30 @@ export function StatCard({
       type={onClick ? "button" : undefined}
       onClick={onClick}
       aria-pressed={onClick ? !!active : undefined}
-      style={{ animationDelay: `${index * 60}ms`, borderColor: active ? color : undefined }}
+      style={{ animationDelay: `${index * 50}ms` }}
       className={cn(
-        "ast-fade-up group relative flex items-center gap-3 overflow-hidden rounded-2xl border bg-white p-3.5 text-left shadow-[var(--shadow-sm)] transition-all duration-200",
-        onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0",
-        active ? "border-2" : "border-gray-200"
+        "hm-card ast-fade-up group relative flex min-h-[92px] flex-col justify-between overflow-hidden rounded-2xl p-4 text-left shadow-[var(--shadow-sm)] transition-all duration-200",
+        onClick && "cursor-pointer hover:shadow-[var(--shadow-md)]"
       )}
     >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} aria-hidden />
+      {/* ícone no encaixe com bordas invertidas */}
+      <span className="ic-slot">
+        <span
+          className="flex h-9 w-9 items-center justify-center rounded-[11px] transition-transform duration-200 group-hover:scale-105"
+          style={{ backgroundColor: active ? color : `${color}1f`, color: active ? "#fff" : color }}
+        >
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+      </span>
+      <span className="block truncate pr-11 text-xs font-semibold text-gray-500">{label}</span>
+      <span className="mt-1 block font-display text-[26px] font-semibold leading-none tracking-tight text-blue-900 tabular-nums">{shown}</span>
+      {hint && <span className="mt-1.5 block truncate text-[11px] text-gray-400">{hint}</span>}
+      {/* filtro ativo: traço na base, na cor do indicador */}
       <span
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6"
-        style={{ backgroundColor: `${color}1f`, color }}
-      >
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="min-w-0 leading-tight">
-        <span className="block font-display text-2xl font-bold text-blue-900 tabular-nums">{shown}</span>
-        <span className="block truncate text-xs font-semibold text-gray-500">{label}</span>
-        {hint && <span className="block truncate text-[11px] text-gray-400">{hint}</span>}
-      </span>
+        className={cn("absolute inset-x-4 bottom-0 h-[3px] rounded-t-full transition-opacity", active ? "opacity-100" : "opacity-0")}
+        style={{ backgroundColor: color }}
+        aria-hidden
+      />
     </Comp>
   );
 }

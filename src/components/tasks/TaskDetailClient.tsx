@@ -255,7 +255,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
       </Link>
 
       {/* ---------------- Cabeçalho ---------------- */}
-      <div className="ast-fade-up overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-sm)]">
+      <div className="ast-fade-up overflow-hidden rounded-2xl border border-gray-200/80 bg-white">
         <div className="h-2 transition-colors duration-500" style={{ backgroundColor: statusColor }} aria-hidden />
         <div className="p-4 sm:p-6">
           <div className="flex flex-wrap items-start gap-3">
@@ -331,7 +331,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
               {status?.label ?? task.status}
             </span>
             {priority && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold" style={{ borderColor: `${priority.color}66`, color: priority.color, backgroundColor: `${priority.color}14` }}>
+              <span className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-bold" style={{ borderColor: `${priority.color}66`, color: priority.color, backgroundColor: `${priority.color}14` }}>
                 <Flag className="h-3 w-3" /> {priority.label}
               </span>
             )}
@@ -411,7 +411,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
           <div key={tab} className="ast-fade-up space-y-4">
             {tab === "detalhes" && (
               <>
-                <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
+                <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
                   <h3 className="mb-2.5 flex items-center gap-2 font-display text-sm font-bold text-blue-900">
                     <AlignLeft className="h-4 w-4 text-blue-700" /> Descrição
                   </h3>
@@ -431,7 +431,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
                   />
                 </section>
 
-                <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
+                <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
                   <h3 className="mb-3 flex items-center gap-2 font-display text-sm font-bold text-blue-900">
                     <ListChecks className="h-4 w-4 text-blue-700" /> Checklist
                     {checklist.length > 0 && (
@@ -449,7 +449,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
             )}
 
             {tab === "conteudo" && (
-              <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
+              <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
                 <div className="mb-4 flex flex-wrap items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <h3 className="flex items-center gap-2 font-display text-sm font-bold text-blue-900">
@@ -508,19 +508,19 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
             )}
 
             {tab === "comentarios" && (
-              <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
+              <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
                 <CommentsPanel taskId={task.id} comments={comments} onChange={setComments} />
               </section>
             )}
 
             {tab === "anexos" && (
-              <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
+              <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
                 <AttachmentsPanel taskId={task.id} attachments={attachments} onChange={setAttachments} />
               </section>
             )}
 
             {tab === "historico" && (
-              <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
+              <section className="rounded-2xl border border-gray-200/80 bg-white p-4 shadow-[var(--shadow-sm)] sm:p-5">
                 <ActivityTimeline logs={activity} />
               </section>
             )}
@@ -529,7 +529,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
 
         {/* ---------------- Propriedades ---------------- */}
         <aside className="lg:sticky lg:top-0 lg:self-start">
-          <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-sm)]">
+          <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white">
             <button
               type="button"
               onClick={() => setPropsOpen((v) => !v)}
@@ -643,7 +643,7 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
                   <div className="mt-2.5">
                     <div className="h-2 overflow-hidden rounded-full bg-gray-100">
                       <div
-                        className={cn("h-2 rounded-full transition-all duration-500", overTime ? "bg-[color:var(--color-danger)]" : "bg-gradient-to-r from-yellow-500 to-amber-400")}
+                        className={cn("h-2 rounded-full transition-all duration-500", overTime ? "bg-[color:var(--color-danger)]" : "bg-yellow-500")}
                         style={{ width: `${timePercent}%` }}
                       />
                     </div>

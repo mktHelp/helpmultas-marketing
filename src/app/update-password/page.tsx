@@ -35,10 +35,10 @@ export default async function UpdatePasswordPage({
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center bg-white p-8">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center gap-4 lg:hidden">
-            <Image src="/logos/lockup-yellow.png" alt="Help Multas" width={64} height={64} />
+            <span className="rounded-2xl bg-blue-900 p-3"><Image src="/logos/lockup-yellow.png" alt="Help Multas" width={56} height={56} /></span>
           </div>
 
           <h2 className="font-display text-2xl font-bold text-blue-900">Defina uma nova senha</h2>

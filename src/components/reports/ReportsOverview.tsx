@@ -107,7 +107,7 @@ export function ReportsOverview({ model, label }: { model: ReportModel; label: s
         return (
           <section key={g}>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 font-display text-[17px] font-bold text-blue-900">
+              <h3 className="flex items-center gap-2 font-display text-[15px] font-semibold text-blue-900">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: `${style.color}22` }}>
                   <style.icon className="h-4 w-4 text-blue-900" />
                 </span>
@@ -158,7 +158,7 @@ export function ReportsOverview({ model, label }: { model: ReportModel; label: s
                   <stop offset="100%" stopColor={BRAND.blue} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={18} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <RTooltip content={<ChartTooltip />} />
@@ -169,25 +169,25 @@ export function ReportsOverview({ model, label }: { model: ReportModel; label: s
         <Panel title="Tráfego pago" subtitle="Investido × leads por dia">
           <ResponsiveContainer width="100%" height={180}>
             <ComposedChart data={trSeries} margin={{ left: -14, right: -10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={18} />
               <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip content={<ChartTooltip format={(n) => (Number.isInteger(n) ? fmt(n) : brl(n))} />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido" fill={BRAND.blue} radius={[3, 3, 0, 0]} />
-              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} />
+              <Bar maxBarSize={28} isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </ComposedChart>
           </ResponsiveContainer>
         </Panel>
         <Panel title="Produção" subtitle="Concluídas (barras) e criadas (linha)">
           <ResponsiveContainer width="100%" height={180}>
             <ComposedChart data={flowSeries} margin={{ left: -24, right: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={18} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} dataKey="completed" name="Concluídas" fill={BRAND.green} radius={[3, 3, 0, 0]} />
-              <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} />
+              <Bar maxBarSize={28} isAnimationActive={false} dataKey="completed" name="Concluídas" fill={BRAND.green} radius={[4, 4, 0, 0]} />
+              <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </ComposedChart>
           </ResponsiveContainer>
         </Panel>
