@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
-import { AlertTriangle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -16,6 +16,7 @@ import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { fetchCrmLeads, fetchStageHistoryCategories, type MeetingLeadRow } from "@/lib/services/meta-ads";
 import { useAuth } from "@/lib/auth-context";
+import { exportLeadsPdf, exportLeadsXlsx, type LeadExportData } from "@/lib/export-leads";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { LeadDeleteDialog, LeadDialogActions, LeadEditDialog, LeadRowActions, type LeadRef } from "./LeadAdmin";
 import { LeadDetailDialog } from "./LeadDetail";
@@ -635,6 +636,53 @@ export function TrafficMeetings() {
     ...filters.statuses.map((v) => ({ key: `t-${v}`, label: `Reunião: ${meetingStatusText(v)}`, remove: () => setFilters((f) => ({ ...f, statuses: f.statuses.filter((x) => x !== v) })) })),
   ];
 
+  // Exporta a lista inteira (todas as páginas) com os mesmos filtros da tela.
+  const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
+  function buildExport(): LeadExportData {
+    const period = days === "all" ? "Todo o período" : days === "custom" ? `${custom.since} a ${custom.until}` : (PERIODS.find((p) => p.key === days)?.label ?? days);
+    const tabLabel = { all: "Todos", crm: "No CRM", none: "Fora do CRM", meeting: "Com reunião" }[filter];
+    const list = (label: string, vals: string[]): [string, string][] => (vals.length ? [[label, vals.join(", ")]] : []);
+    const filtersInfo: [string, string][] = [
+      ["Período", period],
+      ["Aba", tabLabel],
+      ...(search ? ([["Busca", search]] as [string, string][]) : []),
+      ...list("Campanhas", filters.campaignIds.map((v) => campaignName.get(v) ?? v)),
+      ...list("Categorias", filters.categories.map((v) => categoryName.get(v) ?? v)),
+      ...list("Etapas", filters.stages),
+      ...(filters.meeting ? ([["Reuniões", MEETING_FILTERS.find((m) => m.value === filters.meeting)?.label ?? filters.meeting]] as [string, string][]) : []),
+      ...list("Status da reunião", filters.statuses.map((v) => meetingStatusText(v))),
+      ...(reachedIdx !== null ? ([["Funil", `chegaram até ${FUNNEL[reachedIdx].label}`]] as [string, string][]) : []),
+    ];
+    return {
+      filters: filtersInfo,
+      columns: ["Lead", "Telefone", "CRM", "Campanha", "Categoria", "Etapa", "Reuniões", "No-show", "Reag.", "Última reunião", "Status"],
+      rows: filtered.map((r) => [
+        r.name || "—",
+        r.phone ?? "",
+        r.crm_lead_id ? "No CRM" : "Fora do CRM",
+        one(r.matched_campaign)?.name ?? "—",
+        categoryLabel(r)?.label ?? "—",
+        r.crm_stage_name ?? "—",
+        r.crm_lead_id ? r.meetings_count : "—",
+        r.crm_lead_id ? r.meetings_no_show : "—",
+        r.crm_lead_id ? r.meetings_rescheduled : "—",
+        formatDate(r.last_meeting_at),
+        r.last_meeting_status ? meetingStatusText(r.last_meeting_status) : "—",
+      ]),
+    };
+  }
+  async function runExport(kind: "pdf" | "xlsx") {
+    setExporting(kind);
+    try {
+      const data = buildExport();
+      await (kind === "pdf" ? exportLeadsPdf(data) : exportLeadsXlsx(data));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao exportar");
+    } finally {
+      setExporting(null);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const th = "sticky top-0 whitespace-nowrap bg-blue-900 px-4 py-3 text-left text-white";
@@ -818,6 +866,19 @@ export function TrafficMeetings() {
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar lead, campanha, etapa, status…" className="w-full sm:w-72" />
             <FilterButton count={filterCount} onClick={() => setFiltersOpen(true)} />
+            {(["xlsx", "pdf"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => runExport(k)}
+                disabled={loading || filtered.length === 0 || exporting !== null}
+                title={`Exportar ${filtered.length} leads em ${k.toUpperCase()} com os filtros aplicados`}
+                className="inline-flex h-11 items-center gap-1.5 rounded-full border border-gray-200 px-4 text-xs font-semibold text-blue-900 transition-colors hover:border-blue-900 disabled:opacity-40 sm:h-10"
+              >
+                {exporting === k ? <Download className="h-4 w-4 animate-pulse" /> : k === "pdf" ? <FileText className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" />}
+                {k === "pdf" ? "PDF" : "XLSX"}
+              </button>
+            ))}
             {hasFilters && (
               <button type="button" onClick={clearFilters} className="inline-flex h-11 items-center gap-1 rounded-full px-3 text-xs font-semibold text-gray-500 hover:bg-gray-100 hover:text-blue-900 sm:h-10">
                 <X className="h-3.5 w-3.5" /> Limpar tudo

@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-15-exportar-leads-reunioes",
+    date: "2026-10-15",
+    tag: "novo",
+    area: "Tráfego Pago",
+    title: "Exportar leads de Reuniões em PDF e XLSX",
+    summary: "Novos botões PDF e XLSX na lista de leads exportam tudo o que está filtrado na tela.",
+    details: [
+      "Na aba Reuniões do Tráfego Pago, ao lado de Filtros, há os botões XLSX e PDF.",
+      "A exportação leva todos os leads do recorte atual (não só a página aberta) e traz no topo o período, a aba, a busca e os filtros aplicados.",
+    ],
+  },
+  {
     id: "2026-10-15-recompra-linha-leads",
     date: "2026-10-15",
     tag: "melhoria",
