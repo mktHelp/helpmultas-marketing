@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-15-recompra-linha-leads",
+    date: "2026-10-15",
+    tag: "melhoria",
+    area: "Expansão",
+    title: "Recompra explicada na tabela de leads e clientes",
+    summary: "Nova linha mostra os leads a mais vindos da recompra após 60 dias e explica o total.",
+    details: [
+      "Na etapa de projeção da DRE, antes do Total, aparece a linha “Recompra e indicação”: após 60 dias, a taxa média de recompra dos clientes novos vira leads e clientes a mais por mês.",
+      "O Total agora soma os canais mais a recompra, então o número de clientes (ex.: 25) fecha com as linhas acima.",
+    ],
+  },
+  {
     id: "2026-10-14-futuro-franqueado-trafego",
     date: "2026-10-14",
     tag: "melhoria",

@@ -814,9 +814,18 @@ function StepProjecao({ S, c, patch }: StepProps) {
                 <p className="text-right font-display text-base font-bold text-blue-900">{f(x.cli)}</p>
               </div>
             ))}
+            <div className={cn(ROW, "border-t border-gray-100 py-2.5")}>
+              <div className="min-w-0">
+                <p className="font-display text-sm font-bold text-blue-900">Recompra e indicação</p>
+                <p className="text-[11px] text-gray-500">após 60 dias, {f(+S.recompra || 0)}% (média) dos {f(c.casosNovos)} clientes novos voltam a comprar e indicam</p>
+              </div>
+              <p className="font-display text-base font-bold text-blue-900">+{f(c.recompraMes)}</p>
+              <p className="text-[11px] text-gray-500">leads a mais por mês</p>
+              <p className="text-right font-display text-base font-bold text-blue-900">+{f(c.recompraMes)}</p>
+            </div>
             <div className={cn(ROW, "rounded-xl bg-blue-050 px-3 py-2.5 text-blue-900")}>
               <span className="font-display text-sm font-bold">Total</span>
-              <b className="font-display text-base">{f(c.leadsMes)}</b>
+              <b className="font-display text-base">{f(c.leadsMes + c.recompraMes)}</b>
               <span className="text-[11px] text-blue-800">× ticket {brl(c.ticket)}</span>
               <span className="text-right"><b className="font-display text-base">{f(c.casosMes)}</b><span className="block text-[11px] text-blue-800">{brl(c.casosMes * c.ticket)}/mês</span></span>
             </div>
