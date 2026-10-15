@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-15-validacao-leads-expansao",
+    date: "2026-10-15",
+    tag: "novo",
+    area: "Expansão",
+    title: "Validação de leads também na área da Expansão",
+    summary: "A Expansão ganhou a aba Validação, com o mesmo dashboard, listas, ficha do lead e exportação do Hub.",
+    details: [
+      "Nova aba “Validação” no painel da Expansão, com as sub-abas Dashboard, Fora do CRM, Aguardando, Duplicados e Histórico.",
+      "Usuários com abas personalizadas precisam que o Master marque “Validação de leads” no cadastro para ver a aba.",
+    ],
+  },
+  {
     id: "2026-10-15-validacao-leads-dashboard",
     date: "2026-10-15",
     tag: "melhoria",
