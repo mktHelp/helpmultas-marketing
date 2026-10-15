@@ -23,6 +23,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-15-validacao-leads-dashboard",
+    date: "2026-10-15",
+    tag: "melhoria",
+    area: "Tráfego Pago",
+    title: "Validação de leads com dashboard, sub-abas, ficha do lead e exportação",
+    summary: "A página de validação ganhou dashboard, abas por situação, modal com os detalhes de cada lead e exportação em PDF e XLSX.",
+    details: [
+      "Sub-abas no topo: Dashboard, Fora do CRM, Aguardando, Duplicados e Histórico de ciclos.",
+      "Dashboard com cobertura do CRM, comparação com o ciclo anterior, evolução por ciclo, leads perdidos por dia e por anúncio, e os mais antigos sem CRM.",
+      "Clique em qualquer lead para ver contato (com atalho para o WhatsApp), respostas do formulário nativo, UTMs, e uma busca de leads parecidos no CRM para saber se ele chegou com outro telefone ou e-mail.",
+      "Cada lista tem busca, filtro por origem e botões de PDF e XLSX que exportam exatamente o que está filtrado.",
+    ],
+  },
+  {
     id: "2026-10-15-validacao-de-leads",
     date: "2026-10-15",
     tag: "novo",

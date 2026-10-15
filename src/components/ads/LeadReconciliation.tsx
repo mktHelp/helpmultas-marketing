@@ -1,71 +1,53 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Copy, RefreshCw, UserX } from "lucide-react";
-import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, Clock, Copy, History, LayoutDashboard, RefreshCw, UserX } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Tabs } from "@/components/ui/Tabs";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import type { IssueLead, ReconciliationIssues, ReconciliationSummary } from "@/lib/lead-reconciliation";
+import type { DuplicateGroup, IssueLead } from "@/lib/lead-reconciliation";
+import { FolderTabs } from "./reconciliation/FolderTabs";
+import { ReconDashboard } from "./reconciliation/ReconDashboard";
+import { ReconDuplicates, ReconHistory, ReconLeadList } from "./reconciliation/ReconLists";
+import { ReconLeadDialog } from "./reconciliation/ReconLeadDialog";
+import { ageLabel, fmtDateTime, type LeadStatus, type Run } from "./reconciliation/shared";
+import { LeadDetailDialog } from "./LeadDetail";
 
-interface Run {
-  id: string;
-  started_at: string;
-  finished_at: string | null;
-  status: "running" | "success" | "error";
-  error: string | null;
-  summary: Partial<ReconciliationSummary>;
-  issues: Partial<ReconciliationIssues>;
+const TABS = ["dashboard", "fora", "aguardando", "duplicados", "historico"] as const;
+type Tab = (typeof TABS)[number];
+
+/** Próximo disparo do GitHub Actions: minuto 15 das horas múltiplas de 3 (UTC). */
+function nextCycle(now = new Date()) {
+  const d = new Date(now);
+  d.setUTCMinutes(15, 0, 0);
+  while (d <= now || d.getUTCHours() % 3 !== 0) d.setUTCHours(d.getUTCHours() + 1);
+  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 }
-
-const SOURCE_LABEL: Record<IssueLead["source"], string> = { lp: "LP", nativo: "Form nativo", crm: "CRM" };
-
-const fmt = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }) : "—";
-
-function Stat({ label, value, hint, tone }: { label: string; value: number | string; hint?: string; tone?: "danger" | "ok" }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={cn("mt-1 text-2xl font-bold text-blue-900", tone === "danger" && Number(value) > 0 && "text-[color:var(--color-danger)]")}>
-        {value}
-      </p>
-      {hint && <p className="mt-0.5 text-xs text-gray-500">{hint}</p>}
-    </div>
-  );
-}
-
-function LeadCells({ l }: { l: IssueLead }) {
-  return (
-    <>
-      <td className="px-3 py-2"><Badge tone={l.source === "nativo" ? "info" : l.source === "crm" ? "neutral" : "accent"}>{SOURCE_LABEL[l.source]}</Badge></td>
-      <td className="px-3 py-2 font-medium text-blue-900">{l.name || "—"}</td>
-      <td className="px-3 py-2">{l.phone || "—"}</td>
-      <td className="px-3 py-2">{l.email || "—"}</td>
-      <td className="px-3 py-2 text-gray-600">{l.origin || "—"}</td>
-      <td className="whitespace-nowrap px-3 py-2 text-gray-600">{fmt(l.at)}</td>
-    </>
-  );
-}
-
-const TH = ["Origem", "Nome", "Telefone", "E-mail", "Página / anúncio", "Recebido"];
 
 export function LeadReconciliation() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const tab: Tab = TABS.includes(params.get("aba") as Tab) ? (params.get("aba") as Tab) : "dashboard";
+  const setTab = (t: string) => router.replace(`${pathname}?aba=${t}`, { scroll: false });
+
   const [runs, setRuns] = useState<Run[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState("missing");
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ lead: IssueLead; status: LeadStatus; group?: DuplicateGroup } | null>(null);
+  const [fullId, setFullId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data } = await createClient()
       .from("lead_reconciliation_runs")
       .select("id, started_at, finished_at, status, error, summary, issues")
       .order("started_at", { ascending: false })
-      .limit(24);
+      .limit(40);
     setRuns((data ?? []) as Run[]);
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -83,94 +65,107 @@ export function LeadReconciliation() {
   }
 
   const run = runs.find((r) => r.id === selected) ?? runs[0];
+  const previous = useMemo(() => {
+    if (!run) return null;
+    return runs.slice(runs.indexOf(run) + 1).find((r) => r.status === "success") ?? null;
+  }, [runs, run]);
   const s = run?.summary ?? {};
   const missing = run?.issues?.missing ?? [];
+  const pending = run?.issues?.pending ?? [];
   const duplicates = run?.issues?.duplicates ?? [];
+  const isLatest = run?.id === runs[0]?.id;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm"
-          value={run?.id ?? ""}
-          onChange={(e) => setSelected(e.target.value)}
-          aria-label="Ciclo"
-        >
-          {runs.map((r) => (
-            <option key={r.id} value={r.id}>
-              {fmt(r.started_at)} {r.status === "error" ? "· erro" : r.status === "running" ? "· rodando" : ""}
-            </option>
-          ))}
-        </select>
-        <Button size="sm" variant="secondary" onClick={validateNow} disabled={running}>
-          <RefreshCw className={cn("h-4 w-4", running && "animate-spin")} />
-          {running ? "Validando..." : "Validar agora"}
-        </Button>
-        {runError && <span className="text-sm text-[color:var(--color-danger)]">{runError}</span>}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-blue-900 to-[#2f4a5e] p-4 text-white shadow-[var(--shadow-sm)] sm:px-6">
+        <div className="flex items-center gap-3">
+          <span className={cn("relative flex h-3 w-3", !run && "opacity-0")}>
+            <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", run?.status === "error" ? "bg-red-400" : "bg-green-400")} />
+            <span className={cn("relative inline-flex h-3 w-3 rounded-full", run?.status === "error" ? "bg-red-400" : "bg-green-400")} />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">
+              {run ? (isLatest ? `Último ciclo ${ageLabel(run.started_at)}` : "Vendo ciclo antigo") : "Nenhum ciclo ainda"}
+            </p>
+            <p className="text-xs text-white/70">Roda sozinho a cada 3h · próximo às {nextCycle()} · janela de 7 dias</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="h-10 rounded-full border border-white/20 bg-white/10 px-4 text-sm font-semibold text-white outline-none [&>option]:text-blue-900"
+            value={run?.id ?? ""}
+            onChange={(e) => setSelected(e.target.value)}
+            aria-label="Ciclo"
+          >
+            {runs.map((r) => (
+              <option key={r.id} value={r.id}>
+                {fmtDateTime(r.started_at)} {r.status === "error" ? "· erro" : r.status === "running" ? "· rodando" : ""}
+              </option>
+            ))}
+          </select>
+          <Button size="sm" onClick={validateNow} disabled={running}>
+            <RefreshCw className={cn("h-4 w-4", running && "animate-spin")} />
+            {running ? "Validando..." : "Validar agora"}
+          </Button>
+        </div>
       </div>
 
-      {!run ? (
-        <Card><CardBody><p className="text-sm text-gray-600">Nenhum ciclo ainda. O primeiro roda no próximo horário (a cada 3h) ou em “Validar agora”.</p></CardBody></Card>
-      ) : run.status === "error" ? (
-        <Card><CardBody><p className="text-sm text-[color:var(--color-danger)]">Ciclo falhou: {run.error}</p></CardBody></Card>
-      ) : (
-        <>
-          {s.native_error && (
-            <div className="flex items-start gap-2 rounded-xl border border-yellow-300 bg-yellow-50 p-3 text-sm text-blue-900">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
-              <span>Formulário nativo não sincronizou neste ciclo ({s.native_error}). Verifique se o token da Meta tem a permissão <b>leads_retrieval</b>.</span>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Stat label="LP fora do CRM" value={s.lp_missing ?? 0} hint={`${s.lp_in_crm ?? 0} de ${s.lp_total ?? 0} no CRM · ${s.lp_pending ?? 0} aguardando`} tone="danger" />
-            <Stat label="Nativo fora do CRM" value={s.native_missing ?? 0} hint={`${s.native_in_crm ?? 0} de ${s.native_total ?? 0} no CRM · ${s.native_pending ?? 0} aguardando`} tone="danger" />
-            <Stat label="Duplicados LP / nativo" value={(s.dup_lp ?? 0) + (s.dup_native ?? 0)} hint={`${s.dup_lp ?? 0} LP · ${s.dup_native ?? 0} nativo`} />
-            <Stat label="Duplicados no CRM" value={s.dup_crm ?? 0} hint="mesmo telefone/e-mail, ids diferentes" />
-          </div>
-          <p className="text-xs text-gray-500">
-            Janela: últimos 7 dias · ciclo de {fmt(run.started_at)} · “aguardando” = recebido há menos de 3h30, ainda pode vir no próximo export do CRM.
-          </p>
-
-          <Card>
-            <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle>Divergências</CardTitle>
-              <Tabs
-                active={tab}
-                onChange={setTab}
-                tabs={[
-                  { key: "missing", label: "Fora do CRM", count: missing.length, icon: UserX },
-                  { key: "dups", label: "Duplicados", count: duplicates.length, icon: Copy },
-                ]}
-              />
-            </CardHeader>
-            <CardBody className="overflow-x-auto p-0">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                  <tr>{tab === "dups" && <th className="px-3 py-2">Grupo</th>}{TH.map((h) => <th key={h} className="px-3 py-2">{h}</th>)}{tab === "dups" && <th className="px-3 py-2">Etapa CRM</th>}</tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {tab === "missing" &&
-                    (missing.length ? missing.map((l) => <tr key={`${l.source}-${l.id}`}><LeadCells l={l} /></tr>) : (
-                      <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-500">Nenhum lead fora do CRM 🎉</td></tr>
-                    ))}
-                  {tab === "dups" &&
-                    (duplicates.length ? duplicates.flatMap((g, gi) =>
-                      g.leads.map((l, i) => (
-                        <tr key={`${gi}-${l.id}`} className={cn(gi % 2 === 1 && "bg-gray-50/60")}>
-                          <td className="px-3 py-2 text-xs text-gray-500">{i === 0 ? `#${gi + 1} · ${g.leads.length}x` : ""}</td>
-                          <LeadCells l={l} />
-                          <td className="px-3 py-2 text-gray-600">{l.crm_stage || "—"}</td>
-                        </tr>
-                      )),
-                    ) : (
-                      <tr><td colSpan={8} className="px-3 py-6 text-center text-gray-500">Nenhum duplicado</td></tr>
-                    ))}
-                </tbody>
-              </table>
-            </CardBody>
-          </Card>
-        </>
+      {runError && <p className="text-sm text-[color:var(--color-danger)]">{runError}</p>}
+      {s.native_error && (
+        <div className="flex items-start gap-2 rounded-2xl border border-yellow-300 bg-yellow-50 p-3 text-sm text-blue-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+          <span>Formulário nativo não sincronizou neste ciclo ({s.native_error}). Confira o <b>META_LEADS_TOKEN</b> e se a Página está atribuída ao usuário do sistema.</span>
+        </div>
       )}
+
+      {!loaded ? (
+        <div className="h-96 animate-pulse rounded-3xl bg-white/60" />
+      ) : !run ? (
+        <div className="rounded-3xl bg-white p-10 text-center text-sm text-gray-600">Nenhum ciclo ainda. O primeiro roda no próximo horário ou em “Validar agora”.</div>
+      ) : run.status === "error" && tab !== "historico" ? (
+        <div className="rounded-3xl bg-white p-10 text-center text-sm text-[color:var(--color-danger)]">Este ciclo falhou: {run.error}</div>
+      ) : (
+        <FolderTabs
+          active={tab}
+          onChange={setTab}
+          tabs={[
+            { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+            { key: "fora", label: "Fora do CRM", icon: UserX, count: missing.length, alert: true },
+            { key: "aguardando", label: "Aguardando", icon: Clock, count: pending.length },
+            { key: "duplicados", label: "Duplicados", icon: Copy, count: duplicates.length },
+            { key: "historico", label: "Histórico", icon: History, count: runs.length },
+          ]}
+        >
+          <div key={tab} className="ast-fade-up">
+            {tab === "dashboard" && <ReconDashboard run={run} previous={previous} runs={runs} onOpen={(lead) => setOpen({ lead, status: "missing" })} />}
+            {tab === "fora" && <ReconLeadList leads={missing} kind="missing" run={run} onOpen={(lead) => setOpen({ lead, status: "missing" })} />}
+            {tab === "aguardando" && <ReconLeadList leads={pending} kind="pending" run={run} onOpen={(lead) => setOpen({ lead, status: "pending" })} />}
+            {tab === "duplicados" && <ReconDuplicates groups={duplicates} run={run} onOpen={(lead, group) => setOpen({ lead, status: "duplicate", group })} />}
+            {tab === "historico" && (
+              <ReconHistory
+                runs={runs}
+                selected={run.id}
+                onSelect={(id) => {
+                  setSelected(id);
+                  setTab("dashboard");
+                }}
+              />
+            )}
+          </div>
+        </FolderTabs>
+      )}
+
+      <ReconLeadDialog
+        lead={open?.lead ?? null}
+        status={open?.status ?? "missing"}
+        group={open?.group}
+        onClose={() => setOpen(null)}
+        onOpenFull={(id) => {
+          setOpen(null);
+          setFullId(id);
+        }}
+      />
+      <LeadDetailDialog leadId={fullId} onClose={() => setFullId(null)} />
     </div>
   );
 }
