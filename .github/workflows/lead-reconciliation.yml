@@ -1,0 +1,20 @@
+# Validação de leads LP/nativo × CRM a cada 3h (o cron da Vercel no plano
+# atual só roda 1x/dia). Secrets do repositório:
+#   HUB_URL      — ex.: https://hub.helpmultas.com (sem barra no fim)
+#   CRON_SECRET  — mesmo valor da env CRON_SECRET na Vercel
+name: Validação de leads
+
+on:
+  schedule:
+    - cron: "15 */3 * * *" # 15 min depois da hora cheia, dá folga ao export do CRM
+  workflow_dispatch:
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Disparar validação
+        run: |
+          curl --fail-with-body -sS -X GET "${{ secrets.HUB_URL }}/api/leads/reconcile" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" --max-time 300
