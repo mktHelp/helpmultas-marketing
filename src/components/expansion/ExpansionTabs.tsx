@@ -9,6 +9,7 @@ import { TrafficAdsTable } from "@/components/ads/TrafficAdsTable";
 import { TrafficDashboard } from "@/components/ads/TrafficDashboard";
 import { TrafficLeads } from "@/components/ads/TrafficLeads";
 import { TrafficMeetings } from "@/components/ads/TrafficMeetings";
+import { LeadReconciliation } from "@/components/ads/LeadReconciliation";
 import { ExpansionDre } from "@/components/expansion/dre/ExpansionDre";
 import { SyncButton } from "@/components/ads/SyncButton";
 import { MODELO_LABEL, type Modelo } from "@/lib/expansion/dre";
@@ -48,7 +49,7 @@ export function ExpansionTabs() {
                 {modelo === "loja" ? <Store className="h-4 w-4" /> : <Home className="h-4 w-4" />} Modelo {MODELO_LABEL[modelo]}
               </span>
             ) : undefined
-          ) : section !== "creatives" && section !== "meetings" ? (
+          ) : section !== "creatives" && section !== "meetings" && section !== "validacao" ? (
             <SyncButton />
           ) : undefined
         }
@@ -61,6 +62,8 @@ export function ExpansionTabs() {
         {section === "dashboard" && <TrafficDashboard />}
         {section === "leads" && <TrafficLeads />}
         {section === "meetings" && <TrafficMeetings />}
+        {/* ?aba= já é a seção da Expansão: as sub-abas da validação usam ?sub= */}
+        {section === "validacao" && <LeadReconciliation tabParam="sub" />}
         {section === "dre" && <ExpansionDre onModelo={setModelo} />}
       </div>
     </div>

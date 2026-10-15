@@ -25,12 +25,18 @@ function nextCycle(now = new Date()) {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 }
 
-export function LeadReconciliation() {
+// tabParam: nome do parâmetro da URL das sub-abas ("aba" no Hub; na Expansão
+// "aba" já escolhe a seção, então lá é "sub").
+export function LeadReconciliation({ tabParam = "aba" }: { tabParam?: string } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const tab: Tab = TABS.includes(params.get("aba") as Tab) ? (params.get("aba") as Tab) : "dashboard";
-  const setTab = (t: string) => router.replace(`${pathname}?aba=${t}`, { scroll: false });
+  const tab: Tab = TABS.includes(params.get(tabParam) as Tab) ? (params.get(tabParam) as Tab) : "dashboard";
+  const setTab = (t: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set(tabParam, t);
+    router.replace(`${pathname}?${next}`, { scroll: false });
+  };
 
   const [runs, setRuns] = useState<Run[]>([]);
   const [loaded, setLoaded] = useState(false);

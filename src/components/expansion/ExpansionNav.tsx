@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bot, Calculator, CalendarCheck, Contact, LayoutDashboard, Megaphone, TrendingUp, type LucideIcon } from "lucide-react";
+import { Bot, Calculator, CalendarCheck, Contact, LayoutDashboard, Megaphone, ShieldCheck, TrendingUp, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { hasTab } from "@/lib/access";
 import { SidebarHelpinho, SidebarLink, SidebarSectionTitle, type TipHandlers } from "@/components/layout/SidebarParts";
@@ -40,6 +40,13 @@ export const EXPANSION_SECTIONS = {
     icon: CalendarCheck,
     title: "Reuniões",
     description: "Funil do CRM por lead: etapa atual, 1ª/2ª reunião, no-show e reagendamentos, ligados à campanha de origem.",
+    tone: "traffic",
+  },
+  validacao: {
+    label: "Validação",
+    icon: ShieldCheck,
+    title: "Validação de leads",
+    description: "A cada 3h, compara os leads da LP e do formulário nativo com o que o CRM exportou: quem ficou fora e quem está duplicado.",
     tone: "traffic",
   },
   dre: {
