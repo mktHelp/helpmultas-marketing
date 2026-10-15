@@ -5,10 +5,14 @@ export interface LeadExportData {
   filters: [string, string][];
   columns: string[];
   rows: (string | number)[][];
+  /** título do arquivo (padrão "Leads · Reuniões") */
+  title?: string;
+  /** prefixo do nome do arquivo (padrão "leads-reunioes") */
+  fileBase?: string;
 }
 
 const stamp = () => new Date().toISOString().slice(0, 10);
-const fileName = (ext: string) => `leads-reunioes-${stamp()}.${ext}`;
+const fileName = (d: LeadExportData, ext: string) => `${d.fileBase ?? "leads-reunioes"}-${stamp()}.${ext}`;
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -24,7 +28,7 @@ export async function exportLeadsXlsx(d: LeadExportData) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Leads");
 
-  ws.addRow(["Leads · Reuniões"]).font = { bold: true, size: 14 };
+  ws.addRow([d.title ?? "Leads · Reuniões"]).font = { bold: true, size: 14 };
   ws.addRow([`Gerado em ${new Date().toLocaleString("pt-BR")} · ${d.rows.length} leads`]);
   ws.addRow([]);
   ws.addRow(["Filtros aplicados"]).font = { bold: true };
@@ -47,7 +51,7 @@ export async function exportLeadsXlsx(d: LeadExportData) {
   ws.views = [{ state: "frozen", ySplit: headerRow }];
 
   const buf = await wb.xlsx.writeBuffer();
-  download(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileName("xlsx"));
+  download(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileName(d, "xlsx"));
 }
 
 export async function exportLeadsPdf(d: LeadExportData) {
@@ -56,7 +60,7 @@ export async function exportLeadsPdf(d: LeadExportData) {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
 
   doc.setFontSize(16);
-  doc.text("Leads · Reuniões", 40, 40);
+  doc.text(d.title ?? "Leads · Reuniões", 40, 40);
   doc.setFontSize(9);
   doc.setTextColor(110);
   doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} · ${d.rows.length} leads`, 40, 56);
@@ -90,5 +94,5 @@ export async function exportLeadsPdf(d: LeadExportData) {
     },
   });
 
-  doc.save(fileName("pdf"));
+  doc.save(fileName(d, "pdf"));
 }

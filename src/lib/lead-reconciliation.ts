@@ -52,6 +52,8 @@ export interface ReconciliationSummary {
 
 export interface ReconciliationIssues {
   missing: IssueLead[];
+  /** recebidos há menos de 3h30, ainda podem vir no próximo export do CRM */
+  pending?: IssueLead[];
   duplicates: DuplicateGroup[];
 }
 
@@ -282,11 +284,11 @@ export async function runReconciliation(admin: SupabaseClient) {
 
     const classify = (leads: IssueLead[]) => {
       let ok = 0;
-      let pending = 0;
+      const pending: IssueLead[] = [];
       const missing: IssueLead[] = [];
       for (const l of leads) {
         if (l.crm_lead_id || inCrm(l.phone, l.email)) ok++;
-        else if (new Date(l.at).getTime() > graceCut) pending++;
+        else if (new Date(l.at).getTime() > graceCut) pending.push(l);
         else missing.push(l);
       }
       return { ok, pending, missing };
@@ -315,11 +317,11 @@ export async function runReconciliation(admin: SupabaseClient) {
       lp_total: lpLeads.length,
       lp_in_crm: lp.ok,
       lp_missing: lp.missing.length,
-      lp_pending: lp.pending,
+      lp_pending: lp.pending.length,
       native_total: nativeLeads.length,
       native_in_crm: nat.ok,
       native_missing: nat.missing.length,
-      native_pending: nat.pending,
+      native_pending: nat.pending.length,
       native_error: nativeError,
       dup_lp: dupLp.length,
       dup_native: dupNative.length,
@@ -327,6 +329,7 @@ export async function runReconciliation(admin: SupabaseClient) {
     };
     const issues: ReconciliationIssues = {
       missing: [...lp.missing, ...nat.missing].sort((a, b) => b.at.localeCompare(a.at)).slice(0, LIST_CAP),
+      pending: [...lp.pending, ...nat.pending].sort((a, b) => b.at.localeCompare(a.at)),
       duplicates: [...dupLp, ...dupNative, ...dupCrm].slice(0, LIST_CAP),
     };
 
