@@ -572,7 +572,7 @@ export function TrafficDashboard() {
           onChange={setAdIdsFilter}
         />
         {hasFilter && (
-          <button onClick={clearFilters} className="flex h-11 items-center gap-1 rounded-full border border-gray-200 px-3 text-xs font-semibold text-blue-900 hover:border-blue-900 sm:h-10">
+          <button onClick={clearFilters} className="flex h-11 items-center gap-1 rounded-lg border border-gray-200 px-3 text-xs font-semibold text-blue-900 hover:border-blue-900 sm:h-10">
             <X className="h-3.5 w-3.5" />
             Limpar filtros
           </button>
@@ -635,13 +635,13 @@ export function TrafficDashboard() {
         <ResponsiveContainer width="100%" height={300}>
           {chartKey === "spendLeads" ? (
             <ComposedChart data={chartData} margin={{ left: -6, right: -6 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
               <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip content={<ChartTooltip format={(n) => (Number.isInteger(n) ? numberFormatter.format(n) : brl(n))} />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
-              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} />
+              <Bar maxBarSize={28} isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </ComposedChart>
           ) : (
             <AreaChart data={chartData} margin={{ left: -6, right: 8 }}>
@@ -651,12 +651,12 @@ export function TrafficDashboard() {
                   <stop offset="100%" stopColor={chartDef.color} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <RTooltip content={<ChartTooltip format={(n) => formatMetric(chartKey, n)} />} />
               {chartAverage > 0 && <ReferenceLine y={chartAverage} stroke="#9aa7af" strokeDasharray="4 4" />}
-              <Area isAnimationActive={false} type="monotone" dataKey="value" name={chartDef.label} stroke={chartDef.color} strokeWidth={2.5} fill="url(#trafficFill)" dot={{ r: 2.5, fill: chartDef.color }} activeDot={{ r: 5 }} />
+              <Area isAnimationActive={false} type="monotone" dataKey="value" name={chartDef.label} stroke={chartDef.color} strokeWidth={2} fill="url(#trafficFill)" dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </AreaChart>
           )}
         </ResponsiveContainer>
@@ -682,7 +682,7 @@ export function TrafficDashboard() {
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="font-display text-[17px] font-semibold text-blue-900">Detalhamento</h3>
+            <h3 className="font-display text-[15px] font-semibold text-blue-900">Detalhamento</h3>
             <p className="mt-0.5 text-xs text-gray-500">Clique em uma linha para aprofundar (campanha → conjunto → anúncio)</p>
           </div>
           <Tabs tabs={levelTabs} active={level} onChange={(k) => { setLevel(k as Level); setTableLimit(12); }} />
@@ -759,7 +759,7 @@ export function TrafficDashboard() {
         </div>
         {tableRows.length > tableLimit && (
           <div className="mt-3 flex justify-center">
-            <button onClick={() => setTableLimit((n) => n + 12)} className="rounded-full border border-blue-900 px-4 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-900 hover:text-white">
+            <button onClick={() => setTableLimit((n) => n + 12)} className="rounded-lg border border-blue-900 px-4 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-900 hover:text-white">
               Ver mais ({tableRows.length - tableLimit})
             </button>
           </div>
@@ -832,7 +832,7 @@ export function TrafficDashboard() {
         )}
         {gallery.length > adLimit && (
           <div className="mt-4 flex justify-center">
-            <button onClick={() => setAdLimit((n) => n + 8)} className="rounded-full border border-blue-900 px-4 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-900 hover:text-white">
+            <button onClick={() => setAdLimit((n) => n + 8)} className="rounded-lg border border-blue-900 px-4 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-900 hover:text-white">
               Ver mais ({gallery.length - adLimit})
             </button>
           </div>
@@ -844,13 +844,13 @@ export function TrafficDashboard() {
         <Panel title="Desempenho por dia da semana" subtitle="Média de investimento (barras) e de leads (linha) nos dias com gasto">
           <ResponsiveContainer width="100%" height={250}>
             <ComposedChart data={weekday} margin={{ left: -6, right: -6 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <RTooltip content={<ChartTooltip format={(n) => (n >= 50 ? brl(n) : n.toFixed(1).replace(".", ","))} />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido (média)" fill={BRAND.blue} radius={[6, 6, 0, 0]} />
-              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads (média)" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} />
+              <Bar maxBarSize={28} isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido (média)" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads (média)" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </ComposedChart>
           </ResponsiveContainer>
         </Panel>
@@ -888,11 +888,11 @@ export function TrafficDashboard() {
             <p className="mb-1 text-xs font-bold text-blue-900">Leads por dia</p>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={lpByDay} margin={{ left: -24, right: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
                 <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
                 <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-                <Bar isAnimationActive={false} dataKey="leads" name="Leads" fill={BRAND.green} radius={[4, 4, 0, 0]} />
+                <Bar maxBarSize={28} isAnimationActive={false} dataKey="leads" name="Leads" fill={BRAND.green} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

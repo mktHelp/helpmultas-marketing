@@ -219,7 +219,7 @@ function Chip({ active, color, onClick, children }: { active: boolean; color?: s
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+        "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
         active ? "border-transparent text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
       )}
       style={active ? { backgroundColor: color ?? "#243746" } : undefined}
@@ -477,14 +477,14 @@ export function DistributionTable({ addSignal }: { addSignal?: number }) {
         </div>
       ) : (
         <>
-          <div className="max-h-[70vh] overflow-auto rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-sm)]">
+          <div className="max-h-[70vh] overflow-auto rounded-2xl border border-gray-200/80 bg-white">
             <table className="w-full min-w-[2800px] border-collapse text-sm">
               <thead>
-                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-white">
+                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                   {HEADERS.map((h) => (
-                    <th key={h.label} className={cn("sticky top-0 z-20 bg-blue-900 px-3 py-3", h.width)}>{h.label}</th>
+                    <th key={h.label} className={cn("sticky top-0 z-20 border-b border-gray-200 bg-gray-050 px-3 py-2.5", h.width)}>{h.label}</th>
                   ))}
-                  <th className="sticky right-0 top-0 z-30 w-32 border-l border-white/10 bg-blue-900 px-2 py-3" />
+                  <th className="sticky right-0 top-0 z-30 w-32 border-b border-l border-gray-200 bg-gray-050 px-2 py-2.5" />
                 </tr>
               </thead>
               <tbody>

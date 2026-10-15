@@ -23,7 +23,7 @@ function Titulo({ children, sub, right }: { children: ReactNode; sub?: string; r
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
       <div>
-        <h3 className="font-display text-[17px] font-semibold text-blue-900">{children}</h3>
+        <h3 className="font-display text-[15px] font-semibold text-blue-900">{children}</h3>
         {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
       </div>
       {right}
@@ -61,8 +61,7 @@ function Destaque({ label, value, sub, accent }: { label: string; value: string;
 function Hero({ S, c }: { S: DreInput; c: DreResult }) {
   const nome = S.lead.trim().split(" ")[0];
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-[#2c5a73] p-6 text-white sm:p-8 xl:p-10">
-      <div className="pointer-events-none absolute -right-10 -top-12 h-56 w-56 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
+    <div className="relative overflow-hidden rounded-3xl bg-blue-900 p-6 text-white sm:p-8 xl:p-10">
       <p className="relative text-xs font-bold uppercase tracking-widest text-yellow-500">
         Projeção de viabilidade · {S.modelo ? MODELO_LABEL[S.modelo] : "Franquia"}{S.regiao !== "Brasil" ? ` · ${S.regiao}` : ""}
       </p>
@@ -142,14 +141,14 @@ function Jornada({ S, c }: { S: DreInput; c: DreResult }) {
       <div className="h-72 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ left: 0, right: 12, top: 12 }}>
-            <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="m" tick={TICK_STYLE} tickLine={false} interval={5} tickFormatter={(m) => (m === 0 ? "0" : `${m}`)} label={{ value: "meses", position: "insideBottomRight", offset: -2, fontSize: 11, fill: "#6b7f8c" }} />
             <YAxis tick={TICK_STYLE} tickLine={false} axisLine={false} width={60} tickFormatter={axisMoney} />
             <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(m) => `Mês ${m}`} formatter={(v) => brl(Number(v))} />
             <ReferenceLine y={0} stroke={NAVY} strokeWidth={1.5} label={{ value: "Investimento recuperado", position: "insideTopLeft", fontSize: 11, fill: NAVY }} />
-            <Line type="monotone" dataKey="conservador" name="Conservador" stroke={cor.conservador} strokeWidth={2} dot={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="otimista" name="Otimista" stroke={cor.otimista} strokeWidth={2} dot={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="realista" name="Realista" stroke={cor.realista} strokeWidth={3.5} dot={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="conservador" name="Conservador" stroke={cor.conservador} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
+            <Line type="monotone" dataKey="otimista" name="Otimista" stroke={cor.otimista} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
+            <Line type="monotone" dataKey="realista" name="Realista" stroke={cor.realista} strokeWidth={3.5} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -180,12 +179,12 @@ function Cascata({ r }: { r: MesDre[] }) {
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ left: 0, right: 8, top: 24 }}>
-            <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="n" tick={TICK_STYLE} tickLine={false} interval={0} />
             <YAxis tick={TICK_STYLE} tickLine={false} axisLine={false} width={60} tickFormatter={axisMoney} />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(_, __, p) => brl(Number((p.payload as { v: number }).v))} cursor={CURSOR_STYLE} />
             <ReferenceLine y={0} stroke="#cbd5dc" />
-            <Bar dataKey="range" radius={[6, 6, 6, 6]} isAnimationActive={false}>
+            <Bar maxBarSize={28} dataKey="range" radius={[6, 6, 6, 6]} isAnimationActive={false}>
               {data.map((d) => <Cell key={d.n} fill={d.fill} />)}
               <LabelList dataKey="v" position="top" fontSize={11} fontWeight={700} fill={NAVY} formatter={(v: unknown) => brlShort(Number(v))} />
             </Bar>
@@ -203,13 +202,13 @@ function ResultadoMensal({ r, rampa }: { r: MesDre[]; rampa: number }) {
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={r} margin={{ left: 0, right: 8, top: 16 }}>
-            <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="m" tick={TICK_STYLE} tickLine={false} interval={r.length > 12 ? 2 : 0} />
             <YAxis tick={TICK_STYLE} tickLine={false} axisLine={false} width={60} tickFormatter={axisMoney} />
             <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(m) => `Mês ${m}`} formatter={(v) => [brl(Number(v)), "Faturamento líquido"]} cursor={CURSOR_STYLE} />
             <ReferenceLine y={0} stroke="#cbd5dc" />
             {rampa <= r.length && rampa > 1 && <ReferenceLine x={rampa} stroke={NAVY} strokeDasharray="4 4" label={{ value: "ritmo máximo", position: "top", fontSize: 11, fill: NAVY }} />}
-            <Bar dataKey="resultado" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+            <Bar maxBarSize={28} dataKey="resultado" radius={[4, 4, 0, 0]} isAnimationActive={false}>
               {r.map((m) => <Cell key={m.m} fill={m.resultado >= 0 ? YELLOW : RED} />)}
             </Bar>
           </BarChart>
@@ -351,13 +350,13 @@ function SaldoCaixa({ c }: { c: DreResult }) {
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={c.meses} margin={{ left: 0, right: 12, top: 16 }}>
-            <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+            <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
             <XAxis dataKey="m" tick={TICK_STYLE} tickLine={false} interval={2} />
             <YAxis tick={TICK_STYLE} tickLine={false} axisLine={false} width={60} tickFormatter={axisMoney} />
             <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(m) => `Mês ${m}`} formatter={(v) => brl(Number(v))} />
             <ReferenceLine y={0} stroke={NAVY} />
             {c.pay && <ReferenceLine x={c.pay} stroke={GREEN} strokeDasharray="4 4" label={{ value: `Retorno: mês ${c.pay}`, fill: GREEN, fontSize: 11, position: "top" }} />}
-            <Area type="monotone" dataKey="saldo" name="Saldo acumulado" stroke={NAVY} fill={NAVY} fillOpacity={0.14} strokeWidth={2.5} />
+            <Area type="monotone" dataKey="saldo" name="Saldo acumulado" stroke={NAVY} fill={NAVY} fillOpacity={0.14} strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -404,7 +403,7 @@ export function StepDre({ S, c, filtro, setFiltro, full }: { S: DreInput; c: Dre
             <div className="flex items-center gap-2">
               {mensal && !full && <PeriodTabs filtro={filtro} setFiltro={setFiltro} />}
               {!full && (
-                <button type="button" onClick={() => setMensal((m) => !m)} aria-expanded={mensal} className="inline-flex h-8 items-center gap-1.5 rounded-full border-2 border-blue-900 px-3.5 text-xs font-bold text-blue-900 hover:bg-blue-050 print:hidden">
+                <button type="button" onClick={() => setMensal((m) => !m)} aria-expanded={mensal} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-blue-900 px-3.5 text-xs font-bold text-blue-900 hover:bg-blue-050 print:hidden">
                   {mensal ? "Ocultar" : "Ver mês a mês"} <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", mensal && "rotate-180")} />
                 </button>
               )}

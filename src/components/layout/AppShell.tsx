@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="flex h-screen overflow-hidden bg-gray-100/50"
+      className="flex h-screen overflow-hidden bg-[color:var(--surface-frame)]"
       style={{
         paddingTop: "env(safe-area-inset-top)",
         paddingLeft: "env(safe-area-inset-left)",
@@ -95,12 +95,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Folha de trabalho: no desktop, um painel claro encaixado na moldura escura
+          (a aba ativa da sidebar se funde a ela pelas bordas invertidas). */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[color:var(--surface-app)] lg:my-2 lg:mr-2 lg:rounded-[18px]">
         <Topbar onMenuClick={() => setMobileOpen(true)} />
         <main
           ref={mainRef}
           data-lenis-shell
-          className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8"
+          className="flex-1 overflow-x-hidden overflow-y-auto px-4 pb-4 pt-4 lg:px-7 lg:pt-6"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 1rem)" }}
         >
           <div ref={contentRef} className="mx-auto w-full max-w-[1600px]">

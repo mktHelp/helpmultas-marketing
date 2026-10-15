@@ -140,16 +140,16 @@ function RankingCard({
                 className={cn(
                   "group flex w-full flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border p-3 text-left transition-colors",
                   "kb-card-in",
-                  i === 0 ? "border-yellow-400/70 bg-gradient-to-r from-yellow-050 to-white shadow-[var(--shadow-sm)]" : "border-gray-200 bg-white",
+                  i === 0 ? "border-yellow-400/70 bg-yellow-050" : "border-gray-200 bg-white",
                   item.metaAdId ? "cursor-pointer hover:border-blue-900/30 hover:shadow-[var(--shadow-sm)]" : "cursor-default"
                 )}
               >
                 <span
                   className={cn(
                     "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold shadow-sm",
-                    i === 0 && "bg-gradient-to-br from-yellow-300 to-amber-500 text-blue-900",
-                    i === 1 && "bg-gradient-to-br from-gray-200 to-gray-400 text-blue-900",
-                    i === 2 && "bg-gradient-to-br from-orange-300 to-orange-600 text-white",
+                    i === 0 && "bg-yellow-500 text-blue-900",
+                    i === 1 && "bg-gray-300 text-blue-900",
+                    i === 2 && "bg-[#d9822b] text-white",
                     i > 2 && "bg-gray-100 text-gray-600"
                   )}
                 >
@@ -174,7 +174,7 @@ function RankingCard({
                       <span className="ml-1 text-[11px] font-normal text-gray-400">· {item.share.toFixed(1)}%</span>
                     </p>
                     <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
-                      <div className={cn("h-full rounded-full transition-all duration-700", i === 0 ? "bg-gradient-to-r from-yellow-400 to-amber-500" : "bg-gradient-to-r from-sky-300 to-indigo-300")} style={{ width: `${(item.leads / max) * 100}%` }} />
+                      <div className={cn("h-full rounded-full transition-all duration-700", i === 0 ? "bg-yellow-500" : "bg-blue-600/50")} style={{ width: `${(item.leads / max) * 100}%` }} />
                     </div>
                   </div>
                   <div className="text-right">
@@ -209,7 +209,7 @@ function RankingCard({
                     <button
                       type="button"
                       onClick={() => onLinkScript(item)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-gray-300 px-3.5 py-1.5 text-xs font-bold text-gray-600 transition-all hover:border-yellow-500 hover:bg-yellow-050 hover:text-blue-900 active:scale-95"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3.5 py-1.5 text-xs font-bold text-gray-600 transition-all hover:border-yellow-500 hover:bg-yellow-050 hover:text-blue-900 active:scale-95"
                     >
                       <Link2 className="h-3.5 w-3.5" /> Vincular roteiro
                     </button>
@@ -234,6 +234,16 @@ function RankingCard({
     </Card>
   );
 }
+
+// Cores sóbrias do padrão v3 no lugar dos gradientes coloridos.
+const TONE: Record<string, string> = {
+  "from-sky-500 to-indigo-500": "#243746",
+  "from-violet-500 to-fuchsia-500": "#6b8cae",
+  "from-emerald-500 to-teal-500": "#2f8f5b",
+  "from-amber-500 to-orange-500": "#c99400",
+  "from-rose-500 to-pink-500": "#c23b3b",
+};
+const toneOf = (gradient: string) => TONE[gradient] ?? "#243746";
 
 function StatCard({
   label,
@@ -261,32 +271,30 @@ function StatCard({
   onClick?: () => void;
 }) {
   const Tag = onClick ? "button" : "div";
+  const color = toneOf(gradient);
   return (
     <Tag
       {...(onClick ? { type: "button" as const, onClick } : {})}
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: `${index * 50}ms` }}
       className={cn(
-        "ast-fade-up group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-[var(--shadow-sm)] transition-all duration-200",
-        onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0",
-        active && "border-yellow-500 ring-2 ring-yellow-500"
+        "hm-card ast-fade-up group relative overflow-hidden rounded-2xl p-4 text-left shadow-[var(--shadow-sm)] transition-all duration-200",
+        onClick && "cursor-pointer hover:shadow-[var(--shadow-md)]"
       )}
     >
-      <span className={cn("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", gradient)} aria-hidden />
-      <div className="flex items-start gap-3">
-        <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110", gradient)}>
-          <Icon className="h-5 w-5" />
+      <span className="ic-slot">
+        <span className="flex h-9 w-9 items-center justify-center rounded-[11px]" style={{ backgroundColor: active ? color : `${color}1a`, color: active ? "#fff" : color }}>
+          <Icon className="h-[18px] w-[18px]" />
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{label}</p>
-          <p className={cn("font-display text-2xl font-bold tabular-nums text-blue-900", valueClass)}>{value}</p>
-        </div>
-      </div>
+      </span>
+      <p className="truncate pr-11 text-xs font-semibold text-gray-500">{label}</p>
+      <p className={cn("mt-1 font-display text-2xl font-semibold tabular-nums text-blue-900", valueClass)}>{value}</p>
       {percent !== undefined && (
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
           <div className={cn("h-full rounded-full transition-all duration-700", barClass)} style={{ width: `${Math.min(percent, 100)}%` }} />
         </div>
       )}
       {hint && <p className="mt-1.5 line-clamp-2 text-[11px] text-gray-400">{hint}</p>}
+      {active && <span className="absolute inset-x-4 bottom-0 h-[3px] rounded-t-full" style={{ backgroundColor: color }} aria-hidden />}
     </Tag>
   );
 }
@@ -488,7 +496,7 @@ export function TrafficLeads() {
   }
 
   const colCount = 6 + (showUtms ? UTM_COLUMNS.length : 0) + (isAdmin ? 1 : 0);
-  const th = "sticky top-0 z-20 bg-blue-900 px-4 py-3 text-white";
+  const th = "sticky top-0 z-20 border-b border-gray-200 bg-gray-050 px-4 py-2.5 text-gray-500";
   const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const to = Math.min((page + 1) * PAGE_SIZE, total);
 
@@ -516,7 +524,7 @@ export function TrafficLeads() {
           <button
             onClick={() => setShowUtms((v) => !v)}
             className={cn(
-              "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              "rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
               showUtms ? "border-blue-900 bg-blue-900 text-white" : "border-gray-200 text-gray-700 hover:border-blue-900 hover:text-blue-900"
             )}
           >
@@ -539,7 +547,7 @@ export function TrafficLeads() {
                   value={dateRange.since}
                   max={dateRange.until}
                   onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, since: e.target.value }))}
-                  className="h-11 rounded-full border border-gray-200 bg-white px-3 text-base text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10 sm:text-sm"
+                  className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-base text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10 sm:text-sm"
                 />
                 até
                 <input
@@ -547,7 +555,7 @@ export function TrafficLeads() {
                   value={dateRange.until}
                   min={dateRange.since}
                   onChange={(e) => e.target.value && setDateRange((r) => ({ ...r, until: e.target.value }))}
-                  className="h-11 rounded-full border border-gray-200 bg-white px-3 text-base text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10 sm:text-sm"
+                  className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-base text-blue-900 outline-none focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10 sm:text-sm"
                 />
               </div>
             </div>
@@ -611,7 +619,7 @@ export function TrafficLeads() {
                   className="kb-card-in cursor-pointer rounded-2xl border border-gray-200 bg-white p-3.5 shadow-[var(--shadow-sm)] active:scale-[0.99]"
                 >
                   <div className="flex items-start gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 font-display text-sm font-bold text-white">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-sm font-bold text-white">
                       {(lead.name || "?").trim().charAt(0).toUpperCase()}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -644,10 +652,10 @@ export function TrafficLeads() {
           </ul>
 
           {/* Desktop: tabela */}
-          <div className="hidden max-h-[65vh] overflow-auto rounded-3xl border border-gray-200 bg-white md:block">
+          <div className="hidden max-h-[65vh] overflow-auto rounded-2xl border border-gray-200/80 bg-white md:block">
             <table className={cn("w-full border-collapse text-sm", showUtms ? "min-w-[1900px]" : "min-w-[960px]")}>
               <thead>
-                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-white">
+                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                   <th className={cn(th, "min-w-56")}>Lead</th>
                   <th className={cn(th, "min-w-32")}>Cidade/UF</th>
                   <th className={cn(th, "min-w-28")}>Origem</th>
@@ -672,7 +680,7 @@ export function TrafficLeads() {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 font-display text-xs font-bold text-white">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-900 font-display text-xs font-bold text-white">
                             {(lead.name || "?").trim().charAt(0).toUpperCase()}
                           </span>
                           <div className="min-w-0">

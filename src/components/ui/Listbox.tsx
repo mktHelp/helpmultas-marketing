@@ -26,7 +26,8 @@ export interface ListboxProps {
   placeholder?: string;
   /** Modo múltiplo com 2+ itens: "3 campanhas". */
   pluralLabel?: string;
-  variant?: "field" | "pill";
+  /** "cell": gatilho discreto para células de tabela editáveis (mostra a cor da opção). */
+  variant?: "field" | "pill" | "cell";
   /** Padrão: liga a busca quando há mais de 7 opções. */
   searchable?: boolean;
   disabled?: boolean;
@@ -183,7 +184,7 @@ export function Listbox({
             onKeyDown={onPanelKey}
             style={{ position: "fixed", top: pos.top, bottom: pos.bottom, left: pos.left, width: pos.width, maxHeight: pos.maxHeight }}
             className={cn(
-              "dd-pop z-[1000] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[var(--shadow-lg)] outline-none",
+              "dd-pop z-[1000] flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[var(--shadow-lg)] outline-none",
               pos.bottom !== undefined && "dd-pop-up"
             )}
           >
@@ -244,7 +245,7 @@ export function Listbox({
                     onMouseEnter={() => setActive(i)}
                     onClick={() => pick(opt)}
                     className={cn(
-                      "flex cursor-pointer items-start gap-2.5 rounded-xl px-2.5 py-2 text-sm text-blue-900 transition-colors",
+                      "flex cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] text-blue-900 transition-colors",
                       i === active && "bg-gray-100",
                       selected && !multiple && "font-semibold",
                       opt.disabled && "cursor-not-allowed opacity-40",
@@ -294,17 +295,40 @@ export function Listbox({
         }}
         className={cn(
           "flex w-full items-center gap-2 border bg-white text-left text-blue-900 outline-none transition-all",
-          variant === "pill" ? "h-11 rounded-full pl-4 pr-3 text-base sm:h-10 sm:text-sm" : "h-10 rounded-[14px] pl-3.5 pr-3 text-sm",
-          open ? "border-blue-900 shadow-[var(--shadow-focus)]" : "border-gray-200 hover:border-gray-300 focus-visible:border-blue-900 focus-visible:shadow-[var(--shadow-focus)]",
+          variant === "pill"
+            ? "h-11 rounded-[10px] pl-3 pr-2.5 text-base sm:h-9 sm:text-[13px]"
+            : variant === "cell"
+              ? "group/cell h-7 gap-1.5 rounded-md bg-transparent pl-1.5 pr-1 text-xs font-bold"
+              : "h-9 rounded-[10px] pl-3 pr-2.5 text-[13px]",
+          variant === "cell"
+            ? open
+              ? "border-yellow-500 bg-white shadow-[var(--shadow-focus)]"
+              : "border-transparent hover:border-gray-200 hover:bg-white focus-visible:border-yellow-500"
+            : open
+              ? "border-blue-900 shadow-[var(--shadow-focus)]"
+              : "border-gray-200 hover:border-gray-300 focus-visible:border-blue-900 focus-visible:shadow-[var(--shadow-focus)]",
           "disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
       >
-        <span className={cn("min-w-0 flex-1 truncate", isEmpty && !multiple && "text-gray-500", multiple && value.length > 0 && "font-semibold")}>{label}</span>
+        {variant === "cell" && !multiple && first?.color && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: first.color }} />}
+        <span
+          className={cn("min-w-0 flex-1 truncate", isEmpty && !multiple && "text-gray-500", multiple && value.length > 0 && "font-semibold")}
+          style={variant === "cell" && !multiple && first?.color ? { color: first.color } : undefined}
+        >
+          {label}
+        </span>
         {multiple && value.length > 1 && (
           <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-yellow-500 px-1 text-[11px] font-bold text-blue-900">{value.length}</span>
         )}
-        <ChevronDown className={cn("h-4 w-4 shrink-0 text-gray-500 transition-transform duration-200", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-gray-500 transition-transform duration-200",
+            open && "rotate-180",
+            variant === "cell" && "h-3.5 w-3.5 opacity-0 transition-opacity group-hover/cell:opacity-100",
+            variant === "cell" && open && "opacity-100"
+          )}
+        />
       </button>
       {required && (
         <input tabIndex={-1} aria-hidden required value={value[0] ?? ""} onChange={() => {}} name={name} className="pointer-events-none absolute inset-0 h-full w-full opacity-0" />

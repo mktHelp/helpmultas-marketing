@@ -83,8 +83,8 @@ export function FilterButton({ count, onClick, label = "Filtros" }: { count: num
       onClick={onClick}
       aria-haspopup="dialog"
       className={cn(
-        "inline-flex h-11 items-center gap-2 rounded-full border-2 px-4 font-display text-sm font-semibold transition-all active:scale-[0.97] sm:h-10",
-        count > 0 ? "border-blue-900 bg-blue-900 text-white hover:bg-blue-800" : "border-blue-900 bg-white text-blue-900 hover:bg-blue-050"
+        "inline-flex h-11 items-center gap-2 rounded-[10px] border px-3.5 text-[13px] font-bold transition-all active:scale-[0.98] sm:h-9",
+        count > 0 ? "border-blue-900 bg-blue-900 text-white hover:bg-blue-800" : "border-gray-200 bg-white text-blue-900 hover:border-gray-300 hover:bg-gray-050"
       )}
     >
       <ListFilter className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function FilterButton({ count, onClick, label = "Filtros" }: { count: num
 export function ClearFilters({ show, onClick }: { show: boolean; onClick: () => void }) {
   if (!show) return null;
   return (
-    <button type="button" onClick={onClick} className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-blue-900 sm:h-10">
+    <button type="button" onClick={onClick} className="inline-flex h-11 items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-blue-900 sm:h-9">
       <RotateCcw className="h-3.5 w-3.5" /> Limpar
     </button>
   );
@@ -142,7 +142,7 @@ export function FilterDate({ label, value, onChange, min, max }: { label: string
         min={min}
         max={max}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 rounded-full border border-gray-200 bg-white px-3 text-base text-blue-900 outline-none transition-all hover:border-gray-300 focus:border-blue-900 focus:shadow-[var(--shadow-focus)] sm:h-10 sm:text-sm"
+        className="h-11 rounded-[10px] border border-gray-200 bg-white px-3 text-base text-blue-900 outline-none transition-all hover:border-gray-300 focus:border-yellow-500 focus:shadow-[var(--shadow-focus)] sm:h-9 sm:text-[13px]"
       />
     </label>
   );

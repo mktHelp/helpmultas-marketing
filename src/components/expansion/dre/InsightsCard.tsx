@@ -13,8 +13,7 @@ export function InsightsCard({ step, S, c }: { step: number; S: DreInput; c: Dre
   const itens = insightsEtapa(step, S, c);
   if (!itens.length) return null;
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-[#2c5a73] p-5 text-white shadow-[var(--shadow-md)] print:hidden sm:p-6">
-      <div className="pointer-events-none absolute -left-10 -bottom-12 h-40 w-40 rounded-full bg-yellow-500/15 blur-3xl" aria-hidden />
+    <div className="relative overflow-hidden rounded-3xl bg-blue-900 p-5 text-white shadow-[var(--shadow-md)] print:hidden sm:p-6">
       <p className="relative mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-yellow-500">
         <Sparkles className="h-4 w-4" /> Veja o que isso significa para você
       </p>

@@ -996,7 +996,7 @@ function AssistenteContent() {
         action={
           <span
             className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              "inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
               activePending ? "border-yellow-400 bg-yellow-050 text-blue-900" : "border-gray-200 bg-white text-gray-500"
             )}
           >
@@ -1088,7 +1088,7 @@ function AssistenteContent() {
                   <button
                     type="button"
                     onClick={() => activeId && loadHistory(activeId)}
-                    className="inline-flex items-center gap-1.5 rounded-full border-2 border-blue-900 px-4 py-1.5 font-display text-xs font-semibold text-blue-900 hover:bg-blue-050"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-blue-900 px-4 py-1.5 font-display text-xs font-semibold text-blue-900 hover:bg-blue-050"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     Tentar novamente

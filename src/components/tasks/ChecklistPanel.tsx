@@ -71,7 +71,7 @@ export function ChecklistPanel({
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
             <div
-              className={cn("h-2 rounded-full transition-all duration-500", complete ? "bg-[color:var(--color-success)]" : "bg-gradient-to-r from-yellow-500 to-amber-400")}
+              className={cn("h-2 rounded-full transition-all duration-500", complete ? "bg-[color:var(--color-success)]" : "bg-yellow-500")}
               style={{ width: `${percent}%` }}
             />
           </div>
@@ -135,7 +135,7 @@ export function ChecklistPanel({
             }}
             placeholder="Adicionar item e apertar Enter…"
             aria-label="Novo item do checklist"
-            className="h-11 min-w-0 flex-1 rounded-full border border-gray-200 bg-gray-050 px-4 text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:bg-white focus:shadow-[var(--shadow-focus)] sm:h-10"
+            className="h-11 min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-050 px-4 text-blue-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-900 focus:bg-white focus:shadow-[var(--shadow-focus)] sm:h-10"
             style={{ fontSize: 16 }}
           />
           <button

@@ -199,11 +199,11 @@ export function ContentTab({ media }: { media: InstagramMedia[] }) {
           <Panel title="Média de visualizações por tipo" subtitle="Qual formato entrega mais">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={byCategory} margin={{ left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
                 <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
                 <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-                <Bar isAnimationActive={false} dataKey="views" name="Views por publicação" radius={[6, 6, 0, 0]}>
+                <Bar maxBarSize={28} isAnimationActive={false} dataKey="views" name="Views por publicação" radius={[4, 4, 0, 0]}>
                   {byCategory.map((c) => <Cell key={c.label} fill={c.color} />)}
                 </Bar>
               </BarChart>
@@ -212,11 +212,11 @@ export function ContentTab({ media }: { media: InstagramMedia[] }) {
           <Panel title="Engajamento por tipo" subtitle="Interações ÷ alcance (%)">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={byCategory} margin={{ left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
                 <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} unit="%" />
                 <RTooltip content={<ChartTooltip format={(n) => `${n.toFixed(2).replace(".", ",")}%`} />} cursor={{ fill: "#f4f6f8" }} />
-                <Bar isAnimationActive={false} dataKey="er" name="Engajamento" radius={[6, 6, 0, 0]}>
+                <Bar maxBarSize={28} isAnimationActive={false} dataKey="er" name="Engajamento" radius={[4, 4, 0, 0]}>
                   {byCategory.map((c) => <Cell key={c.label} fill={c.color} />)}
                 </Bar>
               </BarChart>

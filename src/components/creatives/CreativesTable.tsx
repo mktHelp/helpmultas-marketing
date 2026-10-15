@@ -82,7 +82,7 @@ function Chip({ active, color, onClick, children }: { active: boolean; color?: s
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+        "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
         active ? "border-transparent text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
       )}
       style={active ? { backgroundColor: color ?? "#243746" } : undefined}
@@ -496,7 +496,7 @@ export function CreativesTable({
       aria-pressed={row.top_ad}
       title={row.top_ad ? "É Top Ads — clique para remover" : "Marcar como Top Ads"}
       className={cn(
-        "inline-flex h-10 items-center gap-1.5 rounded-full border-2 px-3.5 text-xs font-bold transition-all active:scale-95",
+        "inline-flex h-10 items-center gap-1.5 rounded-lg border px-3.5 text-xs font-bold transition-all active:scale-95",
         row.top_ad ? "border-yellow-500 bg-yellow-500 text-blue-900 shadow-sm" : "border-gray-200 text-gray-500 hover:border-yellow-500 hover:text-blue-900"
       )}
     >
@@ -626,22 +626,22 @@ export function CreativesTable({
           </ul>
 
           {/* Desktop: tabela editável */}
-          <div className="hidden max-h-[70vh] overflow-auto rounded-3xl border border-gray-200 bg-white shadow-[var(--shadow-sm)] md:block">
+          <div className="hidden max-h-[70vh] overflow-auto rounded-2xl border border-gray-200/80 bg-white md:block">
             <table className="w-full min-w-[1100px] border-collapse text-sm">
               <thead>
-                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-white">
+                <tr className="text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                   {COLUMNS.map((col) => (
-                    <th key={col.key} className={cn("sticky top-0 z-20 bg-blue-900 px-3 py-3", col.widthClass)}>
+                    <th key={col.key} className={cn("sticky top-0 z-20 border-b border-gray-200 bg-gray-050 px-3 py-2.5", col.widthClass)}>
                       <button onClick={() => toggleSort(col.key)} className={cn("flex items-center gap-1 uppercase transition-colors hover:text-yellow-400", sortField === col.key && "text-yellow-400")}>
                         {col.label}
                         {sortField === col.key ? (sortDir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />) : <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
                       </button>
                     </th>
                   ))}
-                  <th className="sticky top-0 z-20 w-56 bg-blue-900 px-3 py-3">Link de criativos</th>
-                  <th className="sticky top-0 z-20 w-44 bg-blue-900 px-3 py-3">Subido em</th>
-                  <th className="sticky right-24 top-0 z-30 w-28 border-l border-white/10 bg-blue-900 px-2 py-3">Top Ads</th>
-                  <th className="sticky right-0 top-0 z-30 w-24 border-l border-white/10 bg-blue-900 px-2 py-3" />
+                  <th className="sticky top-0 z-20 w-56 bg-gray-050 px-3 py-2.5">Link de criativos</th>
+                  <th className="sticky top-0 z-20 w-44 bg-gray-050 px-3 py-2.5">Subido em</th>
+                  <th className="sticky right-24 top-0 z-30 w-28 border-b border-l border-gray-200 bg-gray-050 px-2 py-2.5">Top Ads</th>
+                  <th className="sticky right-0 top-0 z-30 w-24 border-b border-l border-gray-200 bg-gray-050 px-2 py-2.5" />
                 </tr>
               </thead>
               <tbody>

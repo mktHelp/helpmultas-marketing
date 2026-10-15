@@ -1,6 +1,6 @@
 "use client";
 
-import { GRID_COLOR, TOOLTIP_STYLE } from "@/lib/chart-theme";
+import { GRID_COLOR, TOOLTIP_STYLE, TICK_STYLE } from "@/lib/chart-theme";
 
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
@@ -31,11 +31,11 @@ export function StatusBarChart({ data }: { data: { label: string; count: number 
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} margin={{ left: -20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
+        <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
+        <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
         <RTooltip contentStyle={TOOLTIP_STYLE} />
-        <Bar dataKey="count" fill="#fcbf00" radius={[6, 6, 0, 0]} />
+        <Bar maxBarSize={28} dataKey="count" fill="#fcbf00" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -45,11 +45,11 @@ export function ProductivityLineChart({ data }: { data: { label: string; count: 
   return (
     <ResponsiveContainer width="100%" height={260}>
       <LineChart data={data} margin={{ left: -20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
+        <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
+        <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
         <RTooltip contentStyle={TOOLTIP_STYLE} />
-        <Line type="monotone" dataKey="count" stroke="#243746" strokeWidth={2.5} dot={{ r: 3, fill: "#fcbf00" }} />
+        <Line type="monotone" dataKey="count" stroke="#243746" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
       </LineChart>
     </ResponsiveContainer>
   );

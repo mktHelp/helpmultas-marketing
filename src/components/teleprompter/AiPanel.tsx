@@ -180,7 +180,7 @@ export function AiPanel({
 
   return (
     <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white", className)}>
-      <div className="flex items-center gap-2 bg-gradient-to-r from-blue-900 to-blue-800 px-4 py-3 text-white">
+      <div className="flex items-center gap-2 bg-blue-900 px-4 py-3 text-white">
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-500 text-blue-900">
           <Sparkles className="h-[18px] w-[18px]" />
         </span>
@@ -447,7 +447,7 @@ export function AiPanel({
                       <button
                         type="button"
                         onClick={() => onOpenStage(result.text)}
-                        className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border-2 border-blue-900 px-3 text-xs font-bold text-blue-900 transition-all hover:bg-blue-050 active:scale-95"
+                        className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-blue-900 px-3 text-xs font-bold text-blue-900 transition-all hover:bg-blue-050 active:scale-95"
                       >
                         <Play className="h-3.5 w-3.5" /> Abrir no teleprompter
                       </button>
@@ -456,7 +456,7 @@ export function AiPanel({
                           type="button"
                           onClick={useInOpenScript}
                           title={`Inserir em: ${insertLabel}`}
-                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border-2 border-gray-300 px-3 text-xs font-bold text-gray-700 transition-all hover:bg-gray-050 active:scale-95"
+                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 text-xs font-bold text-gray-700 transition-all hover:bg-gray-050 active:scale-95"
                         >
                           <ArrowRight className="h-3.5 w-3.5" /> Inserir no aberto
                         </button>
@@ -464,7 +464,7 @@ export function AiPanel({
                         <button
                           type="button"
                           onClick={copy}
-                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border-2 border-gray-300 px-3 text-xs font-bold text-gray-700 transition-all hover:bg-gray-050 active:scale-95"
+                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-3 text-xs font-bold text-gray-700 transition-all hover:bg-gray-050 active:scale-95"
                         >
                           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copied ? "Copiado" : "Copiar"}
                         </button>
@@ -493,7 +493,7 @@ export function AiPanel({
                     <button
                       type="button"
                       onClick={copy}
-                      className="inline-flex h-11 items-center gap-1.5 rounded-full border-2 border-blue-900 px-3 text-xs font-bold text-blue-900 transition-all hover:bg-blue-050 active:scale-95"
+                      className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-blue-900 px-3 text-xs font-bold text-blue-900 transition-all hover:bg-blue-050 active:scale-95"
                     >
                       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copied ? "Copiado" : "Copiar"}
                     </button>

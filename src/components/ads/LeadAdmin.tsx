@@ -278,14 +278,14 @@ export function LeadDialogActions({ onEdit, onDelete }: { onEdit: () => void; on
       <button
         type="button"
         onClick={onEdit}
-        className="rounded-full border border-blue-900 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-900 hover:text-white"
+        className="rounded-lg border border-blue-900 px-3 py-1.5 text-xs font-semibold text-blue-900 hover:bg-blue-900 hover:text-white"
       >
         Editar lead
       </button>
       <button
         type="button"
         onClick={onDelete}
-        className="rounded-full border border-[color:var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger-bg)]"
+        className="rounded-lg border border-[color:var(--color-danger)] px-3 py-1.5 text-xs font-semibold text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger-bg)]"
       >
         Excluir lead
       </button>

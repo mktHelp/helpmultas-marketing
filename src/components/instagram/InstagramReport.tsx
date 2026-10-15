@@ -315,7 +315,7 @@ export function InstagramReport({
                     <stop offset="100%" stopColor={BRAND.blue} stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={18} />
                 <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
                 {averageViews > 0 && <ReferenceLine y={averageViews} stroke="#9aa7af" strokeDasharray="4 4" />}
@@ -330,11 +330,11 @@ export function InstagramReport({
               {mounted && media.length > 0 ? (
                 <>
                   <BarChart width={330} height={170} data={postsByDay} margin={{ left: -24, right: 4, top: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                    <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                     <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={14} />
                     <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
                     {presentCats.map((c) => (
-                      <Bar key={c} dataKey={c} stackId="p" fill={CATEGORY_COLOR[c]} isAnimationActive={false} />
+                      <Bar maxBarSize={28} key={c} dataKey={c} stackId="p" fill={CATEGORY_COLOR[c]} isAnimationActive={false} />
                     ))}
                   </BarChart>
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-600">
@@ -351,11 +351,11 @@ export function InstagramReport({
               <SectionTitle hint={hasNet ? `${signed(t.netFollowers)} no período` : ""}>Ganho de seguidores</SectionTitle>
               {mounted && hasNet ? (
                 <BarChart width={330} height={170} data={rows.slice(-30).map((r) => ({ label: shortDate(r.date), v: r.net_followers }))} margin={{ left: -20, right: 4, top: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                   <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={14} />
                   <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} />
                   <ReferenceLine y={0} stroke="#9aa7af" />
-                  <Bar dataKey="v" isAnimationActive={false}>
+                  <Bar maxBarSize={28} dataKey="v" isAnimationActive={false}>
                     {rows.slice(-30).map((r) => (
                       <Cell key={r.date} fill={r.net_followers >= 0 ? BRAND.green : BRAND.red} />
                     ))}
@@ -400,10 +400,10 @@ export function InstagramReport({
               <SectionTitle hint={bestWeekday?.value ? `Melhor: ${bestWeekday.label}` : ""}>Views por dia da semana</SectionTitle>
               {mounted && (
                 <BarChart width={330} height={150} data={weekday} margin={{ left: -14, right: 4, top: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                   <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
                   <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
-                  <Bar dataKey="value" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+                  <Bar maxBarSize={28} dataKey="value" isAnimationActive={false} radius={[4, 4, 0, 0]}>
                     {weekday.map((w) => (
                       <Cell key={w.label} fill={w.label === bestWeekday?.label ? BRAND.yellow : BRAND.blue} />
                     ))}
@@ -498,10 +498,10 @@ export function InstagramReport({
                 <p className="mb-1 text-[11px] font-bold text-blue-900">Faixa etária</p>
                 {mounted && (
                   <BarChart width={330} height={140} data={age} margin={{ left: -8, right: 4, top: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+                    <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                     <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
                     <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
-                    <Bar dataKey="value" fill={BRAND.blue} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                    <Bar maxBarSize={28} dataKey="value" fill={BRAND.blue} radius={[4, 4, 0, 0]} isAnimationActive={false} />
                   </BarChart>
                 )}
               </div>

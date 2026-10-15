@@ -13,7 +13,7 @@ import { listFollowerSnapshotsInRange, listLinkClicksInRange } from "@/lib/servi
 import { dailyFollowerHistory, dailyLinkClickHistory } from "@/lib/stats";
 import { cn, parseUserAgent, referrerLabel } from "@/lib/utils";
 import type { SocialAccount, SocialLinkClick } from "@/types/database";
-import { GRID_COLOR, TOOLTIP_STYLE } from "@/lib/chart-theme";
+import { GRID_COLOR, TOOLTIP_STYLE, TICK_STYLE } from "@/lib/chart-theme";
 
 const MONTHS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -201,10 +201,10 @@ function MonthReport({
 
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={history} margin={{ left: -20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
+          <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
+          <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
           <YAxis
-            tick={{ fontSize: 11, fill: "#7c8e98" }}
+            tick={TICK_STYLE}
             axisLine={false}
             tickLine={false}
             domain={["dataMin - 20", "dataMax + 20"]}
@@ -219,7 +219,7 @@ function MonthReport({
               ];
             }}
           />
-          <Bar dataKey="followers" radius={[6, 6, 0, 0]}>
+          <Bar maxBarSize={28} dataKey="followers" radius={[4, 4, 0, 0]}>
             {history.map((d) => (
               <Cell key={d.date} fill={d.delta == null || d.delta >= 0 ? "#fcbf00" : "#243746"} />
             ))}
@@ -281,14 +281,14 @@ function LinkClicksSection({ month, clicks }: { month: number; clicks: SocialLin
         <>
           <ResponsiveContainer width="100%" height={140}>
             <BarChart data={history} margin={{ left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#7c8e98" }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
+              <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
+              <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(value) => [value, "Cliques"]}
               />
-              <Bar dataKey="clicks" radius={[6, 6, 0, 0]} fill="#25d366" />
+              <Bar maxBarSize={28} dataKey="clicks" radius={[4, 4, 0, 0]} fill="#25d366" />
             </BarChart>
           </ResponsiveContainer>
 

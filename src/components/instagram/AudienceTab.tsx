@@ -92,11 +92,11 @@ export function AudienceTab({ audience, followersNow }: { audience: InstagramAud
         <Panel title="Faixa etária" subtitle="Seguidores por idade">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={age} margin={{ left: -10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} dataKey="value" name="Seguidores" radius={[6, 6, 0, 0]}>
+              <Bar maxBarSize={28} isAnimationActive={false} dataKey="value" name="Seguidores" radius={[4, 4, 0, 0]}>
                 {age.map((a) => (
                   <Cell key={a.label} fill={a.label === topAge?.label ? BRAND.yellow : BRAND.blue} />
                 ))}

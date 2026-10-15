@@ -9,6 +9,7 @@ import {
 import {
   Area, AreaChart, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, XAxis, YAxis,
 } from "recharts";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Tabs } from "@/components/ui/Tabs";
 import { UserAvatar } from "@/components/shared/UserAvatar";
@@ -120,27 +121,31 @@ function PulseCard({
 }) {
   const id = `pulse-${title.replace(/\W/g, "")}`;
   return (
-    <Card className="relative overflow-hidden p-0 transition-shadow hover:shadow-[var(--shadow-md)]">
-      <div className="h-1.5" style={{ background: accent }} />
-      <div className="p-5 pb-0">
-        <div className="flex items-center justify-between">
-          <p className="flex items-center gap-2 font-display text-[15px] font-bold text-blue-900">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: `${accent}22`, color: accent === BRAND.yellow ? "#243746" : accent }}>
-              <Icon className="h-4 w-4" />
-            </span>
-            {title}
-          </p>
-          <Link href={href} className="flex items-center gap-0.5 text-xs font-semibold text-gray-500 hover:text-blue-900">
-            Detalhes <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-        <div className="mt-3 flex items-end justify-between gap-2">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{mainLabel}</p>
-            <p className="font-display text-3xl font-bold text-blue-900">{main}</p>
-          </div>
+    <Card
+      className="overflow-hidden p-0 transition-shadow hover:shadow-[var(--shadow-md)]"
+      notch={
+        <Link
+          href={href}
+          aria-label={`Ver detalhes de ${title}`}
+          title="Ver detalhes"
+          className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-blue-900 text-white transition-colors hover:bg-yellow-500 hover:text-blue-900"
+        >
+          <ArrowUpRight className="h-4 w-4" />
+        </Link>
+      }
+    >
+      <div className="p-5 pb-0 pr-16">
+        <p className="flex items-center gap-2 font-display text-[15px] font-semibold text-blue-900">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: `${accent}1f`, color: accent === BRAND.yellow ? "#a87f00" : accent }}>
+            <Icon className="h-4 w-4" />
+          </span>
+          {title}
+        </p>
+        <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <p className="font-display text-[28px] font-semibold leading-none tracking-tight text-blue-900 tabular-nums">{main}</p>
           <DeltaBadge current={mainCur} previous={mainPrev} invert={invert} />
         </div>
+        <p className="mt-1 text-xs font-semibold text-gray-500">{mainLabel}</p>
       </div>
       <div className="h-14">
         {spark.length > 1 && (
@@ -148,20 +153,20 @@ function PulseCard({
             <AreaChart data={spark.map((v, i) => ({ i, v }))} margin={{ top: 6, bottom: 0, left: 0, right: 0 }}>
               <defs>
                 <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={accent} stopOpacity={0.4} />
+                  <stop offset="0%" stopColor={accent} stopOpacity={0.16} />
                   <stop offset="100%" stopColor={accent} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <Area isAnimationActive={false} type="monotone" dataKey="v" stroke={accent} strokeWidth={2} fill={`url(#${id})`} />
+              <Area isAnimationActive={false} type="monotone" dataKey="v" stroke={accent} strokeWidth={1.75} fill={`url(#${id})`} />
             </AreaChart>
           </ResponsiveContainer>
         )}
       </div>
-      <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
+      <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100 bg-gray-050/60">
         {stats.map((s) => (
           <div key={s.label} className="px-3 py-2.5 text-center">
-            <p className="font-display text-base font-bold text-blue-900">{s.value}</p>
-            <p className="text-[10px] font-semibold uppercase text-gray-400">{s.label}</p>
+            <p className="font-display text-[15px] font-semibold tabular-nums text-blue-900">{s.value}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{s.label}</p>
             {s.cur != null && s.prev !== undefined && (
               <div className="mt-0.5 flex justify-center">
                 <DeltaBadge current={s.cur} previous={s.prev} invert={s.invert} />
@@ -364,25 +369,23 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
   return (
     <div className="space-y-6">
       {/* Cabeçalho + período */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-blue-900">
-            {greeting()}, {firstName || "time"} 👋
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">Visão geral do Marketing — produção, Instagram e tráfego pago em um só lugar.</p>
-        </div>
-        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
-          {period === "custom" && (
-            <div className="flex items-center gap-2">
-              <DateField label="De" value={custom.from} max={today} onChange={(v) => setCustom((c) => ({ ...c, from: v }))} />
-              <DateField label="Até" value={custom.to} max={today} onChange={(v) => setCustom((c) => ({ ...c, to: v }))} />
+      <PageHeader
+        title={`${greeting()}, ${firstName || "time"}`}
+        description="Visão geral do Marketing — produção, Instagram e tráfego pago em um só lugar."
+        action={
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3">
+            {period === "custom" && (
+              <div className="flex items-center gap-2">
+                <DateField label="De" value={custom.from} max={today} onChange={(v) => setCustom((c) => ({ ...c, from: v }))} />
+                <DateField label="Até" value={custom.to} max={today} onChange={(v) => setCustom((c) => ({ ...c, to: v }))} />
+              </div>
+            )}
+            <div className="min-w-0 max-w-full overflow-x-auto">
+              <Tabs tabs={PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as PeriodKey)} />
             </div>
-          )}
-          <div className="min-w-0 max-w-full overflow-x-auto">
-            <Tabs tabs={PERIOD_OPTIONS} active={period} onChange={(k) => setPeriod(k as PeriodKey)} />
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <TodayAnniversaries />
 
@@ -480,21 +483,21 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
                   <stop offset="100%" stopColor={BRAND.blue} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip content={<ChartTooltip />} />
-              <Area isAnimationActive={false} type="monotone" dataKey="backlog" name="Backlog aberto" stroke={BRAND.blue} strokeWidth={2.5} fill="url(#backlogFill)" />
+              <Area isAnimationActive={false} type="monotone" dataKey="backlog" name="Backlog aberto" stroke={BRAND.blue} strokeWidth={2} fill="url(#backlogFill)" />
             </AreaChart>
           ) : (
             <ComposedChart data={flowData} margin={{ left: -10, right: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip content={<ChartTooltip />} cursor={{ fill: "#f4f6f8" }} />
-              {(flowKey === "both" || flowKey === "completed") && <Bar isAnimationActive={false} dataKey="completed" name="Concluídas" fill={BRAND.green} radius={[4, 4, 0, 0]} />}
-              {flowKey === "created" && <Bar isAnimationActive={false} dataKey="created" name="Criadas" fill={BRAND.steel} radius={[4, 4, 0, 0]} />}
-              {flowKey === "both" && <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} />}
+              {(flowKey === "both" || flowKey === "completed") && <Bar maxBarSize={28} isAnimationActive={false} dataKey="completed" name="Concluídas" fill={BRAND.green} radius={[4, 4, 0, 0]} />}
+              {flowKey === "created" && <Bar maxBarSize={28} isAnimationActive={false} dataKey="created" name="Criadas" fill={BRAND.steel} radius={[4, 4, 0, 0]} />}
+              {flowKey === "both" && <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />}
             </ComposedChart>
           )}
         </ResponsiveContainer>
@@ -517,12 +520,12 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
         <Panel title="Ritmo por dia da semana" subtitle="Média de entregas (barras) e criações (linha)" className="lg:col-span-2">
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={weekday} margin={{ left: -14, right: 6 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} />
               <RTooltip content={<ChartTooltip format={(n) => n.toFixed(1).replace(".", ",")} />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} dataKey="completed" name="Concluídas (média)" fill={BRAND.blue} radius={[6, 6, 0, 0]} />
-              <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas (média)" stroke={BRAND.yellow} strokeWidth={2.5} dot={{ r: 3, fill: BRAND.yellow }} />
+              <Bar maxBarSize={28} isAnimationActive={false} dataKey="completed" name="Concluídas (média)" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+              <Line isAnimationActive={false} type="monotone" dataKey="created" name="Criadas (média)" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </ComposedChart>
           </ResponsiveContainer>
         </Panel>
@@ -555,12 +558,12 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
           </div>
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={igLines} margin={{ left: -10, right: 6 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
               <YAxis tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <RTooltip content={<ChartTooltip />} />
               {instagram.accounts.map((a, i) => (
-                <Line key={a.id} isAnimationActive={false} type="monotone" dataKey={a.id} name={a.label} stroke={accountColors[i % accountColors.length]} strokeWidth={2.5} dot={false} />
+                <Line key={a.id} isAnimationActive={false} type="monotone" dataKey={a.id} name={a.label} stroke={accountColors[i % accountColors.length]} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
               ))}
             </ComposedChart>
           </ResponsiveContainer>
@@ -576,13 +579,13 @@ export function HomeDashboard({ firstName, tasks, statuses, areas, people, insta
         >
           <ResponsiveContainer width="100%" height={268}>
             <ComposedChart data={trafficSeries} margin={{ left: -6, right: -6 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} vertical={false} />
+              <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
               <XAxis dataKey="label" tick={TICK_STYLE} axisLine={false} tickLine={false} minTickGap={16} />
               <YAxis yAxisId="l" tick={TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={compact} />
               <YAxis yAxisId="r" orientation="right" tick={TICK_STYLE} axisLine={false} tickLine={false} allowDecimals={false} />
               <RTooltip content={<ChartTooltip format={(n) => (Number.isInteger(n) ? fmt(n) : brl(n))} />} cursor={{ fill: "#f4f6f8" }} />
-              <Bar isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
-              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads" stroke={BRAND.yellow} strokeWidth={2.5} dot={false} />
+              <Bar maxBarSize={28} isAnimationActive={false} yAxisId="l" dataKey="spend" name="Investido" fill={BRAND.blue} radius={[4, 4, 0, 0]} />
+              <Line isAnimationActive={false} yAxisId="r" type="monotone" dataKey="leads" name="Leads" stroke={BRAND.yellow} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }} />
             </ComposedChart>
           </ResponsiveContainer>
         </Panel>

@@ -34,7 +34,7 @@ function Chip({ active, color, onClick, children }: { active: boolean; color?: s
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
+        "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all active:scale-95",
         active ? "border-transparent text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
       )}
       style={active ? { backgroundColor: color ?? "#243746" } : undefined}

@@ -52,14 +52,14 @@ function dueLabel(due: string | null) {
 }
 
 /** Anel de progresso do dia. */
-function ProgressRing({ percent, size = 84 }: { percent: number; size?: number }) {
-  const stroke = 8;
+function ProgressRing({ percent, size = 64 }: { percent: number; size?: number }) {
+  const stroke = 6;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <div className="relative shrink-0 text-white" style={{ width: size, height: size }} role="img" aria-label={`${percent}% do dia concluído`}>
+    <div className="relative shrink-0 text-blue-900" style={{ width: size, height: size }} role="img" aria-label={`${percent}% do dia concluído`}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e1e7eb" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -74,8 +74,8 @@ function ProgressRing({ percent, size = 84 }: { percent: number; size?: number }
         />
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className="font-display text-xl font-bold tabular-nums text-white">{percent}%</span>
-        <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-blue-100">do dia</span>
+        <span className="font-display text-base font-bold tabular-nums text-blue-900">{percent}%</span>
+        <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-gray-500">do dia</span>
       </span>
     </div>
   );
@@ -242,11 +242,11 @@ export default function MyDayPage() {
           </Button>
         }
       >
-        <span className="rounded-full bg-blue-050 px-2.5 py-1">
+        <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1">
           {groups.today.length} {groups.today.length === 1 ? "tarefa para hoje" : "tarefas para hoje"}
         </span>
         {groups.overdue.length > 0 && <span className="rounded-full bg-[color:var(--color-danger-bg)] px-2.5 py-1 text-[color:var(--color-danger)]">{groups.overdue.length} atrasada{groups.overdue.length === 1 ? "" : "s"}</span>}
-        <span className="rounded-full bg-blue-050 px-2.5 py-1">{groups.done.length} concluída{groups.done.length === 1 ? "" : "s"} hoje</span>
+        <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1">{groups.done.length} concluída{groups.done.length === 1 ? "" : "s"} hoje</span>
         {focus && (
           <Link
             href={`/tasks/${focus.id}`}
@@ -276,7 +276,7 @@ export default function MyDayPage() {
         ))}
       </div>
 
-      <section className="rounded-3xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-sm)] sm:p-5">
+      <section className="rounded-2xl border border-gray-200/80 bg-white p-3 shadow-[var(--shadow-sm)] sm:p-5">
         <div className="mb-3 flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${meta.color}1f`, color: meta.color }}>
             <meta.icon className="h-[18px] w-[18px]" />

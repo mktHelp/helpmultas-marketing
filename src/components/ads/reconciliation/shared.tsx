@@ -65,7 +65,7 @@ export function ExportButtons({ build, disabled }: { build: () => LeadExportData
           onClick={() => run(k)}
           disabled={disabled || busy !== null}
           title={`Exportar em ${k.toUpperCase()}`}
-          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-gray-200 px-4 text-xs font-semibold text-blue-900 transition-colors hover:border-blue-900 disabled:opacity-40"
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-gray-200 px-4 text-xs font-semibold text-blue-900 transition-colors hover:border-blue-900 disabled:opacity-40"
         >
           {busy === k ? <Download className="h-4 w-4 animate-pulse" /> : k === "pdf" ? <FileText className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" />}
           {k.toUpperCase()}

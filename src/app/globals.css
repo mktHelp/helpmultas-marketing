@@ -23,8 +23,8 @@
   --gray-700: #4b5f6c;
   --gray-500: #7c8e98;
   --gray-300: #b7c3ca;
-  --gray-200: #d8e0e4;
-  --gray-100: #eef2f4;
+  --gray-200: #e1e7eb;
+  --gray-100: #eef2f5;
 
   --color-bg-page: var(--white);
   --color-bg-inverse: var(--blue-900);
@@ -58,20 +58,27 @@
   --font-body: 'Nunito Sans', system-ui, sans-serif;
 
   --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(23, 36, 44, 0.08);
-  --shadow-md: 0 6px 20px rgba(23, 36, 44, 0.10);
-  --shadow-lg: 0 16px 40px rgba(23, 36, 44, 0.16);
+  /* Superfícies do shell (v3 · ERP): moldura escura, folha de trabalho clara e cards brancos. */
+  --surface-frame: #1e2f3c;
+  --surface-app: #f1f4f7;
+  --surface-card: #ffffff;
+  /* Raio das bordas invertidas (recortes côncavos) */
+  --ic-r: 14px;
+
+  --shadow-sm: 0 1px 2px rgba(23, 36, 44, 0.04);
+  --shadow-md: 0 4px 16px rgba(23, 36, 44, 0.07);
+  --shadow-lg: 0 18px 48px rgba(23, 36, 44, 0.16);
   --shadow-focus: 0 0 0 3px rgba(252, 191, 0, 0.45);
 
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --duration-fast: 120ms;
   --duration-base: 200ms;
 
-  --background: var(--white);
+  --background: var(--surface-app);
   --foreground: var(--gray-900);
 }
 
@@ -111,6 +118,13 @@
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-pill: var(--radius-pill);
+  /* Raios mais contidos em todo o sistema (visual mais limpo) */
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+  --radius-3xl: 18px;
+
+  --color-surface-app: var(--surface-app);
+  --color-surface-frame: var(--surface-frame);
 
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
@@ -448,3 +462,151 @@ html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adj
 .dd-pop { animation: dd-in 140ms ease-out both; transform-origin: top; }
 .dd-pop-up { animation-name: dd-in-up; transform-origin: bottom; }
 @media (prefers-reduced-motion: reduce) { .dd-pop { animation: none; } }
+
+/* ------------------------------------------------------------------ */
+/* Bordas invertidas (v3)                                              */
+/* Um "encaixe" recortado no canto do card, com curvas côncavas dos     */
+/* dois lados. O recorte é pintado com a cor do fundo onde o card está  */
+/* (--ic-bg), por isso funciona sobre a folha do app sem máscara.       */
+/* ------------------------------------------------------------------ */
+.ic-host { position: relative; }
+.ic-slot {
+  --ic-bg-resolved: var(--ic-bg, var(--surface-app));
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 6px 6px;
+  background: var(--ic-bg-resolved);
+  border-bottom-left-radius: var(--ic-r);
+}
+.ic-slot::before,
+.ic-slot::after {
+  content: "";
+  position: absolute;
+  width: var(--ic-r);
+  height: var(--ic-r);
+  pointer-events: none;
+  background: radial-gradient(circle at 0 100%, transparent calc(var(--ic-r) - 0.5px), var(--ic-bg-resolved) var(--ic-r));
+}
+.ic-slot::before { top: 0; left: calc(var(--ic-r) * -1); }
+.ic-slot::after { top: 100%; right: 0; }
+
+/* Variante no canto inferior esquerdo (rótulos/abas que "saem" do card). */
+.ic-slot-bl {
+  --ic-bg-resolved: var(--ic-bg, var(--surface-app));
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  padding: 6px 6px 0 0;
+  background: var(--ic-bg-resolved);
+  border-top-right-radius: var(--ic-r);
+}
+.ic-slot-bl::before,
+.ic-slot-bl::after {
+  content: "";
+  position: absolute;
+  width: var(--ic-r);
+  height: var(--ic-r);
+  pointer-events: none;
+  background: radial-gradient(circle at 100% 0, transparent calc(var(--ic-r) - 0.5px), var(--ic-bg-resolved) var(--ic-r));
+}
+.ic-slot-bl::before { bottom: 100%; left: 0; }
+.ic-slot-bl::after { bottom: 0; left: 100%; }
+
+/* Cards aninhados alternam branco/cinza, e o recorte (notch) de cada card pinta
+   a cor de quem está por fora. Em @layer components para que bg-* do chamador vença. */
+@layer components {
+  .hm-card { background: var(--surface-card); }
+  .hm-card > .ic-slot { --ic-bg: var(--surface-app); }
+  .hm-card .hm-card { background: var(--gray-050); box-shadow: none; }
+  .hm-card .hm-card > .ic-slot { --ic-bg: var(--surface-card); }
+  .hm-card .hm-card .hm-card { background: var(--surface-card); }
+  .hm-card .hm-card .hm-card > .ic-slot { --ic-bg: var(--gray-050); }
+}
+
+/* Aba ativa da sidebar: ganha a cor da folha e "escorre" para dentro dela,
+   com curvas invertidas acima e abaixo (efeito de aba de pasta). */
+.sb-tab-active { background: var(--surface-app); }
+.sb-tab-active::before,
+.sb-tab-active::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  width: var(--ic-r);
+  height: var(--ic-r);
+  pointer-events: none;
+}
+.sb-tab-active::before {
+  bottom: 100%;
+  background: radial-gradient(circle at 0 0, transparent calc(var(--ic-r) - 0.5px), var(--surface-app) var(--ic-r));
+}
+.sb-tab-active::after {
+  top: 100%;
+  background: radial-gradient(circle at 0 100%, transparent calc(var(--ic-r) - 0.5px), var(--surface-app) var(--ic-r));
+}
+
+/* Abas em formato de pasta: a ativa se funde ao painel branco logo abaixo. */
+.folder-tab-active { background: var(--surface-card); }
+.folder-tab-active::before,
+.folder-tab-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: var(--ic-r);
+  height: var(--ic-r);
+  pointer-events: none;
+}
+.folder-tab-active::before {
+  right: 100%;
+  background: radial-gradient(circle at 0 0, transparent calc(var(--ic-r) - 0.5px), var(--surface-card) var(--ic-r));
+}
+.folder-tab-first::before { display: none; }
+.folder-tab-active::after {
+  left: 100%;
+  background: radial-gradient(circle at 100% 0, transparent calc(var(--ic-r) - 0.5px), var(--surface-card) var(--ic-r));
+}
+
+/* ------------------------------------------------------------------ */
+/* Tabelas no padrão ERP: cabeçalho discreto e fixo, linhas compactas   */
+/* ------------------------------------------------------------------ */
+.erp-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.erp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--gray-050);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+.erp-table tbody td { border-bottom: 1px solid var(--gray-100); padding: 8px 12px; vertical-align: middle; color: var(--blue-900); }
+.erp-table tbody tr:last-child td { border-bottom: 0; }
+.erp-table tbody tr { transition: background-color var(--duration-fast) var(--ease-standard); }
+.erp-table tbody tr:hover { background: #f8fafb; }
+.erp-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Célula editável: aparência de texto, vira campo ao clicar. */
+.cell-edit {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  border-radius: 7px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border: 1px solid transparent;
+  text-align: inherit;
+  transition: border-color var(--duration-fast), background-color var(--duration-fast);
+}
+.cell-edit:hover { border-color: var(--gray-200); background: var(--white); }
+.cell-edit:focus-visible, .cell-edit[data-editing="true"] { outline: none; border-color: var(--yellow-500); background: var(--white); box-shadow: var(--shadow-focus); }

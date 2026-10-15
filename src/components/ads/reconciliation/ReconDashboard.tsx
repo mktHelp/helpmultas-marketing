@@ -120,12 +120,12 @@ export function ReconDashboard({ run, previous, runs, onOpen }: { run: Run; prev
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trend} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                   <XAxis dataKey="label" tick={TICK_STYLE} tickLine={false} axisLine={false} minTickGap={24} />
                   <YAxis tick={TICK_STYLE} tickLine={false} axisLine={false} allowDecimals={false} />
                   <RTooltip content={<ChartTooltip total />} />
-                  <Area type="monotone" dataKey="LP" stackId="1" stroke={BRAND.yellow} fill={BRAND.yellow} fillOpacity={0.35} />
-                  <Area type="monotone" dataKey="Nativo" stackId="1" stroke={BRAND.steel} fill={BRAND.steel} fillOpacity={0.35} />
+                  <Area type="monotone" dataKey="LP" stackId="1" stroke={BRAND.yellow} fill={BRAND.yellow} fillOpacity={0.18} />
+                  <Area type="monotone" dataKey="Nativo" stackId="1" stroke={BRAND.steel} fill={BRAND.steel} fillOpacity={0.18} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -138,12 +138,12 @@ export function ReconDashboard({ run, previous, runs, onOpen }: { run: Run; prev
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byDay} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke={GRID_COLOR} vertical={false} />
                   <XAxis dataKey="label" tick={TICK_STYLE} tickLine={false} axisLine={false} />
                   <YAxis tick={TICK_STYLE} tickLine={false} axisLine={false} allowDecimals={false} />
                   <RTooltip content={<ChartTooltip total />} cursor={{ fill: "rgba(36,55,70,0.04)" }} />
-                  <Bar dataKey="LP" stackId="a" fill={BRAND.yellow} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="Nativo" stackId="a" fill={BRAND.steel} radius={[6, 6, 0, 0]} />
+                  <Bar maxBarSize={28} dataKey="LP" stackId="a" fill={BRAND.yellow} radius={[0, 0, 0, 0]} />
+                  <Bar maxBarSize={28} dataKey="Nativo" stackId="a" fill={BRAND.steel} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

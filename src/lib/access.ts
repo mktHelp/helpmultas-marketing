@@ -2,6 +2,8 @@
 // ("/tasks") e abas da Expansão ("exp:dre"). NULL = acesso padrão do papel.
 // Observação: isto controla menu e navegação; os dados continuam protegidos pelo RLS por papel.
 
+import { NAV_SECTIONS } from "./navigation";
+
 export interface TabDef {
   key: string;
   label: string;
@@ -11,55 +13,11 @@ export interface TabGroup {
   tabs: TabDef[];
 }
 
-export const APP_TAB_GROUPS: TabGroup[] = [
-  {
-    title: "Trabalho",
-    tabs: [
-      { key: "/dashboard", label: "Dashboard" },
-      { key: "/my-day", label: "Meu Dia" },
-      { key: "/my-tasks", label: "Minhas Tarefas" },
-      { key: "/tasks", label: "Todas as Tarefas" },
-      { key: "/board", label: "Quadro" },
-      { key: "/calendar", label: "Calendário" },
-    ],
-  },
-  {
-    title: "Planejamento",
-    tabs: [
-      { key: "/projects", label: "Projetos" },
-      { key: "/campaigns", label: "Campanhas" },
-      { key: "/content", label: "Conteúdos" },
-      { key: "/pautas", label: "Pautas do Dia" },
-    ],
-  },
-  {
-    title: "Gestão",
-    tabs: [
-      { key: "/team", label: "Equipe" },
-      { key: "/birthdays", label: "Aniversários" },
-      { key: "/reports", label: "Relatórios" },
-    ],
-  },
-  {
-    title: "Tráfego Pago",
-    tabs: [
-      { key: "/trafego-pago/dashboard", label: "Dashboard de Tráfego" },
-      { key: "/creatives", label: "Criativos" },
-      { key: "/distribuicao", label: "Distribuição" },
-      { key: "/trafego-pago", label: "Tráfego Pago" },
-      { key: "/trafego-pago/leads", label: "Leads" },
-      { key: "/trafego-pago/reunioes", label: "Reuniões" },
-    ],
-  },
-  {
-    title: "Outras áreas",
-    tabs: [
-      { key: "/instagram", label: "Instagram" },
-      { key: "/teleprompter", label: "Teleprompter" },
-      { key: "/trash", label: "Lixeira" },
-    ],
-  },
-];
+// Mesmos grupos e a mesma ordem da sidebar (lib/navigation), sem as abas sempre liberadas.
+export const APP_TAB_GROUPS: TabGroup[] = NAV_SECTIONS.map((section) => ({
+  title: section.title,
+  tabs: section.items.filter((i) => !i.open).map((i) => ({ key: i.href, label: i.accessLabel ?? i.label })),
+})).filter((g) => g.tabs.length > 0);
 
 export const EXPANSION_TAB_GROUP: TabGroup = {
   title: "Área da Expansão",

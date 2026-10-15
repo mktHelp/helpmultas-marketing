@@ -13,7 +13,7 @@ function formatMinutes(minutes: number) {
 export function TimeManagementCard({ rows }: { rows: ReturnType<typeof timeByContentType> }) {
   return (
     <Card className="p-5">
-      <h3 className="font-display text-[17px] font-semibold text-blue-900">Gestão de tempo</h3>
+      <h3 className="font-display text-[15px] font-semibold text-blue-900">Gestão de tempo</h3>
       <p className="mt-0.5 text-xs text-gray-500">Tempo estimado vs. real, por tipo de conteúdo</p>
 
       {rows.length === 0 ? (

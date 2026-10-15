@@ -248,7 +248,7 @@ export default function CalendarPage() {
         {/* Painel do dia selecionado (desktop) */}
         <aside className="hidden lg:block">
           <div className="sticky top-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[var(--shadow-sm)]">
-            <div className="flex items-center gap-3 bg-gradient-to-r from-blue-900 to-blue-800 px-4 py-3.5 text-white">
+            <div className="flex items-center gap-3 bg-blue-900 px-4 py-3.5 text-white">
               <span className="flex h-11 w-11 flex-col items-center justify-center rounded-xl bg-yellow-500 leading-none text-blue-900">
                 <span className="font-display text-lg font-bold">{format(selected, "d")}</span>
                 <span className="text-[9px] font-bold uppercase">{format(selected, "MMM", { locale: ptBR })}</span>
