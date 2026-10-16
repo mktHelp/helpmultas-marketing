@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Sun, ListTodo, ListChecks, Kanban, Calendar, FolderKanban, Megaphone, FileText, Users, BarChart3,
+  LayoutDashboard, Sun, ListTodo, ListChecks, FolderKanban, Megaphone, FileText, Users, BarChart3,
   Settings, Trash2, Cake, AtSign, Image as ImageIcon, Mic, HandCoins, TrendingUp, Gauge, Contact, CalendarCheck,
   Lightbulb, Send, Sparkles, ShieldCheck,
   type LucideIcon,
@@ -40,9 +40,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Tarefas",
     items: [
       { href: "/my-tasks", label: "Minhas Tarefas", icon: ListChecks },
-      { href: "/tasks", label: "Todas as Tarefas", icon: ListTodo },
-      { href: "/board", label: "Quadro", icon: Kanban },
-      { href: "/calendar", label: "Calendário", icon: Calendar },
+      { href: "/tasks", label: "Tarefas", icon: ListTodo, accessLabel: "Tarefas (Quadro, Lista e Calendário)" },
     ],
   },
   {

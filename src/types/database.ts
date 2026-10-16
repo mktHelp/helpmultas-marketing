@@ -353,6 +353,8 @@ export interface Task {
   created_by: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  /** cor escolhida para o card/chip (hex); null = cor da etapa */
+  color: string | null;
   start_date: string | null;
   due_date: string | null;
   completed_at: string | null;

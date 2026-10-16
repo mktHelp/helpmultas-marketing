@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, CalendarRange, Check, ChevronDown, Flag, Layers, ListFilter, User, Users, X, Zap,
+  AlertTriangle, CalendarRange, Check, ChevronDown, Flag, Layers, ListFilter, Palette, User, Users, X, Zap,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { createClient } from "@/lib/supabase/client";
@@ -14,6 +14,7 @@ import { cn, dateInputToISO, dateInputToStartOfDayISO, isoToDateInputValue } fro
 import type { Area, Profile } from "@/types/database";
 import type { TaskFilters } from "@/lib/services/tasks";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { TASK_COLORS } from "./TaskColorPicker";
 
 const PRIORITIES = [
   { value: "baixa", label: "Baixa", color: "#7c8e98" },
@@ -28,6 +29,7 @@ export function countActiveFilters(f: TaskFilters) {
     (f.areaId?.length ? 1 : 0) +
     (f.assignedTo?.length ? 1 : 0) +
     (f.priority?.length ? 1 : 0) +
+    (f.color?.length ? 1 : 0) +
     (f.status?.length ? 1 : 0) +
     (f.onlyOverdue ? 1 : 0) +
     (f.createdFrom || f.createdTo ? 1 : 0) +
@@ -41,7 +43,7 @@ function toggle(list: string[] | undefined, value: string) {
   return next.length ? next : undefined;
 }
 
-function Section({
+export function Section({
   icon: Icon,
   title,
   count,
@@ -84,7 +86,7 @@ function Section({
   );
 }
 
-function Chip({
+export function Chip({
   label,
   color,
   selected,
@@ -243,6 +245,26 @@ export function BoardFilterSidebar({
                 onClick={() => onChange({ ...filters, priority: toggle(filters.priority, p.value) })}
               />
             ))}
+          </div>
+        </Section>
+
+        <Section icon={Palette} title="Cor da tarefa" count={filters.color?.length}>
+          <div className="flex flex-wrap gap-1.5">
+            {TASK_COLORS.map((c) => (
+              <Chip
+                key={c.value}
+                label={c.label}
+                color={c.value}
+                selected={!!filters.color?.includes(c.value)}
+                onClick={() => onChange({ ...filters, color: toggle(filters.color, c.value) })}
+              />
+            ))}
+            <Chip
+              label="Sem cor"
+              color="#7c8e98"
+              selected={!!filters.color?.includes("none")}
+              onClick={() => onChange({ ...filters, color: toggle(filters.color, "none") })}
+            />
           </div>
         </Section>
 

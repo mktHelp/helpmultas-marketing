@@ -23,6 +23,32 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-16-tarefas-unificadas",
+    date: "2026-10-16",
+    tag: "melhoria",
+    area: "Tarefas",
+    title: "Quadro, Lista e Calendário numa só tela",
+    summary: "As abas Todas as Tarefas, Quadro e Calendário viraram a aba Tarefas, com três formas de ver.",
+    details: [
+      "Na aba Tarefas, alterne entre Quadro (padrão), Lista e Calendário. Busca, filtros e Nova tarefa são os mesmos nas três.",
+      "O filtro agora também tem Cor da tarefa, e vale em qualquer visualização.",
+      "Links antigos de Quadro e Calendário continuam funcionando e levam para a nova tela.",
+    ],
+  },
+  {
+    id: "2026-10-16-calendario-filtros-cores",
+    date: "2026-10-16",
+    tag: "novo",
+    area: "Calendário",
+    title: "Filtros e cores por tarefa no Calendário",
+    summary: "Filtre o calendário por responsável e outros critérios, e dê uma cor a cada tarefa.",
+    details: [
+      "No Calendário há uma barra de filtros: busca por título, Minhas, Atrasadas e, em Filtros, responsável, etapa, prioridade, cor e área. Os contadores do topo acompanham o filtro.",
+      "Cada tarefa pode ter uma cor própria. Ela aparece no card do Kanban (borda e fundo) e no calendário.",
+      "A cor pode ser trocada na própria tarefa (Propriedades > Cor) ou direto no Calendário, pelo botão de paleta no card do dia. Sem cor, vale a cor da etapa.",
+    ],
+  },
+  {
     id: "2026-10-15-gestor-trafego-predefinido",
     date: "2026-10-15",
     tag: "melhoria",

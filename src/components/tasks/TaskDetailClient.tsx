@@ -15,6 +15,7 @@ import { ActivityTimeline } from "@/components/shared/ActivityTimeline";
 import { ChecklistPanel } from "./ChecklistPanel";
 import { CommentsPanel } from "./CommentsPanel";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { TaskColorPicker } from "./TaskColorPicker";
 import {
   AssigneeChips, CONTENT_TYPE_OPTIONS, ContentTypeSelector, FieldLabel, PRIORITY_OPTIONS, PrioritySelector, ProjectSelector, QuickDates,
   StatusSelector, inputClass,
@@ -551,6 +552,11 @@ export function TaskDetailClient({ taskId }: { taskId: string }) {
               <div>
                 <FieldLabel icon={Flag}>Prioridade</FieldLabel>
                 <PrioritySelector compact value={task.priority} disabled={!canEdit} onChange={(v: TaskPriority) => void patch({ priority: v })} />
+              </div>
+
+              <div>
+                <FieldLabel>Cor</FieldLabel>
+                <TaskColorPicker value={task.color} disabled={!canEdit} onChange={(c) => void patch({ color: c })} />
               </div>
 
               <div>
