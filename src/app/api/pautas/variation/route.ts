@@ -47,7 +47,9 @@ Abaixo está uma pauta de Instagram já pronta. Crie UMA VARIAÇÃO sobre a MESM
 
 PAUTA ORIGINAL:
 ${JSON.stringify({
-    conta: idea.account === "roberson" ? "@roberson.alvarenga (primeira pessoa, opinião de dono de empresa de multas)" : "@helpmultasfranchising (notícia quente, foco em compartilhamento)",
+    conta: idea.account === "roberson"
+      ? "@roberson.alvarenga (vende franquia da Help Multas: público é quem quer empreender; primeira pessoa, opinião de dono e fundador da rede, ângulo de oportunidade de negócio)"
+      : "@helpmultasfranchising (público é o motorista: multas, CNH e leis de trânsito; notícia quente, foco em compartilhamento)",
     formato: idea.format,
     titulo: idea.title,
     gancho: idea.hook,
@@ -59,7 +61,8 @@ ${JSON.stringify({
 REGRAS:
 - Não invente lei, valor de multa, pontos, artigo ou data. Use só o que está na notícia e na pauta original. Se citar um número que não está no título da notícia, marque needs_check = true e diga em check_note o que conferir.
 - Reels: hook até 12 palavras; script falado de 30 a 60s, frases curtas. Carrossel: "Slide 1: ...". Feed: texto da arte. Stories: 3 a 5 telas com interação.
-- caption com emoji no início, 3 a 6 linhas e hashtags no final. cta para a Help Multas.
+- caption com emoji no início, 3 a 6 linhas e hashtags no final. cta: no @roberson.alvarenga, para conhecer a franquia; no @helpmultasfranchising, para a Help Multas.
+- No @roberson.alvarenga a variação fala com o futuro franqueado, nunca só com o motorista.
 - why: 1 frase específica sobre por que este ângulo deve performar.
 - Português do Brasil.
 

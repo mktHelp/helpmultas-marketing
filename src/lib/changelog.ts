@@ -23,6 +23,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-16-pautas-publico-por-conta",
+    date: "2026-10-16",
+    tag: "melhoria",
+    area: "Pautas do Dia",
+    title: "Pautas certas para cada perfil",
+    summary: "O Rober recebe pautas de venda de franquia e o franchising fica com multas, CNH e leis de trânsito.",
+    details: [
+      "As pautas do @roberson.alvarenga agora falam com quem quer empreender: oportunidade de negócio, franquia, bastidores e resultados da rede, com chamada para conhecer a franquia.",
+      "Notícia de trânsito só vira pauta do Rober com ângulo de negócio; o que é só explicação para o motorista fica no @helpmultasfranchising.",
+      "O Helpinho passou a ler também notícias do mercado de franquias e empreendedorismo.",
+      "O botão Gerar variação segue o mesmo foco de cada conta.",
+    ],
+  },
+  {
     id: "2026-10-16-funil-sem-animacao",
     date: "2026-10-16",
     tag: "melhoria",
