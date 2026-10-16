@@ -183,36 +183,6 @@ function FunnelChart({ steps, activeIdx, onSelect }: { steps: FunnelStep[]; acti
   // Com uma camada selecionada, as demais ficam esmaecidas.
   const dim = (i: number) => (activeIdx !== null && activeIdx !== i ? 0.35 : 1);
 
-  // Entrada: o cone "desce" camada a camada, rótulos e cartões deslizam dos lados;
-  // depois, um respiro contínuo e suave (as camadas alargam/estreitam em onda).
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || reducedMotion()) return;
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline();
-      tl.from(".f-ellipse", { opacity: 0, scaleX: 0.4, transformOrigin: "50% 50%", duration: 0.7, ease: "power2.out" })
-        .from(".f-layer", { opacity: 0, y: -40, duration: 0.8, ease: "back.out(1.7)", stagger: 0.12 }, "-=0.35")
-        .from(
-          ".f-side",
-          { opacity: 0, x: (_i, el: HTMLElement) => (el.dataset.side === "l" ? -28 : 28), duration: 0.55, ease: "power3.out", stagger: 0.08 },
-          "-=0.8"
-        )
-        .add(() => {
-          gsap.to(".f-layer", {
-            scaleX: 1.014,
-            transformOrigin: "50% 50%",
-            duration: 2.6,
-            ease: "sine.inOut",
-            yoyo: true,
-            repeat: -1,
-            stagger: 0.3,
-          });
-          gsap.to(".f-ellipse", { opacity: 0.8, duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: -1 });
-        });
-    }, root);
-    return () => ctx.revert();
-  }, []);
-
   // Contagem: os números sobem até o valor novo sempre que os dados mudam.
   useEffect(() => {
     const root = rootRef.current;
