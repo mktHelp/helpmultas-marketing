@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Columns3, FolderTree, ShieldAlert, Tags, Users, type LucideIcon } from "lucide-react";
+import { Bot, Columns3, FolderTree, ShieldAlert, Tags, Users, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { UsersSettings } from "@/components/settings/UsersSettings";
 import { AreasSettings } from "@/components/settings/AreasSettings";
 import { TagsSettings } from "@/components/settings/TagsSettings";
 import { StatusesSettings } from "@/components/settings/StatusesSettings";
+import { AiUsageSettings } from "@/components/settings/AiUsageSettings";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
 interface SettingsTab {
-  key: "users" | "statuses" | "areas" | "tags";
+  key: "users" | "statuses" | "areas" | "tags" | "ia";
   label: string;
   title: string;
   description: string;
@@ -25,6 +26,7 @@ const TABS: SettingsTab[] = [
   { key: "statuses", label: "Etapas", title: "Etapas do fluxo", description: "As colunas do quadro, na ordem e com as cores de cada etapa.", icon: Columns3, color: "#e0a900" },
   { key: "areas", label: "Áreas & Categorias", title: "Áreas e categorias", description: "Os times e as classificações usadas para organizar as tarefas.", icon: FolderTree, color: "#2f8f5b" },
   { key: "tags", label: "Tags", title: "Tags", description: "Marcadores coloridos para filtrar e identificar tarefas.", icon: Tags, color: "#8b5cf6" },
+  { key: "ia", label: "Uso da IA", title: "Uso da IA", description: "Custo, chamadas, tokens, desempenho e erros de todas as IAs do Hub.", icon: Bot, color: "#243746" },
 ];
 
 export default function SettingsPage() {
@@ -50,7 +52,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Configurações" description="Gerencie usuários, etapas, áreas, categorias e tags do sistema." />
+      <PageHeader title="Configurações" description="Gerencie usuários, etapas, áreas, categorias, tags e o uso da IA do sistema." />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[260px_1fr]">
         {/* Navegação: lista vertical no desktop, faixa rolável no celular */}
@@ -101,6 +103,7 @@ export default function SettingsPage() {
             {tab === "statuses" && <StatusesSettings />}
             {tab === "areas" && <AreasSettings />}
             {tab === "tags" && <TagsSettings />}
+            {tab === "ia" && <AiUsageSettings />}
           </div>
         </Card>
       </div>

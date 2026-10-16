@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
+import { logAiUsage } from "@/lib/aiUsage";
 
 // Botão "Gerar variação" da aba Pautas do Dia: pede ao Helpinho (mesmo webhook do
 // assistente, N8N_ASSISTENTE_WEBHOOK_URL) outra versão da pauta, com outro gancho
@@ -66,6 +67,7 @@ Responda APENAS com JSON:
 {"title":"","hook":"","script":"","caption":"","cta":"","why":"","needs_check":false,"check_note":""}`;
 
   let reply: string;
+  const startedAt = Date.now();
   try {
     const res = await fetch(webhookUrl, {
       method: "POST",
@@ -76,8 +78,10 @@ Responda APENAS com JSON:
     if (!res.ok) throw new Error(`n8n respondeu ${res.status}`);
     const data = await res.json();
     reply = data?.output ?? data?.text ?? data?.reply ?? "";
+    await logAiUsage({ source: "pauta_variacao", userId: user.id, startedAt, data });
   } catch (e) {
     console.error("[pautas-variation]", e);
+    await logAiUsage({ source: "pauta_variacao", userId: user.id, startedAt, ok: false, error: e instanceof Error ? e.message : "falha" });
     return NextResponse.json({ error: "Não consegui falar com a IA agora. Tente de novo em instantes." }, { status: 502 });
   }
 

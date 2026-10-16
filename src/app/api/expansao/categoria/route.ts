@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
+import { logAiUsage } from "@/lib/aiUsage";
 import { CATEGORIAS, type Categoria } from "@/lib/expansion/categoria";
 
 // Classifica despesas novas da DRE (CAC, operação ou pessoal) usando o mesmo webhook do
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
   if (!nomes.length) return NextResponse.json({ categorias: {} });
 
   let reply: unknown;
+  const startedAt = Date.now();
   try {
     const response = await fetch(webhookUrl, {
       method: "POST",
@@ -53,10 +55,15 @@ export async function POST(request: Request) {
       }),
       signal: AbortSignal.timeout(25_000),
     });
-    if (!response.ok) return NextResponse.json({ categorias: {} });
+    if (!response.ok) {
+      await logAiUsage({ source: "expansao_categoria", userId: user.id, startedAt, ok: false, error: `n8n respondeu ${response.status}` });
+      return NextResponse.json({ categorias: {} });
+    }
     const data = await response.json().catch(() => null);
     reply = data?.output ?? data?.text ?? data?.reply;
-  } catch {
+    await logAiUsage({ source: "expansao_categoria", userId: user.id, startedAt, data });
+  } catch (e) {
+    await logAiUsage({ source: "expansao_categoria", userId: user.id, startedAt, ok: false, error: e instanceof Error ? e.message : "falha" });
     return NextResponse.json({ categorias: {} });
   }
   if (typeof reply !== "string") return NextResponse.json({ categorias: {} });
