@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { unreadIdeasCount } from "@/lib/services/contentIdeas";
 import { NAV_SECTIONS } from "@/lib/navigation";
+import { useSidebarShortcuts } from "@/lib/sidebar-shortcuts";
 import {
   SIDEBAR_WIDTH, SidebarFrame, SidebarHelpinho, SidebarLink, SidebarSectionTitle, SidebarUser, isItemActive, useSidebarTip,
   type SidebarItem,
@@ -61,6 +62,7 @@ export function Sidebar({
   const { profile } = useAuth();
   const { tip, tipNode } = useSidebarTip(collapsed);
   const { closed, toggle } = useClosedSections();
+  const { pinned, recent, togglePin } = useSidebarShortcuts(pathname);
 
   // Pautas novas do Radar de Pauta (n8n) ainda não vistas → bolinha na aba.
   const [ideasBadge, setIdeasBadge] = useState(0);
@@ -84,6 +86,21 @@ export function Sidebar({
       .filter((i) => pathAllowed(profile, i.href))
       .map((i): SidebarItem => (i.href === "/pautas" ? { ...i, badge: ideasBadge } : i)),
   })).filter((s) => s.items.length > 0);
+
+  // Atalhos: Fixados (na ordem em que a pessoa fixou) e Recentes (última aba visitada,
+  // sem repetir as fixadas nem a aba aberta agora).
+  const byHref = new Map(sections.flatMap((sec) => sec.items).map((i) => [i.href, i]));
+  const current = sections.flatMap((sec) => sec.items).find((i) => isItemActive(pathname, i))?.href;
+  const pinnedItems = pinned.map((h) => byHref.get(h)).filter((i): i is SidebarItem => !!i);
+  const recentItems = recent
+    .filter((h) => h !== current && !pinned.includes(h))
+    .map((h) => byHref.get(h))
+    .filter((i): i is SidebarItem => !!i)
+    .slice(0, 1);
+  const shortcuts = [
+    { id: "pinned", title: "Fixados", items: pinnedItems },
+    { id: "recent", title: "Recentes", items: recentItems },
+  ].filter((g) => g.items.length > 0);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -115,6 +132,26 @@ export function Sidebar({
         />
       }
     >
+      {shortcuts.map((group) => (
+        <div key={group.id}>
+          <SidebarSectionTitle title={group.title} collapsed={collapsed} />
+          <div className="space-y-0.5">
+            {group.items.map((item) => (
+              <SidebarLink
+                key={item.href}
+                item={item}
+                active={false}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+                tip={tip}
+                index={idx++}
+                pinned={pinned.includes(item.href)}
+                onTogglePin={() => togglePin(item.href)}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
       {sections.map((section) => {
         const hasActive = section.items.some((i) => isItemActive(pathname, i));
         const open = collapsed || hasActive || !closed.includes(section.id);
@@ -144,6 +181,8 @@ export function Sidebar({
                     onNavigate={onNavigate}
                     tip={tip}
                     index={idx++}
+                    pinned={pinned.includes(item.href)}
+                    onTogglePin={() => togglePin(item.href)}
                   />
                 ))}
               </div>

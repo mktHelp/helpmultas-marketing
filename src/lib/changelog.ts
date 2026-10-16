@@ -23,6 +23,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-16-sidebar-fixados-recentes",
+    date: "2026-10-16",
+    tag: "novo",
+    area: "Menu lateral",
+    title: "Abas fixadas e recente na sidebar",
+    summary: "Fixe suas abas preferidas no topo do menu e volte rápido para a última aba que você estava.",
+    details: [
+      "Passe o mouse sobre uma aba e clique no alfinete para fixá-la. As fixadas aparecem em Fixados, logo abaixo do Helpinho.",
+      "Em Recentes aparece a última aba que você visitou antes da atual, para voltar com um clique.",
+      "Os atalhos ficam salvos neste navegador e respeitam as abas liberadas para o seu usuário.",
+    ],
+  },
+  {
     id: "2026-10-16-resumo-trofeu",
     date: "2026-10-16",
     tag: "melhoria",
