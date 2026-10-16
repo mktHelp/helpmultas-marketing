@@ -1,42 +1,60 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Check, ExternalLink, Lightbulb, Mic, Newspaper, RotateCcw, Sparkles, X } from "lucide-react";
+import { Layers, Lightbulb, SlidersHorizontal, Sparkles, Trophy } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Button } from "@/components/ui/Button";
+import { RightDrawer } from "@/components/shared/RightDrawer";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Dialog, DialogHeader, DialogBody } from "@/components/ui/Dialog";
 import { RadarRunPanel } from "@/components/pautas/RadarRunPanel";
+import { AiUsagePanel } from "@/components/pautas/AiUsagePanel";
+import { RadarSettingsDrawer } from "@/components/pautas/RadarSettingsDrawer";
+import { Button } from "@/components/ui/Button";
+import { IdeaBadges, IdeaCard, ScorePill, SourceLine } from "@/components/pautas/IdeaCard";
+import { IdeaDrawer } from "@/components/pautas/IdeaDrawer";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
+import { listProfiles } from "@/lib/services/profiles";
 import {
-  ACCOUNT_LABEL, approveIdeaAsTask, discardIdea, listContentIdeas, markIdeasSeen, reopenIdea, sendIdeaToTeleprompter,
+  approveIdeaAsTask, discardIdea, getRadarSettings, listContentIdeas, markIdeasSeen, reopenIdea, requestIdeaVariation, sendIdeaToTeleprompter,
 } from "@/lib/services/contentIdeas";
-import type { ContentIdea } from "@/types/database";
-import { cn } from "@/lib/utils";
+import type { ContentIdea, ContentRadarSettings, Profile } from "@/types/database";
 
-const FORMAT_LABEL: Record<ContentIdea["format"], string> = { reels: "Reels", feed: "Feed", carrossel: "Carrossel", stories: "Stories" };
-const FORMAT_COLOR: Record<ContentIdea["format"], string> = {
-  reels: "bg-pink-100 text-pink-700",
-  feed: "bg-blue-100 text-blue-800",
-  carrossel: "bg-violet-100 text-violet-700",
-  stories: "bg-amber-100 text-amber-800",
-};
+type Group = { theme: string | null; ideas: ContentIdea[] };
+
+/** Junta as pautas de um lote por tema: temas com 2+ pautas viram um grupo; o resto fica solto. */
+function groupByTheme(list: ContentIdea[]): Group[] {
+  const map = new Map<string, ContentIdea[]>();
+  for (const i of list) {
+    const k = i.theme?.trim().toLowerCase() || `__${i.id}`;
+    map.set(k, [...(map.get(k) ?? []), i]);
+  }
+  const groups: Group[] = [];
+  const loose: ContentIdea[] = [];
+  for (const ideas of map.values()) {
+    if (ideas.length >= 2) groups.push({ theme: ideas[0].theme, ideas });
+    else loose.push(ideas[0]);
+  }
+  groups.sort((a, b) => (b.ideas[0].score ?? 0) - (a.ideas[0].score ?? 0));
+  return loose.length ? [...groups, { theme: null, ideas: loose }] : groups;
+}
 
 export default function PautasPage() {
-  const supabase = createClient();
-  const { profile } = useAuth();
+  const supabase = useMemo(() => createClient(), []);
+  const { profile, isManager } = useAuth();
+  const [radarSettings, setRadarSettings] = useState<ContentRadarSettings | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [ideas, setIdeas] = useState<ContentIdea[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [account, setAccount] = useState<string>("todas");
   const [status, setStatus] = useState<string>("nova");
   const [busy, setBusy] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -47,36 +65,47 @@ export default function PautasPage() {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    listProfiles(supabase).then(setProfiles).catch(() => {});
+    getRadarSettings(supabase).then(setRadarSettings).catch(() => {});
+  }, [load, supabase]);
 
   // Abrir a aba = "li as pautas": apaga a bolinha da sidebar e o aviso do sininho.
   useEffect(() => {
     if (profile) markIdeasSeen(supabase, profile.id).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id]);
+  }, [profile, supabase]);
 
   useRealtimeChanges(["content_ideas"], load);
 
   const filtered = useMemo(
-    () => ideas.filter((i) => (account === "todas" || i.account === account) && (status === "todas" || i.status === status)),
+    () =>
+      ideas
+        .filter((i) => (account === "todas" || i.account === account) && (status === "todas" || i.status === status))
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0)),
     [ideas, account, status]
   );
 
-  // Agrupa por lote (dia + período), mais recente primeiro.
+  // Lotes (dia + período), mais recente primeiro.
   const batches = useMemo(() => {
     const map = new Map<string, ContentIdea[]>();
     for (const i of filtered) {
       const k = `${i.batch_date}|${i.period}`;
       map.set(k, [...(map.get(k) ?? []), i]);
     }
-    return [...map.entries()];
+    return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [filtered]);
+
+  // Destaque do dia: a pauta nova de maior nota do lote mais recente.
+  const featured = useMemo(() => {
+    if (status !== "nova" && status !== "todas") return null;
+    const first = batches[0]?.[1] ?? [];
+    return first.find((i) => i.status === "nova") ?? null;
+  }, [batches, status]);
+
+  const openIdea = ideas.find((i) => i.id === openId) ?? null;
 
   async function run(id: string, fn: () => Promise<ContentIdea>, msg: string) {
     if (!profile) return;
@@ -93,6 +122,20 @@ export default function PautasPage() {
     }
   }
 
+  async function variation(idea: ContentIdea) {
+    setBusy(idea.id);
+    try {
+      const created = await requestIdeaVariation(idea.id);
+      setIdeas((prev) => [created, ...prev]);
+      setOpenId(created.id);
+      toast.success("Variação criada!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível gerar a variação.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const countOf = (s: string) => ideas.filter((i) => i.status === s).length;
   // Contagem por conta respeita a aba de status ativa, para bater com o que aparece na lista.
   const accountCount = (a: string) =>
@@ -103,10 +146,19 @@ export default function PautasPage() {
       <PageHeader
         icon={Lightbulb}
         title="Pautas do Dia"
-        description="Todo dia às 7h30 e 13h30 o Helpinho cruza as notícias de trânsito do dia com o que mais performou no nosso Instagram e sugere conteúdos prontos."
+        description="Todo dia às 7h30 e 13h30 o Helpinho cruza as notícias de trânsito mais recentes com o que mais performou no nosso Instagram e sugere conteúdos prontos."
+        action={
+          radarSettings && (
+            <Button onClick={() => setSettingsOpen(true)} className="gap-1.5 !bg-blue-900 !text-yellow-500 hover:!bg-blue-800">
+              <SlidersHorizontal className="h-4 w-4" /> Ajustes da IA
+            </Button>
+          )
+        }
       />
 
       <RadarRunPanel onFinished={load} />
+
+      <AiUsagePanel ideas={ideas} settings={radarSettings} />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Tabs
@@ -130,7 +182,13 @@ export default function PautasPage() {
         />
       </div>
 
-      {!loading && batches.length === 0 ? (
+      {loading ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label="Carregando pautas">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="ast-skeleton h-40 rounded-2xl" style={{ animationDelay: `${i * 90}ms` }} />
+          ))}
+        </div>
+      ) : batches.length === 0 ? (
         <EmptyState
           icon={Sparkles}
           title="Nenhuma pauta por aqui"
@@ -138,24 +196,31 @@ export default function PautasPage() {
         />
       ) : (
         <div className="space-y-8">
+          {featured && <FeaturedIdea idea={featured} onOpen={() => setOpenId(featured.id)} />}
+
           {batches.map(([key, list]) => {
             const [date, period] = key.split("|");
+            const rest = list.filter((i) => i.id !== featured?.id);
+            if (rest.length === 0) return null;
             return (
               <section key={key}>
                 <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wide text-gray-500">
                   {format(parseISO(date), "EEEE, dd 'de' MMMM", { locale: ptBR })} · {period === "tarde" ? "Tarde" : "Manhã"}
                 </h2>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {list.map((idea) => (
-                    <IdeaCard
-                      key={idea.id}
-                      idea={idea}
-                      busy={busy === idea.id}
-                      onApprove={() => run(idea.id, () => approveIdeaAsTask(supabase, idea, profile!.id), "Pauta aprovada — tarefa criada!")}
-                      onTeleprompter={() => run(idea.id, () => sendIdeaToTeleprompter(supabase, idea, profile!.id), "Roteiro enviado ao Teleprompter!")}
-                      onDiscard={() => run(idea.id, () => discardIdea(supabase, idea.id, profile!.id), "Pauta descartada.")}
-                      onReopen={() => run(idea.id, () => reopenIdea(supabase, idea.id, profile!.id), "Pauta voltou para Novas.")}
-                    />
+                <div className="space-y-5">
+                  {groupByTheme(rest).map((g) => (
+                    <div key={g.theme ?? "soltas"}>
+                      {g.theme && (
+                        <p className="mb-2 flex items-center gap-1.5 text-xs font-bold text-blue-800">
+                          <Layers className="h-3.5 w-3.5" /> {g.ideas.length} ângulos sobre “{g.theme}”
+                        </p>
+                      )}
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {g.ideas.map((idea, i) => (
+                          <IdeaCard key={idea.id} idea={idea} index={i} onOpen={() => setOpenId(idea.id)} />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -163,108 +228,66 @@ export default function PautasPage() {
           })}
         </div>
       )}
+
+      <RightDrawer open={settingsOpen && !!radarSettings} onClose={() => setSettingsOpen(false)} label="Ajustes da IA">
+        {radarSettings && profile && (
+          <RadarSettingsDrawer settings={radarSettings} userId={profile.id} canEdit={isManager} onSaved={setRadarSettings} onClose={() => setSettingsOpen(false)} />
+        )}
+      </RightDrawer>
+
+      <RightDrawer open={!!openIdea} onClose={() => setOpenId(null)} label="Detalhes da pauta" wide>
+        {openIdea && profile && (
+          <IdeaDrawer
+            idea={openIdea}
+            busy={busy === openIdea.id}
+            profiles={profiles}
+            onClose={() => setOpenId(null)}
+            actions={{
+              onApprove: (opts) =>
+                run(openIdea.id, () => approveIdeaAsTask(supabase, openIdea, profile.id, opts), opts?.dueDate ? "Tarefa agendada no calendário!" : "Pauta aprovada: tarefa criada!"),
+              onTeleprompter: () => run(openIdea.id, () => sendIdeaToTeleprompter(supabase, openIdea, profile.id), "Roteiro enviado ao Teleprompter!"),
+              onDiscard: () => run(openIdea.id, () => discardIdea(supabase, openIdea.id, profile.id), "Pauta descartada."),
+              onReopen: () => run(openIdea.id, () => reopenIdea(supabase, openIdea.id, profile.id), "Pauta voltou para Novas."),
+              onVariation: () => variation(openIdea),
+            }}
+          />
+        )}
+      </RightDrawer>
     </div>
   );
 }
 
-function IdeaCard({
-  idea, busy, onApprove, onTeleprompter, onDiscard, onReopen,
-}: {
-  idea: ContentIdea;
-  busy: boolean;
-  onApprove: () => void;
-  onTeleprompter: () => void;
-  onDiscard: () => void;
-  onReopen: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const isVideo = idea.format === "reels" || idea.format === "stories";
+function FeaturedIdea({ idea, onOpen }: { idea: ContentIdea; onOpen: () => void }) {
   return (
-    <article className={cn("flex flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-[var(--shadow-sm)]", idea.status === "descartada" && "opacity-60")}>
-      <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
-        <span className={cn("rounded-full px-2 py-0.5", FORMAT_COLOR[idea.format])}>{FORMAT_LABEL[idea.format]}</span>
-        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">{ACCOUNT_LABEL[idea.account]}</span>
-        {idea.score != null && <span className="ml-auto rounded-full bg-yellow-100 px-2 py-0.5 text-yellow-800">🔥 {idea.score}</span>}
-      </div>
-
-      <h3 className="font-display text-base font-bold leading-snug text-blue-900">{idea.title}</h3>
-      {idea.hook && <p className="mt-1.5 text-sm font-semibold text-gray-800">“{idea.hook}”</p>}
-      {idea.why && <p className="mt-2 text-xs text-gray-500">💡 {idea.why}</p>}
-
-      {(idea.script || idea.caption) && (
-        <button type="button" onClick={() => setOpen(true)} className="mt-3 self-start text-xs font-bold text-blue-800 hover:underline">
-          Ver roteiro e legenda
-        </button>
-      )}
-      <Dialog open={open} onClose={() => setOpen(false)} size="lg">
-        <DialogHeader title={idea.title} onClose={() => setOpen(false)} />
-        <DialogBody className="space-y-5 text-sm text-gray-800">
-          {idea.hook && (
-            <div>
-              <p className="mb-1 text-[11px] font-bold uppercase text-gray-500">Gancho</p>
-              <p className="font-semibold">“{idea.hook}”</p>
-            </div>
-          )}
-          {idea.script && (
-            <div>
-              <p className="mb-1 text-[11px] font-bold uppercase text-gray-500">Roteiro</p>
-              <p className="whitespace-pre-line rounded-xl bg-gray-050 p-3 leading-relaxed">{idea.script}</p>
-            </div>
-          )}
-          {idea.caption && (
-            <div>
-              <p className="mb-1 text-[11px] font-bold uppercase text-gray-500">Legenda</p>
-              <p className="whitespace-pre-line rounded-xl bg-gray-050 p-3 leading-relaxed">{idea.caption}</p>
-            </div>
-          )}
-          {idea.cta && (
-            <div>
-              <p className="mb-1 text-[11px] font-bold uppercase text-gray-500">CTA</p>
-              <p>{idea.cta}</p>
-            </div>
-          )}
-        </DialogBody>
-      </Dialog>
-
-      <div className="mt-3 space-y-1 text-xs">
-        {idea.source_url && (
-          <a href={idea.source_url} target="_blank" rel="noreferrer" className="flex items-start gap-1.5 text-gray-600 hover:text-blue-800">
-            <Newspaper className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span className="line-clamp-2">{idea.source_title ?? idea.source_url}{idea.source_name ? ` — ${idea.source_name}` : ""}</span>
-          </a>
-        )}
-        {idea.reference_permalink && (
-          <a href={idea.reference_permalink} target="_blank" rel="noreferrer" className="flex items-start gap-1.5 text-gray-600 hover:text-blue-800">
-            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span className="line-clamp-2">Referência{idea.reference_note ? `: ${idea.reference_note}` : ""}</span>
-          </a>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="ast-fade-up block w-full overflow-hidden rounded-3xl border border-yellow-200 bg-gradient-to-br from-yellow-050 via-white to-white text-left shadow-[var(--shadow-md)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-lg)]"
+    >
+      <div className="grid gap-5 p-5 lg:grid-cols-[1.2fr_1fr] lg:p-6">
+        <div className="min-w-0">
+          <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-blue-900 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-yellow-500">
+            <Trophy className="h-3.5 w-3.5" /> Destaque do dia
+          </p>
+          <div className="flex items-start gap-3">
+            <h2 className="min-w-0 flex-1 font-display text-xl font-bold leading-snug text-blue-900 sm:text-2xl">{idea.title}</h2>
+            <ScorePill score={idea.score} big />
+          </div>
+          <div className="mt-2">
+            <IdeaBadges idea={idea} />
+          </div>
+          {idea.hook && <p className="mt-3 font-display text-base font-semibold text-gray-800">“{idea.hook}”</p>}
+          {idea.why && <p className="mt-2 text-sm text-gray-600">💡 {idea.why}</p>}
+          <SourceLine idea={idea} className="mt-3" />
+        </div>
+        {idea.script && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">Roteiro</p>
+            <p className="line-clamp-[9] whitespace-pre-line text-sm leading-relaxed text-gray-700">{idea.script}</p>
+            <p className="mt-2 text-xs font-bold text-blue-800">Abrir pauta completa →</p>
+          </div>
         )}
       </div>
-
-      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
-        {idea.status === "nova" ? (
-          <>
-            <Button size="sm" onClick={onApprove} disabled={busy} className="gap-1"><Check className="h-4 w-4" /> Virar tarefa</Button>
-            {isVideo && (
-              <Button size="sm" variant="secondary" onClick={onTeleprompter} disabled={busy} className="gap-1"><Mic className="h-4 w-4" /> Teleprompter</Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={onDiscard} disabled={busy} className="gap-1"><X className="h-4 w-4" /> Descartar</Button>
-          </>
-        ) : (
-          <>
-            {(idea.task_id || idea.teleprompter_script_id) && (
-              <div className="flex basis-full flex-wrap gap-x-4 gap-y-1">
-                {idea.task_id && <Link href={`/tasks/${idea.task_id}`} className="text-xs font-bold text-blue-800 hover:underline">Abrir tarefa →</Link>}
-                {idea.teleprompter_script_id && <Link href="/teleprompter" className="text-xs font-bold text-blue-800 hover:underline">Abrir no Teleprompter →</Link>}
-              </div>
-            )}
-            {idea.status === "aprovada" && isVideo && !idea.teleprompter_script_id && (
-              <Button size="sm" variant="secondary" onClick={onTeleprompter} disabled={busy} className="gap-1"><Mic className="h-4 w-4" /> Teleprompter</Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={onReopen} disabled={busy} className="gap-1"><RotateCcw className="h-4 w-4" /> Voltar</Button>
-          </>
-        )}
-      </div>
-    </article>
+    </button>
   );
 }

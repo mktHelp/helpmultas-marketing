@@ -23,6 +23,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-16-pautas-do-dia-v2",
+    date: "2026-10-16",
+    tag: "melhoria",
+    area: "Pautas do Dia",
+    title: "Pautas do Dia repaginadas e mais atuais",
+    summary: "Destaque do dia, cards mais limpos, selo de frescor, nota detalhada, variações e agendamento direto.",
+    details: [
+      "A melhor pauta do lote aparece em destaque no topo, com o roteiro já visível. As demais viram cards compactos; clicar abre a pauta completa numa gaveta lateral.",
+      "Cada pauta mostra se a notícia está Quente (menos de 6h), de Hoje ou Esfriando, de qual veículo veio e se é fonte oficial ou grande portal.",
+      "A nota agora é explicada por critério: impacto no bolso, alcance, frescor e polêmica.",
+      "Pautas sobre a mesma notícia aparecem agrupadas por tema, e as que citam valores ou artigos não confirmados na notícia ganham o selo Conferir.",
+      "Novos botões: Gerar variação (outro gancho para a mesma notícia) e Agendar, que cria a tarefa com data e responsáveis.",
+      "Novo painel Uso da IA: custo (com projeção do mês), custo por execução e por pauta, execuções, pautas geradas, aproveitamento e tokens, em 7 ou 30 dias.",
+      "Ajustes da IA direto no Hub: escolha o modelo, o esforço de raciocínio, quantas pautas gerar e os preços para o cálculo de custo. Só gestores alteram, e vale a partir da próxima geração.",
+      "O Helpinho passou a ler fontes oficiais (gov.br, Diário Oficial, STJ, Câmara, Senado), prioriza grandes portais, olha só as últimas 12h na rodada da tarde e cita posts reais como referência.",
+    ],
+  },
+  {
     id: "2026-10-16-tarefas-unificadas",
     date: "2026-10-16",
     tag: "melhoria",
