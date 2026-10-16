@@ -149,7 +149,7 @@ export default function PautasPage() {
         description="Todo dia às 7h30 e 13h30 o Helpinho cruza as notícias de trânsito mais recentes com o que mais performou no nosso Instagram e sugere conteúdos prontos."
         action={
           radarSettings && (
-            <Button variant="secondary" onClick={() => setSettingsOpen(true)} className="gap-1.5">
+            <Button onClick={() => setSettingsOpen(true)} className="gap-1.5 !bg-blue-900 !text-yellow-500 hover:!bg-blue-800">
               <SlidersHorizontal className="h-4 w-4" /> Ajustes da IA
             </Button>
           )
