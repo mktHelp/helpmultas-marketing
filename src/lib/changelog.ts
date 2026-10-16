@@ -35,6 +35,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "A nota agora é explicada por critério: impacto no bolso, alcance, frescor e polêmica.",
       "Pautas sobre a mesma notícia aparecem agrupadas por tema, e as que citam valores ou artigos não confirmados na notícia ganham o selo Conferir.",
       "Novos botões: Gerar variação (outro gancho para a mesma notícia) e Agendar, que cria a tarefa com data e responsáveis.",
+      "Novo painel Uso da IA: custo (com projeção do mês), custo por execução e por pauta, execuções, pautas geradas, aproveitamento e tokens, em 7 ou 30 dias.",
       "O Helpinho passou a ler fontes oficiais (gov.br, Diário Oficial, STJ, Câmara, Senado), prioriza grandes portais, olha só as últimas 12h na rodada da tarde e cita posts reais como referência.",
     ],
   },

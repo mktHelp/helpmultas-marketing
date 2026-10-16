@@ -131,3 +131,14 @@ export async function requestIdeaVariation(ideaId: string): Promise<ContentIdea>
   if (!res.ok) throw new Error(body.error || "Não foi possível gerar a variação.");
   return body.idea as ContentIdea;
 }
+
+/** Execuções do Radar de Pauta dos últimos dias (painel de uso da IA). */
+export async function listRecentRuns(supabase: SupabaseClient, days = 30) {
+  const { data, error } = await supabase
+    .from("content_idea_runs")
+    .select("*")
+    .gte("started_at", new Date(Date.now() - days * 864e5).toISOString())
+    .order("started_at", { ascending: false });
+  if (error) throw error;
+  return data as ContentIdeaRun[];
+}

@@ -10,6 +10,7 @@ import { RightDrawer } from "@/components/shared/RightDrawer";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RadarRunPanel } from "@/components/pautas/RadarRunPanel";
+import { AiUsagePanel } from "@/components/pautas/AiUsagePanel";
 import { IdeaBadges, IdeaCard, ScorePill, SourceLine } from "@/components/pautas/IdeaCard";
 import { IdeaDrawer } from "@/components/pautas/IdeaDrawer";
 import { createClient } from "@/lib/supabase/client";
@@ -144,6 +145,8 @@ export default function PautasPage() {
       />
 
       <RadarRunPanel onFinished={load} />
+
+      <AiUsagePanel ideas={ideas} />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Tabs

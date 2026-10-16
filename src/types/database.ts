@@ -615,6 +615,11 @@ export interface ContentIdeaRun {
   step: number;
   step_label: string;
   ideas_count: number | null;
+  model: string | null;
+  news_count: number | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  cost_usd: number | null;
   error_message: string | null;
   started_at: string;
   finished_at: string | null;
