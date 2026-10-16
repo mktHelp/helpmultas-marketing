@@ -651,3 +651,16 @@ export interface DistributionPost {
   created_at: string;
   updated_at: string;
 }
+
+export type RadarReasoningEffort = "padrao" | "minimal" | "low" | "medium" | "high";
+
+export interface ContentRadarSettings {
+  id: number;
+  model: string;
+  reasoning_effort: RadarReasoningEffort;
+  qtd_pautas: number;
+  price_in_usd_1m: number;
+  price_out_usd_1m: number;
+  updated_by: string | null;
+  updated_at: string;
+}

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ContentIdea, ContentIdeaRun, ContentType } from "@/types/database";
+import type { ContentIdea, ContentIdeaRun, ContentRadarSettings, ContentType } from "@/types/database";
 import { createTask } from "./tasks";
 import { createTeleprompterScript } from "./teleprompterScripts";
 
@@ -141,4 +141,39 @@ export async function listRecentRuns(supabase: SupabaseClient, days = 30) {
     .order("started_at", { ascending: false });
   if (error) throw error;
   return data as ContentIdeaRun[];
+}
+
+/** Modelos sugeridos no seletor (preços em US$ por 1 milhão de tokens; confira em openai.com/api/pricing). */
+export const RADAR_MODELS = [
+  { id: "gpt-5-nano", label: "GPT-5 nano", hint: "Mais barato, texto mais simples", priceIn: 0.05, priceOut: 0.4 },
+  { id: "gpt-5-mini", label: "GPT-5 mini", hint: "Equilíbrio entre custo e qualidade", priceIn: 0.25, priceOut: 2 },
+  { id: "gpt-5", label: "GPT-5", hint: "Melhor qualidade, custo maior", priceIn: 1.25, priceOut: 10 },
+];
+
+export const RADAR_EFFORTS = [
+  { id: "padrao", label: "Padrão do modelo", hint: "Deixa a OpenAI decidir" },
+  { id: "minimal", label: "Mínimo", hint: "Mais rápido e barato, pouco raciocínio" },
+  { id: "low", label: "Baixo", hint: "Raciocínio leve" },
+  { id: "medium", label: "Médio", hint: "Bom para a maioria dos casos" },
+  { id: "high", label: "Alto", hint: "Mais lento e caro, checa mais" },
+];
+
+export async function getRadarSettings(supabase: SupabaseClient) {
+  const { data, error } = await supabase.from("content_radar_settings").select("*").eq("id", 1).maybeSingle();
+  if (error) throw error;
+  return data as ContentRadarSettings | null;
+}
+
+export async function saveRadarSettings(
+  supabase: SupabaseClient,
+  userId: string,
+  patch: Pick<ContentRadarSettings, "model" | "reasoning_effort" | "qtd_pautas" | "price_in_usd_1m" | "price_out_usd_1m">
+) {
+  const { data, error } = await supabase
+    .from("content_radar_settings")
+    .upsert({ id: 1, ...patch, updated_by: userId, updated_at: new Date().toISOString() })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ContentRadarSettings;
 }

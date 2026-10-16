@@ -1,14 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bot, CheckCircle2, Coins, Cpu, Lightbulb, Newspaper } from "lucide-react";
+import { Bot, CheckCircle2, Coins, Cpu, Lightbulb, Newspaper, SlidersHorizontal } from "lucide-react";
+import { RightDrawer } from "@/components/shared/RightDrawer";
+import { RadarSettingsDrawer } from "./RadarSettingsDrawer";
+import { useAuth } from "@/lib/auth-context";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
-import { listRecentRuns } from "@/lib/services/contentIdeas";
-import type { ContentIdea, ContentIdeaRun } from "@/types/database";
+import { RADAR_EFFORTS, getRadarSettings, listRecentRuns } from "@/lib/services/contentIdeas";
+import type { ContentIdea, ContentIdeaRun, ContentRadarSettings } from "@/types/database";
 import { cn } from "@/lib/utils";
 
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 3 });
+// valores pequenos (custo por pauta) precisam de mais casas para não aparecer como $0.00
+const usd = { format: (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: v > 0 && v < 0.1 ? 4 : 2 })}` };
 const int = new Intl.NumberFormat("pt-BR");
 const compact = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -33,6 +37,9 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
   const [runs, setRuns] = useState<ContentIdeaRun[]>([]);
   const [days, setDays] = useState<7 | 30>(30);
   const [now, setNow] = useState(() => Date.now());
+  const { profile, isManager } = useAuth();
+  const [settings, setSettings] = useState<ContentRadarSettings | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const load = useCallback(() => {
     listRecentRuns(supabase, 30)
@@ -45,7 +52,8 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
 
   useEffect(() => {
     load();
-  }, [load]);
+    getRadarSettings(supabase).then(setSettings).catch(() => {});
+  }, [load, supabase]);
 
   useRealtimeChanges(["content_idea_runs"], load);
 
@@ -70,8 +78,8 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
       perRun: withCost.length ? cost / withCost.length : 0,
       perIdea: generated && withCost.length ? cost / generated : 0,
       tokensIn, tokensOut, generated, news, approved, decided: decided.length, model,
-      // projeção do mês: média por dia no período × 30
-      monthly: withCost.length ? (cost / days) * 30 : 0,
+      // projeção do mês: média por dia desde a primeira execução com custo (mínimo 1 dia) × 30
+      monthly: withCost.length ? (cost / Math.min(days, Math.max(1, (now - Math.min(...withCost.map((r) => new Date(r.started_at).getTime()))) / 864e5))) * 30 : 0,
     };
   }, [runs, ideas, days, now]);
 
@@ -81,7 +89,21 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
         <h2 className="flex items-center gap-1.5 font-display text-sm font-bold text-blue-900">
           <Bot className="h-4 w-4 text-blue-700" /> Uso da IA
         </h2>
-        {s.model && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">{s.model}</span>}
+        {(settings?.model ?? s.model) && (
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">
+            {settings?.model ?? s.model}
+            {settings && settings.reasoning_effort !== "padrao" && ` · esforço ${RADAR_EFFORTS.find((e) => e.id === settings.reasoning_effort)?.label.toLowerCase()}`}
+          </span>
+        )}
+        {settings && (
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[11px] font-bold text-blue-900 hover:bg-gray-050"
+          >
+            <SlidersHorizontal className="h-3 w-3" /> Ajustes
+          </button>
+        )}
         <div className="ml-auto inline-flex rounded-full border border-gray-200 bg-white p-0.5">
           {([7, 30] as const).map((d) => (
             <button
@@ -134,6 +156,11 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
           <Newspaper className="h-3.5 w-3.5" /> O custo aparece a partir das execuções feitas com o workflow novo do n8n.
         </p>
       )}
+      <RightDrawer open={settingsOpen && !!settings} onClose={() => setSettingsOpen(false)} label="Ajustes da IA">
+        {settings && profile && (
+          <RadarSettingsDrawer settings={settings} userId={profile.id} canEdit={isManager} onSaved={setSettings} onClose={() => setSettingsOpen(false)} />
+        )}
+      </RightDrawer>
     </section>
   );
 }
