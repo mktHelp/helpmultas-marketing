@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
+import { logAiUsage } from "@/lib/aiUsage";
 
 // Helpinho no Teleprompter: gera e revisa roteiros no estilo do Rober.
 //
@@ -241,6 +242,10 @@ Responda EXATAMENTE neste formato:
 ### O QUE MUDEI
 - <até 5 itens curtos explicando as principais mudanças>`;
 
+  const startedAt = Date.now();
+  const log = (extra: { data?: unknown; ok?: boolean; error?: string }) =>
+    logAiUsage({ source: "teleprompter", userId: user.id, startedAt, ...extra });
+
   let response: Response;
   try {
     response = await fetch(webhookUrl, {
@@ -253,21 +258,25 @@ Responda EXATAMENTE neste formato:
       }),
       signal: AbortSignal.timeout(180_000),
     });
-  } catch {
+  } catch (e) {
+    await log({ ok: false, error: e instanceof Error ? e.message : "falha de conexão" });
     return NextResponse.json({ error: "Não consegui falar com a IA agora. Tente de novo em instantes." }, { status: 502 });
   }
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     console.error(`[teleprompter-ai] n8n respondeu ${response.status}:`, text.slice(0, 2000));
+    await log({ ok: false, error: `n8n respondeu ${response.status}` });
     return NextResponse.json({ error: "A IA retornou um erro." }, { status: 502 });
   }
 
   const data = await response.json().catch(() => null);
   const reply = data?.output ?? data?.text ?? data?.reply;
   if (typeof reply !== "string" || !reply.trim()) {
+    await log({ data, ok: false, error: "resposta inesperada" });
     return NextResponse.json({ error: "Resposta inesperada da IA." }, { status: 502 });
   }
+  await log({ data });
 
   if (action === "review") {
     const [rawScript, rawNotes = ""] = reply.split(/###\s*O QUE MUDEI/i);

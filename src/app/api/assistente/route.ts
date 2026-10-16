@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
+import { logAiUsage } from "@/lib/aiUsage";
 
 // Proxies chat messages to the n8n "Helpinho" workflow (Chat Trigger + Gemini
 // agent). Kept server-side so the n8n webhook URL never reaches the browser
@@ -74,6 +75,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Conversa não encontrada." }, { status: 404 });
   }
 
+  const startedAt = Date.now();
+  const log = (extra: { data?: unknown; ok?: boolean; error?: string }) =>
+    logAiUsage({ source: "helpinho", userId: user.id, startedAt, conversationId, ...extra });
+
   let response: Response;
   try {
     response = await fetch(webhookUrl, {
@@ -89,21 +94,25 @@ export async function POST(request: Request) {
       }),
       signal: AbortSignal.timeout(180_000),
     });
-  } catch {
+  } catch (e) {
+    await log({ ok: false, error: e instanceof Error ? e.message : "falha de conexão" });
     return NextResponse.json({ error: "Não consegui falar com o assistente agora. Tente de novo em instantes." }, { status: 502 });
   }
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     console.error(`[assistente] n8n respondeu ${response.status}:`, body.slice(0, 2000));
+    await log({ ok: false, error: `n8n respondeu ${response.status}` });
     return NextResponse.json({ error: "O assistente retornou um erro." }, { status: 502 });
   }
 
   const data = await response.json().catch(() => null);
   const reply = data?.output ?? data?.text ?? data?.reply;
   if (typeof reply !== "string") {
+    await log({ data, ok: false, error: "resposta inesperada" });
     return NextResponse.json({ error: "Resposta inesperada do assistente." }, { status: 502 });
   }
+  await log({ data });
 
   const { error: saveError } = await supabase.from("assistant_messages").insert([
     { user_id: user.id, conversation_id: conversationId, role: "user", content: message },

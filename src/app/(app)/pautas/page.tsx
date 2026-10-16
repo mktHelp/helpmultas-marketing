@@ -10,7 +10,6 @@ import { RightDrawer } from "@/components/shared/RightDrawer";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RadarRunPanel } from "@/components/pautas/RadarRunPanel";
-import { AiUsagePanel } from "@/components/pautas/AiUsagePanel";
 import { RadarSettingsDrawer } from "@/components/pautas/RadarSettingsDrawer";
 import { Button } from "@/components/ui/Button";
 import { IdeaBadges, IdeaCard, ScorePill, SourceLine } from "@/components/pautas/IdeaCard";
@@ -158,7 +157,6 @@ export default function PautasPage() {
 
       <RadarRunPanel onFinished={load} />
 
-      <AiUsagePanel ideas={ideas} settings={radarSettings} />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Tabs
