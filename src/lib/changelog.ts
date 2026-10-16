@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-16-resumo-trofeu",
+    date: "2026-10-16",
+    tag: "melhoria",
+    area: "Expansão",
+    title: "Resumo da projeção com fundo escuro e troféu",
+    summary: "O card de topo do Resumo ganhou fundo em gradiente azul mais escuro e a imagem da pessoa com o troféu.",
+    details: [
+      "Na etapa Resumo da projeção de viabilidade, o card do topo (\"Seu investimento volta no mês…\") agora tem um gradiente azul mais escuro.",
+      "A imagem fica à direita, sem cobrir o texto, e some no celular para não apertar o conteúdo.",
+    ],
+  },
+  {
     id: "2026-10-16-uso-da-ia-master",
     date: "2026-10-16",
     tag: "novo",
