@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, Check, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, BarChart3, Bot, Check, Loader2, Newspaper, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
@@ -13,10 +13,10 @@ import type { ContentIdeaRun } from "@/types/database";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  "Buscando notícias de trânsito",
-  "Analisando o que performou no Instagram",
-  "IA escrevendo as pautas",
-  "Revisando e salvando",
+  { label: "Buscando notícias de trânsito", hint: "Google News, fontes oficiais e tendências", icon: Newspaper },
+  { label: "Analisando o que performou no Instagram", hint: "Seus melhores posts dos últimos 60 dias", icon: BarChart3 },
+  { label: "IA escrevendo as pautas", hint: "Ganchos, roteiros e legendas", icon: Bot },
+  { label: "Revisando e salvando", hint: "Checando fatos e guardando as pautas", icon: Save },
 ];
 // Mesmo limite da rota /api/pautas/run: depois disso a execução é dada como travada.
 const STALE_MS = 10 * 60e3;
@@ -113,27 +113,53 @@ export function RadarRunPanel({ onFinished }: { onFinished: () => void }) {
       </div>
 
       {running && (
-        <ol className="mt-4 grid gap-2 sm:grid-cols-4" aria-live="polite">
-          {STEPS.map((label, i) => {
-            const n = i + 1;
-            const done = run!.step > n;
-            const active = run!.step === n;
-            return (
-              <li
-                key={label}
-                className={cn(
-                  "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
-                  done && "bg-green-50 text-green-700",
-                  active && "bg-yellow-050 text-blue-900 ring-1 ring-yellow-400",
-                  !done && !active && "bg-gray-050 text-gray-400"
-                )}
-              >
-                {done ? <Check className="h-4 w-4 shrink-0" /> : active ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-current text-[10px]">{n}</span>}
-                <span className="leading-tight">{active ? run!.step_label : label}</span>
-              </li>
-            );
-          })}
-        </ol>
+        <div className="mt-5" aria-live="polite">
+          <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-yellow-400 transition-[width] duration-700 ease-out"
+              style={{ width: `${Math.min(96, ((run!.step - 1) / STEPS.length) * 100 + 8)}%` }}
+            />
+          </div>
+          <ol className="grid gap-3 sm:grid-cols-4">
+            {STEPS.map((s, i) => {
+              const n = i + 1;
+              const done = run!.step > n;
+              const active = run!.step === n;
+              const Icon = s.icon;
+              return (
+                <li key={s.label} className="relative flex gap-3 sm:flex-col sm:gap-2">
+                  {i < STEPS.length - 1 && (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute left-[1.15rem] top-10 h-[calc(100%-1.5rem)] w-0.5 rounded-full transition-colors duration-500 sm:left-12 sm:top-[1.15rem] sm:h-0.5 sm:w-[calc(100%-2rem)]",
+                        done ? "bg-green-400" : "bg-gray-200"
+                      )}
+                    />
+                  )}
+                  <span
+                    className={cn(
+                      "relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-500",
+                      done && "border-green-500 bg-green-500 text-white",
+                      active && "border-yellow-500 bg-yellow-500 text-blue-900 shadow-[0_0_0_5px_rgba(224,169,0,0.18)]",
+                      !done && !active && "border-gray-200 bg-white text-gray-300"
+                    )}
+                  >
+                    {done ? <Check className="ast-pop h-4 w-4" strokeWidth={3} /> : <Icon className={cn("h-4 w-4", active && "animate-pulse")} />}
+                  </span>
+                  <div className="min-w-0 pb-1">
+                    <p className={cn("text-xs font-bold leading-tight", done ? "text-green-700" : active ? "text-blue-900" : "text-gray-400")}>
+                      {active ? run!.step_label : s.label}
+                    </p>
+                    <p className={cn("mt-0.5 text-[11px] leading-snug", active ? "text-gray-600" : "text-gray-400")}>
+                      {done ? "Concluído" : s.hint}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       )}
 
       {(run?.status === "error" || stale) && (
