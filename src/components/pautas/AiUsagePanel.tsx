@@ -99,9 +99,9 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[11px] font-bold text-blue-900 hover:bg-gray-050"
+            className="inline-flex items-center gap-1.5 rounded-full bg-blue-900 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-800 active:scale-95"
           >
-            <SlidersHorizontal className="h-3 w-3" /> Ajustes
+            <SlidersHorizontal className="h-3.5 w-3.5 text-yellow-500" /> Ajustes da IA
           </button>
         )}
         <div className="ml-auto inline-flex rounded-full border border-gray-200 bg-white p-0.5">
