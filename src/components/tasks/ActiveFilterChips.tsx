@@ -3,6 +3,7 @@
 import { FilterChips } from "@/components/ui/FilterBar";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { formatDate } from "@/lib/utils";
+import { TASK_COLORS } from "./TaskColorPicker";
 import type { Area, Profile } from "@/types/database";
 import type { TaskFilters } from "@/lib/services/tasks";
 
@@ -43,6 +44,10 @@ export function ActiveFilterChips({
   if (filters.search?.trim()) chips.push({ key: "search", label: `“${filters.search.trim()}”`, color: "#243746", remove: without("search") });
   for (const s of filters.status ?? []) chips.push({ key: `st-${s}`, label: byKey[s]?.label ?? s, color: byKey[s]?.color ?? "#7c8e98", remove: without("status", s) });
   for (const p of filters.priority ?? []) chips.push({ key: `pr-${p}`, label: `Prioridade ${PRIORITY_LABEL[p] ?? p}`, color: p === "urgente" ? "#c23b3b" : p === "alta" ? "#e0a900" : "#4a6a80", remove: without("priority", p) });
+  for (const c of filters.color ?? []) {
+    const known = TASK_COLORS.find((x) => x.value === c);
+    chips.push({ key: `co-${c}`, label: c === "none" ? "Sem cor" : `Cor ${known?.label ?? c}`, color: known?.value ?? "#7c8e98", remove: without("color", c) });
+  }
   for (const id of filters.assignedTo ?? []) chips.push({ key: `as-${id}`, label: profiles.find((p) => p.id === id)?.full_name ?? "Responsável", color: "#375367", remove: without("assignedTo", id) });
   for (const id of filters.areaId ?? []) {
     const area = areas.find((a) => a.id === id);

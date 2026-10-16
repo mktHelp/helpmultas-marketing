@@ -23,6 +23,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-16-tarefas-unificadas",
+    date: "2026-10-16",
+    tag: "melhoria",
+    area: "Tarefas",
+    title: "Quadro, Lista e Calendário numa só tela",
+    summary: "As abas Todas as Tarefas, Quadro e Calendário viraram a aba Tarefas, com três formas de ver.",
+    details: [
+      "Na aba Tarefas, alterne entre Quadro (padrão), Lista e Calendário. Busca, filtros e Nova tarefa são os mesmos nas três.",
+      "O filtro agora também tem Cor da tarefa, e vale em qualquer visualização.",
+      "Links antigos de Quadro e Calendário continuam funcionando e levam para a nova tela.",
+    ],
+  },
+  {
     id: "2026-10-16-calendario-filtros-cores",
     date: "2026-10-16",
     tag: "novo",

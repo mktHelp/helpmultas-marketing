@@ -56,6 +56,8 @@ export interface TaskFilters {
   projectId?: string;
   campaignId?: string;
   priority?: string[];
+  /** hex das cores da tarefa; "none" = tarefas sem cor */
+  color?: string[];
   search?: string;
   dueBefore?: string;
   dueAfter?: string;
@@ -94,6 +96,11 @@ export async function listTasks(supabase: SupabaseClient, filters: TaskFilters =
   if (filters.projectId) query = query.eq("project_id", filters.projectId);
   if (filters.campaignId) query = query.eq("campaign_id", filters.campaignId);
   if (filters.priority?.length) query = query.in("priority", filters.priority);
+  if (filters.color?.length) {
+    const named = filters.color.filter((c) => c !== "none");
+    const parts = [...(named.length ? [`color.in.(${named.join(",")})`] : []), ...(filters.color.includes("none") ? ["color.is.null"] : [])];
+    query = query.or(parts.join(","));
+  }
   if (filters.search) query = query.ilike("title", `%${filters.search}%`);
   if (filters.dueBefore) query = query.lte("due_date", filters.dueBefore);
   if (filters.dueAfter) query = query.gte("due_date", filters.dueAfter);
