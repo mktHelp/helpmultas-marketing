@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bot, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, X, type LucideIcon } from "lucide-react";
+import { Bot, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, Pin, PinOff, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isNavActive } from "@/lib/navigation";
 import { UserAvatar } from "@/components/shared/UserAvatar";
@@ -66,6 +66,8 @@ export function SidebarLink({
   onNavigate,
   tip,
   index = 0,
+  pinned,
+  onTogglePin,
 }: {
   item: SidebarItem;
   active: boolean;
@@ -73,9 +75,12 @@ export function SidebarLink({
   onNavigate?: () => void;
   tip: TipHandlers;
   index?: number;
+  /** quando informado (e o menu está expandido), mostra o botão de fixar ao passar o mouse */
+  pinned?: boolean;
+  onTogglePin?: () => void;
 }) {
   const Icon = item.icon;
-  return (
+  const link = (
     <Link
       href={item.href}
       scroll={false}
@@ -113,6 +118,25 @@ export function SidebarLink({
         </span>
       )}
     </Link>
+  );
+  if (!onTogglePin || collapsed) return link;
+  return (
+    <div className="group/pin relative">
+      {link}
+      <button
+        type="button"
+        onClick={onTogglePin}
+        aria-label={pinned ? `Desafixar ${item.label}` : `Fixar ${item.label}`}
+        title={pinned ? "Desafixar" : "Fixar na sidebar"}
+        className={cn(
+          "absolute right-4 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md transition-opacity focus-visible:opacity-100 group-hover/pin:opacity-100",
+          pinned ? "opacity-100" : "opacity-0",
+          active ? "text-blue-900/60 hover:bg-blue-900/10 hover:text-blue-900" : "text-blue-200/70 hover:bg-white/10 hover:text-yellow-500"
+        )}
+      >
+        {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+      </button>
+    </div>
   );
 }
 
