@@ -23,6 +23,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-16-distribuicao-unidade-roberson",
+    date: "2026-10-16",
+    tag: "melhoria",
+    area: "Distribuição",
+    title: "Roberson como opção de Unidade",
+    summary: "A coluna Unidade da Distribuição agora tem a opção Roberson.",
+    details: ["Além de Franqueadora e Unidade, dá para marcar o post como Roberson. A opção também aparece no filtro de Unidade."],
+  },
+  {
     id: "2026-10-16-pautas-publico-por-conta",
     date: "2026-10-16",
     tag: "melhoria",

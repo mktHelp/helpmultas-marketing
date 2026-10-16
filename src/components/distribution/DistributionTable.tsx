@@ -28,6 +28,7 @@ const ACTIVE_OPTIONS: Opt[] = [
 const UNIT_OPTIONS: Opt[] = [
   { value: "Franqueadora", label: "Franqueadora", color: "#2563eb" },
   { value: "Unidade", label: "Unidade", color: "#e0a900" },
+  { value: "Roberson", label: "Roberson", color: "#8b5cf6" },
 ];
 const CATEGORY_OPTIONS: Opt[] = [
   { value: "bom", label: "Bom", color: "#2f8f5b" },
