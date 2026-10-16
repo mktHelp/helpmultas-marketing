@@ -590,6 +590,15 @@ export interface ContentIdea {
   source_url: string | null;
   source_name: string | null;
   score: number | null;
+  theme: string | null;
+  source_published_at: string | null;
+  /** 1 = fonte oficial, 2 = grande portal, 3 = demais */
+  source_tier: number | null;
+  /** cada critério de 0 a 25; a soma é o score */
+  score_breakdown: { bolso?: number; alcance?: number; frescor?: number; polemica?: number } | null;
+  needs_check: boolean;
+  check_note: string | null;
+  variation_of: string | null;
   status: ContentIdeaStatus;
   task_id: string | null;
   teleprompter_script_id: string | null;

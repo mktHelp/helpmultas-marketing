@@ -11,11 +11,14 @@ export function RightDrawer({
   open,
   onClose,
   label,
+  wide,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
+  /** gaveta larga (leitura de textos longos) */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   useEffect(() => {
@@ -38,7 +41,7 @@ export function RightDrawer({
         style={{ animation: "overlay-fade-in 200ms ease-out both" }}
         onClick={onClose}
       />
-      <div className="sb-drawer-in-right absolute inset-y-0 right-0 w-[92%] max-w-sm bg-white shadow-[var(--shadow-lg)]">{children}</div>
+      <div className={`sb-drawer-in-right absolute inset-y-0 right-0 w-[92%] bg-white shadow-[var(--shadow-lg)] ${wide ? "max-w-xl" : "max-w-sm"}`}>{children}</div>
     </div>
   );
 }

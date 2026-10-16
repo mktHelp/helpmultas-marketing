@@ -84,16 +84,17 @@ export function reopenIdea(supabase: SupabaseClient, id: string, userId: string)
 }
 
 /** Aprova a pauta e cria a tarefa com briefing, roteiro e legenda já preenchidos. */
-export async function approveIdeaAsTask(supabase: SupabaseClient, idea: ContentIdea, userId: string) {
+export async function approveIdeaAsTask(supabase: SupabaseClient, idea: ContentIdea, userId: string, opts: { dueDate?: string | null; assigneeIds?: string[] } = {}) {
   const fmt: ContentType = idea.format === "stories" ? "stories" : idea.format;
   const briefing = [
     `Conta: ${ACCOUNT_LABEL[idea.account]}`,
     idea.hook && `Gancho: ${idea.hook}`,
     idea.why && `Por que deve funcionar: ${idea.why}`,
+    idea.needs_check && `⚠️ Conferir antes de publicar: ${idea.check_note ?? "valores e regras citados"}`,
     idea.source_url && `Fonte: ${idea.source_title ?? idea.source_name ?? ""} — ${idea.source_url}`,
     idea.reference_permalink && `Referência: ${idea.reference_permalink}${idea.reference_note ? ` (${idea.reference_note})` : ""}`,
   ].filter(Boolean).join("\n");
-  const task = await createTask(supabase, { title: idea.title, content_type: fmt, created_by: userId, status: "planejamento" });
+  const task = await createTask(supabase, { title: idea.title, content_type: fmt, created_by: userId, status: "planejamento", due_date: opts.dueDate ?? null, assigneeIds: opts.assigneeIds });
   const { error } = await supabase
     .from("tasks")
     .update({ briefing, script_notes: idea.script, caption: [idea.caption, idea.cta].filter(Boolean).join("\n\n") || null })
@@ -117,4 +118,16 @@ export async function sendIdeaToTeleprompter(supabase: SupabaseClient, idea: Con
     record_date: null,
   });
   return decide(supabase, idea.id, userId, { status: "aprovada", teleprompter_script_id: script.id });
+}
+
+/** Pede à IA outra versão da pauta (novo gancho e ângulo) e salva como uma pauta nova, logo ao lado. */
+export async function requestIdeaVariation(ideaId: string): Promise<ContentIdea> {
+  const res = await fetch("/api/pautas/variation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ideaId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || "Não foi possível gerar a variação.");
+  return body.idea as ContentIdea;
 }
