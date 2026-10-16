@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-16-funil-sem-animacao",
+    date: "2026-10-16",
+    tag: "melhoria",
+    area: "Reuniões",
+    title: "Funil por categoria mais leve",
+    summary: "Tiramos a animação de entrada do funil que travava a tela; ficam a contagem dos números e o efeito ao passar o mouse.",
+    details: [
+      "O funil agora aparece já montado, sem o cone descendo e sem o movimento contínuo das camadas.",
+      "Os números continuam subindo até o valor final e o efeito ao passar o mouse em cada camada foi mantido.",
+    ],
+  },
+  {
     id: "2026-10-16-sidebar-fixados-recentes",
     date: "2026-10-16",
     tag: "novo",
