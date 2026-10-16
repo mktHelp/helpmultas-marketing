@@ -4,13 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Layers, Lightbulb, Sparkles, Trophy } from "lucide-react";
+import { Layers, Lightbulb, SlidersHorizontal, Sparkles, Trophy } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RightDrawer } from "@/components/shared/RightDrawer";
 import { Tabs } from "@/components/ui/Tabs";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RadarRunPanel } from "@/components/pautas/RadarRunPanel";
 import { AiUsagePanel } from "@/components/pautas/AiUsagePanel";
+import { RadarSettingsDrawer } from "@/components/pautas/RadarSettingsDrawer";
+import { Button } from "@/components/ui/Button";
 import { IdeaBadges, IdeaCard, ScorePill, SourceLine } from "@/components/pautas/IdeaCard";
 import { IdeaDrawer } from "@/components/pautas/IdeaDrawer";
 import { createClient } from "@/lib/supabase/client";
@@ -18,9 +20,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { listProfiles } from "@/lib/services/profiles";
 import {
-  approveIdeaAsTask, discardIdea, listContentIdeas, markIdeasSeen, reopenIdea, requestIdeaVariation, sendIdeaToTeleprompter,
+  approveIdeaAsTask, discardIdea, getRadarSettings, listContentIdeas, markIdeasSeen, reopenIdea, requestIdeaVariation, sendIdeaToTeleprompter,
 } from "@/lib/services/contentIdeas";
-import type { ContentIdea, Profile } from "@/types/database";
+import type { ContentIdea, ContentRadarSettings, Profile } from "@/types/database";
 
 type Group = { theme: string | null; ideas: ContentIdea[] };
 
@@ -43,7 +45,9 @@ function groupByTheme(list: ContentIdea[]): Group[] {
 
 export default function PautasPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { profile } = useAuth();
+  const { profile, isManager } = useAuth();
+  const [radarSettings, setRadarSettings] = useState<ContentRadarSettings | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [ideas, setIdeas] = useState<ContentIdea[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +70,7 @@ export default function PautasPage() {
   useEffect(() => {
     load();
     listProfiles(supabase).then(setProfiles).catch(() => {});
+    getRadarSettings(supabase).then(setRadarSettings).catch(() => {});
   }, [load, supabase]);
 
   // Abrir a aba = "li as pautas": apaga a bolinha da sidebar e o aviso do sininho.
@@ -142,11 +147,18 @@ export default function PautasPage() {
         icon={Lightbulb}
         title="Pautas do Dia"
         description="Todo dia às 7h30 e 13h30 o Helpinho cruza as notícias de trânsito mais recentes com o que mais performou no nosso Instagram e sugere conteúdos prontos."
+        action={
+          radarSettings && (
+            <Button variant="secondary" onClick={() => setSettingsOpen(true)} className="gap-1.5">
+              <SlidersHorizontal className="h-4 w-4" /> Ajustes da IA
+            </Button>
+          )
+        }
       />
 
       <RadarRunPanel onFinished={load} />
 
-      <AiUsagePanel ideas={ideas} />
+      <AiUsagePanel ideas={ideas} settings={radarSettings} />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Tabs
@@ -216,6 +228,12 @@ export default function PautasPage() {
           })}
         </div>
       )}
+
+      <RightDrawer open={settingsOpen && !!radarSettings} onClose={() => setSettingsOpen(false)} label="Ajustes da IA">
+        {radarSettings && profile && (
+          <RadarSettingsDrawer settings={radarSettings} userId={profile.id} canEdit={isManager} onSaved={setRadarSettings} onClose={() => setSettingsOpen(false)} />
+        )}
+      </RightDrawer>
 
       <RightDrawer open={!!openIdea} onClose={() => setOpenId(null)} label="Detalhes da pauta" wide>
         {openIdea && profile && (

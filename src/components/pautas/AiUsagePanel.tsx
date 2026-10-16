@@ -1,13 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bot, CheckCircle2, Coins, Cpu, Lightbulb, Newspaper, SlidersHorizontal } from "lucide-react";
-import { RightDrawer } from "@/components/shared/RightDrawer";
-import { RadarSettingsDrawer } from "./RadarSettingsDrawer";
-import { useAuth } from "@/lib/auth-context";
+import { Bot, CheckCircle2, Coins, Cpu, Lightbulb, Newspaper } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
-import { RADAR_EFFORTS, getRadarSettings, listRecentRuns } from "@/lib/services/contentIdeas";
+import { RADAR_EFFORTS, listRecentRuns } from "@/lib/services/contentIdeas";
 import type { ContentIdea, ContentIdeaRun, ContentRadarSettings } from "@/types/database";
 import { cn } from "@/lib/utils";
 
@@ -32,14 +29,11 @@ function Card({ icon: Icon, label, value, hint, color }: { icon: React.Component
 }
 
 /** Gasto e números do Radar de Pauta: execuções, pautas, aproveitamento, tokens e custo da IA. */
-export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
+export function AiUsagePanel({ ideas, settings }: { ideas: ContentIdea[]; settings: ContentRadarSettings | null }) {
   const supabase = useMemo(() => createClient(), []);
   const [runs, setRuns] = useState<ContentIdeaRun[]>([]);
   const [days, setDays] = useState<7 | 30>(30);
   const [now, setNow] = useState(() => Date.now());
-  const { profile, isManager } = useAuth();
-  const [settings, setSettings] = useState<ContentRadarSettings | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const load = useCallback(() => {
     listRecentRuns(supabase, 30)
@@ -52,7 +46,6 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
 
   useEffect(() => {
     load();
-    getRadarSettings(supabase).then(setSettings).catch(() => {});
   }, [load, supabase]);
 
   useRealtimeChanges(["content_idea_runs"], load);
@@ -95,15 +88,7 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
             {settings && settings.reasoning_effort !== "padrao" && ` · esforço ${RADAR_EFFORTS.find((e) => e.id === settings.reasoning_effort)?.label.toLowerCase()}`}
           </span>
         )}
-        {settings && (
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-blue-900 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-800 active:scale-95"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 text-yellow-500" /> Ajustes da IA
-          </button>
-        )}
+
         <div className="ml-auto inline-flex rounded-full border border-gray-200 bg-white p-0.5">
           {([7, 30] as const).map((d) => (
             <button
@@ -156,11 +141,6 @@ export function AiUsagePanel({ ideas }: { ideas: ContentIdea[] }) {
           <Newspaper className="h-3.5 w-3.5" /> O custo aparece a partir das execuções feitas com o workflow novo do n8n.
         </p>
       )}
-      <RightDrawer open={settingsOpen && !!settings} onClose={() => setSettingsOpen(false)} label="Ajustes da IA">
-        {settings && profile && (
-          <RadarSettingsDrawer settings={settings} userId={profile.id} canEdit={isManager} onSaved={setSettings} onClose={() => setSettingsOpen(false)} />
-        )}
-      </RightDrawer>
     </section>
   );
 }
