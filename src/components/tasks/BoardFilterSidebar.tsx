@@ -41,7 +41,7 @@ function toggle(list: string[] | undefined, value: string) {
   return next.length ? next : undefined;
 }
 
-function Section({
+export function Section({
   icon: Icon,
   title,
   count,
@@ -84,7 +84,7 @@ function Section({
   );
 }
 
-function Chip({
+export function Chip({
   label,
   color,
   selected,

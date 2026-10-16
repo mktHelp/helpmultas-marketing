@@ -9,19 +9,22 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  AlertTriangle, CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Inbox, ListFilter, Palette, X,
+  AlertTriangle, CalendarCheck, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Inbox, Palette,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { Button } from "@/components/ui/Button";
 import { PriorityBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { TASK_COLORS, TaskColorPicker } from "@/components/tasks/TaskColorPicker";
+import { TaskColorPicker } from "@/components/tasks/TaskColorPicker";
+import { CalendarFilterSidebar, NO_CAL_FILTERS, NO_COLOR, countCalFilters, type CalFilters } from "@/components/tasks/CalendarFilterSidebar";
+import { RightDrawer } from "@/components/shared/RightDrawer";
+import { ClearFilters, FilterBar, FilterButton } from "@/components/ui/FilterBar";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { createClient } from "@/lib/supabase/client";
 import { listTasks, updateTask } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
 import { listAreas } from "@/lib/services/reference";
-import { useAuth } from "@/lib/auth-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { cn, isOverdue } from "@/lib/utils";
@@ -29,66 +32,16 @@ import type { Area, Profile, TaskWithRelations } from "@/types/database";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-const PRIORITIES = [
-  { value: "baixa", label: "Baixa", color: "#7c8e98" },
-  { value: "media", label: "Média", color: "#4a6a80" },
-  { value: "alta", label: "Alta", color: "#e0a900" },
-  { value: "urgente", label: "Urgente", color: "#c23b3b" },
-];
-
-interface CalFilters {
-  search: string;
-  assignees: string[];
-  statuses: string[];
-  priorities: string[];
-  areas: string[];
-  colors: string[];
-  onlyOverdue: boolean;
-}
-
-const NO_FILTERS: CalFilters = { search: "", assignees: [], statuses: [], priorities: [], areas: [], colors: [], onlyOverdue: false };
-const NO_COLOR = "none";
-
-function toggleIn(list: string[], v: string) {
-  return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
-}
-
-function FilterChip({ label, color, selected, onClick }: { label: string; color?: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all active:scale-95",
-        selected ? "border-transparent bg-blue-900 text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-050"
-      )}
-    >
-      {color && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />}
-      {label}
-    </button>
-  );
-}
-
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">{title}</p>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
-  );
-}
-
 export default function CalendarPage() {
   const supabase = createClient();
-  const { byKey, statuses } = useTaskStatuses();
-  const { profile } = useAuth();
+  const { byKey } = useTaskStatuses();
   const [month, setMonth] = useState(new Date());
   const [selected, setSelected] = useState<Date>(new Date());
   const [tasks, setTasks] = useState<TaskWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<CalFilters>(NO_FILTERS);
-  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<CalFilters>(NO_CAL_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const closeFilters = useCallback(() => setFiltersOpen(false), []);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [colorOpenId, setColorOpenId] = useState<string | null>(null);
@@ -110,11 +63,7 @@ export default function CalendarPage() {
 
   useRealtimeChanges(["tasks", "task_assignees"], load);
 
-  const mine = !!profile && filters.assignees.length === 1 && filters.assignees[0] === profile.id;
-  const activeCount =
-    (filters.search.trim() ? 1 : 0) + (filters.assignees.length ? 1 : 0) + (filters.statuses.length ? 1 : 0) +
-    (filters.priorities.length ? 1 : 0) + (filters.areas.length ? 1 : 0) + (filters.colors.length ? 1 : 0) +
-    (filters.onlyOverdue ? 1 : 0);
+  const activeCount = countCalFilters(filters);
 
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
@@ -225,90 +174,26 @@ export default function CalendarPage() {
         <StatCard icon={CheckCircle2} label="Concluídas no mês" value={stats.doneInMonth} color="#2f8f5b" index={3} />
       </div>
 
-      {/* Filtros */}
-      <div className="mb-5 rounded-2xl border border-gray-200 bg-white p-3 shadow-[var(--shadow-sm)]">
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="search"
-            value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-            placeholder="Buscar tarefa..."
-            aria-label="Buscar tarefa"
-            className="h-9 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-sm text-blue-900 outline-none focus:border-blue-900 sm:max-w-xs"
-          />
-          <button
-            type="button"
-            disabled={!profile}
-            onClick={() => profile && setFilters({ ...filters, assignees: mine ? [] : [profile.id] })}
-            aria-pressed={mine}
-            className={cn(
-              "h-9 rounded-xl border px-3 text-xs font-bold transition-all active:scale-95 disabled:opacity-50",
-              mine ? "border-transparent bg-blue-900 text-white" : "border-gray-200 text-gray-700 hover:bg-gray-050"
-            )}
-          >
-            Minhas
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilters({ ...filters, onlyOverdue: !filters.onlyOverdue })}
-            aria-pressed={filters.onlyOverdue}
-            className={cn(
-              "h-9 rounded-xl border px-3 text-xs font-bold transition-all active:scale-95",
-              filters.onlyOverdue ? "border-transparent bg-[color:var(--color-danger)] text-white" : "border-gray-200 text-gray-700 hover:bg-gray-050"
-            )}
-          >
-            Atrasadas
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowFilters((v) => !v)}
-            aria-expanded={showFilters}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 px-3 text-xs font-bold text-blue-900 hover:bg-gray-050"
-          >
-            <ListFilter className="h-4 w-4" />
-            Filtros
-            {activeCount > 0 && <span className="rounded-full bg-yellow-500 px-1.5 text-[10px] text-blue-900">{activeCount}</span>}
-          </button>
-          {activeCount > 0 && (
-            <button type="button" onClick={() => setFilters(NO_FILTERS)} className="inline-flex h-9 items-center gap-1 rounded-xl px-2 text-xs font-semibold text-gray-500 hover:bg-gray-100">
-              <X className="h-3.5 w-3.5" /> Limpar
-            </button>
-          )}
-        </div>
+      <FilterBar>
+        <SearchInput value={filters.search} onChange={(v) => setFilters((f) => ({ ...f, search: v }))} placeholder="Buscar tarefas…" />
+        <FilterButton count={activeCount} onClick={() => setFiltersOpen(true)} />
+        <ClearFilters show={activeCount > 0} onClick={() => setFilters(NO_CAL_FILTERS)} />
+      </FilterBar>
 
-        {showFilters && (
-          <div className="mt-3 grid gap-4 border-t border-gray-100 pt-3 md:grid-cols-2">
-            <FilterGroup title="Responsável">
-              {profiles.map((p) => (
-                <FilterChip key={p.id} label={p.full_name} selected={filters.assignees.includes(p.id)} onClick={() => setFilters({ ...filters, assignees: toggleIn(filters.assignees, p.id) })} />
-              ))}
-            </FilterGroup>
-            <FilterGroup title="Etapa">
-              {statuses.filter((s) => s.is_active).map((s) => (
-                <FilterChip key={s.key} label={s.label} color={s.color} selected={filters.statuses.includes(s.key)} onClick={() => setFilters({ ...filters, statuses: toggleIn(filters.statuses, s.key) })} />
-              ))}
-            </FilterGroup>
-            <FilterGroup title="Prioridade">
-              {PRIORITIES.map((p) => (
-                <FilterChip key={p.value} label={p.label} color={p.color} selected={filters.priorities.includes(p.value)} onClick={() => setFilters({ ...filters, priorities: toggleIn(filters.priorities, p.value) })} />
-              ))}
-            </FilterGroup>
-            <FilterGroup title="Cor da tarefa">
-              {TASK_COLORS.map((c) => (
-                <FilterChip key={c.value} label={c.label} color={c.value} selected={filters.colors.includes(c.value)} onClick={() => setFilters({ ...filters, colors: toggleIn(filters.colors, c.value) })} />
-              ))}
-              <FilterChip label="Sem cor" selected={filters.colors.includes(NO_COLOR)} onClick={() => setFilters({ ...filters, colors: toggleIn(filters.colors, NO_COLOR) })} />
-            </FilterGroup>
-            {areas.length > 0 && (
-              <FilterGroup title="Área">
-                {areas.map((a) => (
-                  <FilterChip key={a.id} label={a.name} color={a.color} selected={filters.areas.includes(a.id)} onClick={() => setFilters({ ...filters, areas: toggleIn(filters.areas, a.id) })} />
-                ))}
-              </FilterGroup>
-            )}
-          </div>
-        )}
-      </div>
+      {/* Filtros: gaveta à direita, igual ao Quadro. Só aplica ao clicar em "Aplicar filtros". */}
+      <RightDrawer open={filtersOpen} onClose={closeFilters} label="Filtros do calendário">
+        <CalendarFilterSidebar
+          applied={filters}
+          profiles={profiles}
+          areas={areas}
+          resultCount={filtered.length}
+          onClose={closeFilters}
+          onApply={(next) => {
+            setFilters(next);
+            setFiltersOpen(false);
+          }}
+        />
+      </RightDrawer>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0">
