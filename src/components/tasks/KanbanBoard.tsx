@@ -41,6 +41,22 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
     return () => document.removeEventListener("click", onClickCapture, true);
   }, []);
 
+  // Shift + roda do mouse rola o quadro para os lados. A rolagem suave (Lenis) do AppShell
+  // cancela o gesto nativo, então tratamos aqui e impedimos o evento de chegar nela.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      if (!e.shiftKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el!.scrollLeft += e.deltaX || e.deltaY;
+    }
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   function handleDragStart(event: DragStartEvent) {
     suppressNextClick.current = true;
     setActiveId(String(event.active.id));
@@ -70,7 +86,7 @@ export function KanbanBoard({ tasks, onRefresh }: { tasks: TaskWithRelations[]; 
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
-      <div className="kanban-scroll flex h-[calc(100dvh-215px)] min-h-[420px] gap-4 overflow-x-auto pb-4">
+      <div ref={scrollRef} className="kanban-scroll flex h-[calc(100dvh-215px)] min-h-[420px] gap-4 overflow-x-auto pb-4">
         {activeStatuses.map((status, i) => (
           <KanbanColumn
             key={status.key}
