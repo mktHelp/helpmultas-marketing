@@ -23,6 +23,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-19-planejamento-de-conteudo",
+    date: "2026-10-19",
+    tag: "novo",
+    area: "Conteúdos",
+    title: "Planejamento de conteúdo dos dois perfis",
+    summary: "A aba Conteúdos ganhou o Planejamento: cronograma e roteiros por perfil, no ano, mês, semana e dia.",
+    details: [
+      "Cada post tem data, pilar, tema, objetivo, funil, formato e etapa (planejado, roteiro pronto, gravado, publicado), além de post fixado no perfil.",
+      "Roteiro em blocos com tempo (Hook, Problema, Insight, Conclusão…) ou slides de carrossel, com gravação, legenda e CTA. Os trechos [CONFIRMAR: …] ficam destacados e viram pendências antes de gravar.",
+      "Visões Ano, Mês, Semana, Dia e Lista, para @helpmultasfranchising, @roberson.alvarenga ou os dois juntos, com filtros de formato, funil, etapa e pendências.",
+      "Stories de cada dia (manhã, durante o dia e fim do dia), resumo do mês e regras dos Stories editáveis.",
+      "Botão Enviar p/ Produção cria a tarefa no quadro da aba Produção, com o prazo na data de publicação. O cronograma de outubro do Roberson já vem carregado.",
+    ],
+  },
+  {
     id: "2026-10-19-conteudos-lista-calendario-filtros",
     date: "2026-10-19",
     tag: "melhoria",

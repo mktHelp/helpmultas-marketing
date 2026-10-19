@@ -48,7 +48,7 @@ function parseView(v: string | null): View {
  * Tarefas: uma só tela com três formas de visualização (Quadro, Lista e Calendário).
  * Busca, filtros e criação são os mesmos nas três; o Quadro é o padrão.
  */
-export function TasksWorkspace({ contentOnly = false }: { contentOnly?: boolean } = {}) {
+export function TasksWorkspace({ contentOnly = false, embedded = false }: { contentOnly?: boolean; embedded?: boolean } = {}) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const pathname = usePathname();
@@ -141,38 +141,47 @@ export function TasksWorkspace({ contentOnly = false }: { contentOnly?: boolean 
 
   return (
     <div>
-      <PageHeader
-        title={contentOnly ? "Conteúdos" : "Tarefas"}
-        description={description}
-        action={
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
-              <Plus className="h-4 w-4" /> {contentOnly ? "Novo conteúdo" : "Nova tarefa"}
-            </Button>
-          </div>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title={contentOnly ? "Conteúdos" : "Tarefas"}
+          description={description}
+          action={
+            <div className="flex items-center gap-2">
+              <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" /> {contentOnly ? "Novo conteúdo" : "Nova tarefa"}
+              </Button>
+            </div>
+          }
+        />
+      )}
 
-      <div role="tablist" aria-label="Forma de visualização" className="mb-4 inline-flex rounded-full border border-gray-200 bg-white p-1 shadow-[var(--shadow-sm)]">
-        {VIEWS.map((v) => {
-          const active = view === v.value;
-          return (
-            <button
-              key={v.value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => changeView(v.value)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all active:scale-95",
-                active ? "bg-blue-900 text-white shadow-sm" : "text-gray-600 hover:bg-gray-050"
-              )}
-            >
-              <v.icon className="h-3.5 w-3.5" />
-              {v.label}
-            </button>
-          );
-        })}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div role="tablist" aria-label="Forma de visualização" className="inline-flex rounded-full border border-gray-200 bg-white p-1 shadow-[var(--shadow-sm)]">
+          {VIEWS.map((v) => {
+            const active = view === v.value;
+            return (
+              <button
+                key={v.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => changeView(v.value)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all active:scale-95",
+                  active ? "bg-blue-900 text-white shadow-sm" : "text-gray-600 hover:bg-gray-050"
+                )}
+              >
+                <v.icon className="h-3.5 w-3.5" />
+                {v.label}
+              </button>
+            );
+          })}
+        </div>
+        {embedded && (
+          <Button onClick={() => setCreateOpen(true)} className="ml-auto gap-1.5">
+            <Plus className="h-4 w-4" /> {contentOnly ? "Novo conteúdo" : "Nova tarefa"}
+          </Button>
+        )}
       </div>
 
       {view === "list" && (

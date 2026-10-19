@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { TasksWorkspace } from "@/components/tasks/TasksWorkspace";
+import { ContentHub } from "@/components/planning/ContentHub";
 
 export default function ContentPage() {
   return (
     <Suspense fallback={null}>
-      <TasksWorkspace contentOnly />
+      <ContentHub />
     </Suspense>
   );
 }

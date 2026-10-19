@@ -664,3 +664,69 @@ export interface ContentRadarSettings {
   updated_by: string | null;
   updated_at: string;
 }
+
+// ---- Planejamento de conteúdo (aba Conteúdos) ----
+export type PlanAccount = "franchising" | "roberson";
+export type PlanFormat = "reels" | "carrossel" | "feed";
+export type PlanFunnel = "topo" | "meio" | "fundo";
+export type PlanStatus = "planejado" | "roteirizado" | "gravado" | "publicado";
+export type PlanStoryMoment = "manha" | "durante" | "fim" | "extra";
+
+export interface PlanScriptBlock {
+  label: string;
+  /** ex.: "0 a 3s" (vazio em carrossel) */
+  timing: string;
+  text: string;
+}
+
+export interface PlanPending {
+  text: string;
+  done: boolean;
+}
+
+export interface ContentPlanPost {
+  id: string;
+  account: PlanAccount;
+  /** AAAA-MM-DD */
+  publish_date: string;
+  format: PlanFormat;
+  pillar: string | null;
+  theme: string;
+  objective: string | null;
+  funnel: PlanFunnel | null;
+  pinned_slot: number | null;
+  trigger: string | null;
+  duration: string | null;
+  script_blocks: PlanScriptBlock[];
+  recording_notes: string | null;
+  caption: string | null;
+  cta: string | null;
+  no_script: boolean;
+  pending: PlanPending[];
+  status: PlanStatus;
+  task_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentPlanStory {
+  id: string;
+  account: PlanAccount;
+  story_date: string;
+  moment: PlanStoryMoment;
+  text: string;
+  done: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ContentPlanMonth {
+  id: string;
+  account: PlanAccount;
+  /** sempre o dia 1 (AAAA-MM-01) */
+  month: string;
+  summary: string | null;
+  story_rules: string | null;
+  updated_at: string;
+}
