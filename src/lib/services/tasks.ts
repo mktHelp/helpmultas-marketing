@@ -356,3 +356,19 @@ export async function listTaskActivity(supabase: SupabaseClient, taskId: string)
   if (error) throw error;
   return data;
 }
+
+// Mudanças de status das tarefas desde `sinceIso` (só o necessário pra medir
+// o tempo de cada tarefa em uma etapa — ex.: dashboard de Planejamento).
+export async function listStatusMoves(supabase: SupabaseClient, sinceIso: string) {
+  const { data, error } = await supabase
+    .from("activity_logs")
+    .select("entity_id, metadata, created_at")
+    .eq("entity_type", "task")
+    .eq("action", "status_changed")
+    .gte("created_at", sinceIso)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return ((data || []) as { entity_id: string | null; metadata: { from?: string; to?: string }; created_at: string }[])
+    .filter((r) => r.entity_id)
+    .map((r) => ({ taskId: r.entity_id as string, from: r.metadata?.from ?? null, to: r.metadata?.to ?? null, at: r.created_at }));
+}

@@ -23,6 +23,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-19-dashboards-produtividade",
+    date: "2026-10-19",
+    tag: "novo",
+    area: "Dashboard",
+    title: "Dashboards de produtividade: Tarefas e Planejamento",
+    summary: "O Dashboard inicial ficou mais enxuto e a análise de produtividade ganhou duas páginas próprias, cada uma na sua seção do menu.",
+    details: [
+      "Dashboard de Tarefas (seção Tarefas): entregas, criadas, % no prazo, tempo médio, fluxo diário, produtividade por colaborador e por dia da semana, entregas por área, status, prioridades, desempenho da equipe, gargalos e destaques — com filtros por área, colaborador, prioridade e tipo de conteúdo.",
+      "Dashboard de Planejamento (seção Planejamento): fila de tarefas em planejamento (entradas, saídas para produção e tempo parado), pautas do radar (geradas, aprovadas e descartadas), andamento de projetos e campanhas ativas.",
+      "Dashboard inicial: mantém o pulso do Marketing (Instagram, tráfego e produção), metas, seguidores, agenda e prioridades, com atalhos para as novas páginas.",
+    ],
+  },
+  {
     id: "2026-10-19-planejamento-de-conteudo",
     date: "2026-10-19",
     tag: "novo",
