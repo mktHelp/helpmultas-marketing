@@ -32,6 +32,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     details: [
       "Alterne entre Quadro, Lista e Calendário, busque por título e use o painel de filtros (responsável, área, prioridade, etapa, datas, atrasadas).",
       "Os chips de formato (Reels, Stories, Feed…) continuam funcionando em todas as visualizações.",
+      "Novo filtro por Projeto (Franqueadora, Roberson, Mentoria) na gaveta de filtros de Tarefas e Conteúdos, para ver só o que é do Rober, por exemplo.",
       "No Quadro de Tarefas e de Conteúdos, Shift + roda do mouse rola as colunas para os lados.",
     ],
   },

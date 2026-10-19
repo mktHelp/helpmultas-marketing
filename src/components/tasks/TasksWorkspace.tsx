@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { listTasks, type TaskFilters } from "@/lib/services/tasks";
 import { listProfiles } from "@/lib/services/profiles";
 import { listAreas } from "@/lib/services/reference";
+import { listProjects, type ProjectWithOwner } from "@/lib/services/projects";
 import { useAuth } from "@/lib/auth-context";
 import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { useTaskStatuses } from "@/lib/task-status-context";
@@ -60,6 +61,7 @@ export function TasksWorkspace({ contentOnly = false }: { contentOnly?: boolean 
   const [contentType, setContentType] = useState("");
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
+  const [projects, setProjects] = useState<ProjectWithOwner[]>([]);
   const [filters, setFilters] = useState<TaskFilters>({});
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -84,6 +86,7 @@ export function TasksWorkspace({ contentOnly = false }: { contentOnly?: boolean 
   useEffect(() => {
     listProfiles(supabase).then(setProfiles).catch(() => {});
     listAreas(supabase).then(setAreas).catch(() => {});
+    listProjects(supabase).then(setProjects).catch(() => {});
   }, [supabase]);
 
   useRealtimeChanges(["tasks", "task_assignees"], () => load(true));
@@ -208,7 +211,7 @@ export function TasksWorkspace({ contentOnly = false }: { contentOnly?: boolean 
           ))}
         </div>
       )}
-      <ActiveFilterChips filters={filters} onChange={setFilters} profiles={profiles} areas={areas} />
+      <ActiveFilterChips filters={filters} onChange={setFilters} profiles={profiles} areas={areas} projects={projects} />
 
       {loading && view !== "calendar" ? (
         view === "board" ? (
