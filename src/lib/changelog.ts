@@ -23,6 +23,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-19-conteudos-lista-calendario-filtros",
+    date: "2026-10-19",
+    tag: "melhoria",
+    area: "Conteúdos",
+    title: "Conteúdos com Quadro, Lista, Calendário e filtros",
+    summary: "A aba Conteúdos agora tem as mesmas visualizações e filtros das Tarefas.",
+    details: [
+      "Alterne entre Quadro, Lista e Calendário, busque por título e use o painel de filtros (responsável, área, prioridade, etapa, datas, atrasadas).",
+      "Os chips de formato (Reels, Stories, Feed…) continuam funcionando em todas as visualizações.",
+      "No Quadro de Tarefas e de Conteúdos, Shift + roda do mouse rola as colunas para os lados.",
+    ],
+  },
+  {
+    id: "2026-10-19-pautas-pilares-roteiro-padrao",
+    date: "2026-10-19",
+    tag: "melhoria",
+    area: "Pautas do Dia",
+    title: "Roteiros no padrão da casa ao gerar variação",
+    summary: "O botão Gerar variação agora cria Reels completos, em blocos, com gatilhos e CTA padrão da Help Multas.",
+    details: [
+      "Roteiros de Reels com 250 a 420 palavras, em blocos ([HOOK], [DESENVOLVIMENTO], blocos temáticos, [FECHAMENTO], [CTA]) e o gatilho de cada bloco.",
+    ],
+  },
+  {
     id: "2026-10-16-distribuicao-unidade-roberson",
     date: "2026-10-16",
     tag: "melhoria",
