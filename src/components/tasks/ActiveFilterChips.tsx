@@ -4,7 +4,8 @@ import { FilterChips } from "@/components/ui/FilterBar";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { formatDate } from "@/lib/utils";
 import { TASK_COLORS } from "./TaskColorPicker";
-import type { Area, Profile } from "@/types/database";
+import { projectColor } from "./TaskFormParts";
+import type { Area, Profile, Project } from "@/types/database";
 import type { TaskFilters } from "@/lib/services/tasks";
 
 const PRIORITY_LABEL: Record<string, string> = { baixa: "Baixa", media: "Média", alta: "Alta", urgente: "Urgente" };
@@ -22,11 +23,13 @@ export function ActiveFilterChips({
   onChange,
   profiles,
   areas,
+  projects = [],
 }: {
   filters: TaskFilters;
   onChange: (f: TaskFilters) => void;
   profiles: Pick<Profile, "id" | "full_name">[];
   areas: Pick<Area, "id" | "name" | "color">[];
+  projects?: Pick<Project, "id" | "name">[];
 }) {
   const { byKey } = useTaskStatuses();
   const chips: Chip[] = [];
@@ -42,6 +45,10 @@ export function ActiveFilterChips({
   };
 
   if (filters.search?.trim()) chips.push({ key: "search", label: `“${filters.search.trim()}”`, color: "#243746", remove: without("search") });
+  for (const id of filters.projectIds ?? []) {
+    const project = projects.find((p) => p.id === id);
+    chips.push({ key: `pj-${id}`, label: project?.name ?? "Projeto", color: projectColor(project?.name), remove: without("projectIds", id) });
+  }
   for (const s of filters.status ?? []) chips.push({ key: `st-${s}`, label: byKey[s]?.label ?? s, color: byKey[s]?.color ?? "#7c8e98", remove: without("status", s) });
   for (const p of filters.priority ?? []) chips.push({ key: `pr-${p}`, label: `Prioridade ${PRIORITY_LABEL[p] ?? p}`, color: p === "urgente" ? "#c23b3b" : p === "alta" ? "#e0a900" : "#4a6a80", remove: without("priority", p) });
   for (const c of filters.color ?? []) {
