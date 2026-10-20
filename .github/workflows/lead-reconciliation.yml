@@ -16,5 +16,11 @@ jobs:
     steps:
       - name: Disparar validação
         run: |
-          curl --fail-with-body -sS -X GET "${{ secrets.HUB_URL }}/api/leads/reconcile" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" --max-time 300
+          # --location-trusted: se o domínio redirecionar (apex→www, http→https),
+          # segue mantendo o Authorization — sem isso o curl saía "ok" no 30x e
+          # a validação nunca rodava.
+          curl --location-trusted --fail-with-body -sS -X GET "${{ secrets.HUB_URL }}/api/leads/reconcile" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" --max-time 300 \
+            -w "\nHTTP %{http_code}\n" -o response.json
+          cat response.json
+          grep -q '"ok":true' response.json

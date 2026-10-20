@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-20-validacao-leads-automatica",
+    date: "2026-10-20",
+    tag: "correção",
+    area: "Tráfego Pago",
+    title: "Validação de leads volta a rodar sozinha a cada 3h",
+    summary: "O agendamento automático não chegava ao Hub por causa de um redirecionamento; agora ele é seguido.",
+    details: [
+      "O disparo agendado recebia um redirecionamento do domínio e encerrava sem executar a validação — só o botão \"Validar agora\" funcionava.",
+      "O agendamento agora segue o redirecionamento e passa a falhar de forma visível se a validação não responder OK.",
+    ],
+  },
+  {
     id: "2026-10-19-dashboards-produtividade",
     date: "2026-10-19",
     tag: "novo",
