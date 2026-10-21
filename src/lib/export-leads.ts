@@ -9,6 +9,8 @@ export interface LeadExportData {
   title?: string;
   /** prefixo do nome do arquivo (padrão "leads-reunioes") */
   fileBase?: string;
+  /** colunas (pelo nome) que só vão no XLSX — o PDF fica legível em A4 paisagem */
+  pdfSkip?: string[];
 }
 
 const stamp = () => new Date().toISOString().slice(0, 10);
@@ -78,12 +80,13 @@ export async function exportLeadsPdf(d: LeadExportData) {
     y += (lines.length - 1) * 11;
   }
 
+  const keep = d.columns.map((c, i) => (d.pdfSkip?.includes(c) ? -1 : i)).filter((i) => i >= 0);
   autoTable(doc, {
-    head: [d.columns],
-    body: d.rows.map((r) => r.map((c) => String(c))),
+    head: [keep.map((i) => d.columns[i])],
+    body: d.rows.map((r) => keep.map((i) => String(r[i] ?? ""))),
     startY: y + 14,
     margin: { left: 40, right: 40 },
-    styles: { fontSize: 7.5, cellPadding: 3 },
+    styles: { fontSize: keep.length > 12 ? 6.5 : 7.5, cellPadding: 3, overflow: "linebreak" },
     headStyles: { fillColor: [11, 42, 74], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 247, 250] },
     didDrawPage: () => {

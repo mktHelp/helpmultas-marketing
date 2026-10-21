@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-21-leads-exportar-pdf-xlsx",
+    date: "2026-10-21",
+    tag: "novo",
+    area: "Tráfego Pago",
+    title: "Exportar a lista de leads em PDF e XLSX",
+    summary: "A lista de leads ganhou botões de exportação que respeitam período, busca e filtros.",
+    details: [
+      "Exporta todos os leads do filtro atual (não só a página visível), com data, contato, cidade/UF, origem, vínculo, campanha, conjunto, anúncio e UTMs.",
+      "O PDF sai em paisagem com os filtros aplicados no topo; o XLSX traz também fbclid, fbp e fbc, com filtro e cabeçalho fixo.",
+    ],
+  },
+  {
     id: "2026-10-20-validacao-leads-automatica",
     date: "2026-10-20",
     tag: "correção",
