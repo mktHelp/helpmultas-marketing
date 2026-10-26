@@ -14,6 +14,9 @@ function isHeading(line: string) {
 export async function buildDocPdf(doc: Pick<ExpansionDoc, "title" | "kind" | "content" | "updated_at">, folderName: string): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  // o visualizador mostra o título do documento em vez do id do arquivo gerado
+  pdf.setProperties({ title: doc.title, subject: doc.kind === "reuniao" ? "Reunião" : "Roteiro", author: "Help Multas · Expansão", creator: "Help Multas" });
+  pdf.viewerPreferences({ DisplayDocTitle: true });
   const W = pdf.internal.pageSize.getWidth();
   const H = pdf.internal.pageSize.getHeight();
   const M = 56;

@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-26-importar-segundos-titulo-pdf",
+    date: "2026-10-26",
+    tag: "correção",
+    area: "Expansão",
+    title: "Importação em segundos e título no PDF",
+    summary: "A importação usa sempre o fluxo rápido do Helpinho, e o PDF mostra o título do documento no visualizador.",
+    details: [
+      "A importação de arquivos não passa mais pelo agente completo do chat, que levava minutos: usa o fluxo rápido, que responde em segundos.",
+      "A barra do visualizador de PDF mostra o título do documento em vez de um código.",
+    ],
+  },
+  {
     id: "2026-10-26-importar-mais-rapido",
     date: "2026-10-26",
     tag: "melhoria",
