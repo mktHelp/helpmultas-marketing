@@ -7,14 +7,22 @@ import { getCurrentUserAndProfile } from "@/lib/supabase/get-current-user";
 import { logAiUsage } from "@/lib/aiUsage";
 
 // Processo comercial da Expansão: importa um PDF, Word ou Excel, extrai o texto
-// e pede ao Helpinho (mesmo webhook do n8n do Teleprompter) para reescrever no
-// padrão dos roteiros/reuniões. Não salva nada: devolve o rascunho para a pessoa
-// revisar no editor. Sem `userRole` no corpo, o n8n usa o agente geral (o de
-// Expansão só responde sobre tráfego e leads).
+// e pede ao Helpinho para reescrever no padrão dos roteiros/reuniões. Não salva
+// nada: a tela salva o resultado e abre em PDF.
+//
+// A resposta é um stream NDJSON (uma linha JSON por evento) para a tela mostrar
+// o andamento: {stage:"extracted"} -> {delta:"..."} (texto ao vivo) -> {done:true,...}.
+// Com OPENAI_API_KEY a chamada vai direto à OpenAI, com raciocínio mínimo e
+// streaming (segundos). Sem a chave, cai no webhook do n8n do Helpinho, que roda
+// o agente completo e leva minutos; sem `userRole`, o n8n usa o agente geral
+// (o de Expansão só responde sobre tráfego e leads).
+
+export const maxDuration = 300;
 
 const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_TEXT = 30000;
-const EXAMPLE_CHARS = 1500;
+const EXAMPLE_CHARS = 800;
+const OPENAI_MODEL = process.env.OPENAI_IMPORT_MODEL || "gpt-5-nano";
 
 type Kind = "roteiro" | "reuniao";
 
@@ -75,8 +83,9 @@ export async function POST(request: Request) {
   const { user, profile } = await getCurrentUserAndProfile();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-  const webhookUrl = process.env.N8N_ASSISTENTE_WEBHOOK_URL;
-  if (!webhookUrl) return NextResponse.json({ error: "IA não configurada (N8N_ASSISTENTE_WEBHOOK_URL ausente)" }, { status: 500 });
+  if (!process.env.OPENAI_API_KEY && !process.env.N8N_ASSISTENTE_WEBHOOK_URL) {
+    return NextResponse.json({ error: "IA não configurada (OPENAI_API_KEY ou N8N_ASSISTENTE_WEBHOOK_URL ausente)" }, { status: 500 });
+  }
 
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
@@ -103,13 +112,13 @@ export async function POST(request: Request) {
 
   // Exemplos já salvos servem de referência de tom e organização.
   const supabase = await createClient();
-  const { data: examples } = await supabase.from("expansion_docs").select("title, kind, content").order("updated_at", { ascending: false }).limit(4);
+  const { data: examples } = await supabase.from("expansion_docs").select("title, kind, content").order("updated_at", { ascending: false }).limit(2);
   const exampleBlock = (examples ?? [])
     .filter((d) => (d.content ?? "").trim().length >= 80)
     .map((d, i) => `--- Exemplo ${i + 1} (${d.kind}): ${d.title}\n${d.content.slice(0, EXAMPLE_CHARS)}`)
     .join("\n\n");
 
-  const prompt = `Você é o Helpinho, assistente da Help Multas, ajudando o time de Expansão (venda de franquias) a organizar o material do processo comercial. Não use nenhuma ferramenta: o conteúdo do arquivo já está abaixo e você deve apenas devolver o texto reorganizado.
+  const prompt = `Você é o Helpinho, assistente da Help Multas, ajudando o time de Expansão (venda de franquias) a organizar o material do processo comercial. Não use nenhuma ferramenta: o conteúdo do arquivo já está abaixo e você deve apenas devolver o texto reorganizado, direto, sem pensar demais.
 
 ${FORMAT_RULES}
 ${exampleBlock ? `\nDOCUMENTOS JÁ SALVOS (referência de tom e organização, não copie):\n\n${exampleBlock}\n` : ""}
@@ -132,46 +141,116 @@ Responda EXATAMENTE neste formato:
   const startedAt = Date.now();
   const log = (extra: { data?: unknown; ok?: boolean; error?: string }) =>
     logAiUsage({ source: "expansao_importar", userId: user.id, startedAt, ...extra });
-  // Se a IA falhar, a pessoa ainda recebe o texto extraído para organizar à mão.
-  const fallback = (warning: string) =>
-    NextResponse.json({ title: baseTitle, kind: hint ?? "roteiro", content: text, ai: false, warning });
 
-  let response: Response;
-  try {
-    response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatInput: prompt, sessionId: `expansao-importar-${user.id}-${Date.now()}`, userName: profile?.full_name ?? "" }),
-      signal: AbortSignal.timeout(180_000),
-    });
-  } catch (e) {
-    await log({ ok: false, error: e instanceof Error ? e.message : "falha de conexão" });
-    return fallback("O Helpinho não respondeu; trouxe o texto do arquivo sem formatar.");
+  const parse = (reply: string) => {
+    const section = (name: string) => reply.match(new RegExp(`###\\s*${name}\\s*\\n([\\s\\S]*?)(?=\\n###\\s|$)`, "i"))?.[1]?.trim() ?? "";
+    const title = section("T[IÍ]TULO").split("\n")[0].slice(0, 120) || baseTitle;
+    const kindRaw = section("TIPO").toLowerCase();
+    const kind: Kind = kindRaw.includes("reuni") ? "reuniao" : kindRaw.includes("roteiro") ? "roteiro" : hint ?? "roteiro";
+    const content = section("CONTE[UÚ]DO") || reply.replace(/^\s*###.*$/gm, "").trim();
+    return { title, kind, content };
+  };
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      // Se a IA falhar, a pessoa ainda recebe o texto extraído para organizar à mão.
+      const fallback = (warning: string) => send({ done: true, title: baseTitle, kind: hint ?? "roteiro", content: text, ai: false, warning });
+
+      send({ stage: "extracted", chars: text.length, fileName: file.name, direct: !!process.env.OPENAI_API_KEY });
+      try {
+        const reply = process.env.OPENAI_API_KEY
+          ? await viaOpenAI(prompt, (delta) => send({ delta }), log)
+          : await viaN8n(prompt, user.id, profile?.full_name ?? "", log);
+        if (!reply) fallback("O Helpinho não respondeu; trouxe o texto do arquivo sem formatar.");
+        else send({ done: true, ...parse(reply), ai: true, warning: truncated ? "O arquivo era muito longo: só o começo foi analisado." : null });
+      } catch (e) {
+        await log({ ok: false, error: e instanceof Error ? e.message : "falha" });
+        fallback("O Helpinho não respondeu; trouxe o texto do arquivo sem formatar.");
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } });
+}
+
+type Log = (extra: { data?: unknown; ok?: boolean; error?: string }) => Promise<void>;
+
+/** OpenAI direto, em streaming e com raciocínio mínimo: devolve o texto completo e repassa cada pedaço. */
+async function viaOpenAI(prompt: string, onDelta: (d: string) => void, log: Log): Promise<string | null> {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      stream: true,
+      stream_options: { include_usage: true },
+      ...(OPENAI_MODEL.startsWith("gpt-5") ? { reasoning_effort: "minimal" } : {}),
+    }),
+    signal: AbortSignal.timeout(180_000),
+  });
+  if (!res.ok || !res.body) {
+    const body = await res.text().catch(() => "");
+    console.error(`[expansao-importar] OpenAI respondeu ${res.status}:`, body.slice(0, 1000));
+    await log({ ok: false, error: `OpenAI respondeu ${res.status}` });
+    return null;
   }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+  let usage: { prompt_tokens?: number; completion_tokens?: number } | null = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      try {
+        const chunk = JSON.parse(data);
+        const delta: string | undefined = chunk.choices?.[0]?.delta?.content;
+        if (delta) {
+          full += delta;
+          onDelta(delta);
+        }
+        if (chunk.usage) usage = chunk.usage;
+      } catch {
+        // linha parcial: ignora
+      }
+    }
+  }
+  await log({ data: { usage: { model: OPENAI_MODEL, ...usage } }, ok: !!full.trim() });
+  return full.trim() || null;
+}
+
+/** Webhook do n8n (agente completo do Helpinho): sem streaming e bem mais lento. */
+async function viaN8n(prompt: string, userId: string, userName: string, log: Log): Promise<string | null> {
+  const webhookUrl = process.env.N8N_ASSISTENTE_WEBHOOK_URL;
+  if (!webhookUrl) return null;
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chatInput: prompt, sessionId: `expansao-importar-${userId}-${Date.now()}`, userName }),
+    signal: AbortSignal.timeout(280_000),
+  });
   if (!response.ok) {
     await log({ ok: false, error: `n8n respondeu ${response.status}` });
-    return fallback("O Helpinho retornou um erro; trouxe o texto do arquivo sem formatar.");
+    return null;
   }
-
   const data = await response.json().catch(() => null);
   const reply: unknown = data?.output ?? data?.text ?? data?.reply;
   if (typeof reply !== "string" || !reply.trim()) {
     await log({ data, ok: false, error: "resposta inesperada" });
-    return fallback("Resposta inesperada do Helpinho; trouxe o texto do arquivo sem formatar.");
+    return null;
   }
   await log({ data });
-
-  const section = (name: string) => reply.match(new RegExp(`###\\s*${name}\\s*\\n([\\s\\S]*?)(?=\\n###\\s|$)`, "i"))?.[1]?.trim() ?? "";
-  const title = section("T[IÍ]TULO").split("\n")[0].slice(0, 120) || baseTitle;
-  const kindRaw = section("TIPO").toLowerCase();
-  const kind: Kind = kindRaw.includes("reuni") ? "reuniao" : kindRaw.includes("roteiro") ? "roteiro" : hint ?? "roteiro";
-  const content = section("CONTE[UÚ]DO") || reply.trim();
-
-  return NextResponse.json({
-    title,
-    kind,
-    content,
-    ai: true,
-    warning: truncated ? "O arquivo era muito longo: só o começo foi analisado." : null,
-  });
+  return reply;
 }

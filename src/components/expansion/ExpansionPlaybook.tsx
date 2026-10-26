@@ -6,6 +6,7 @@ import { formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowLeft, Download, FileText, Folder, FolderOpen, FolderPlus, Loader2, Pencil, Plus, Save, Trash2, Upload, Users } from "lucide-react";
 import { DocPdfViewer } from "@/components/expansion/DocPdfViewer";
+import { ImportProgress, type ImportState } from "@/components/expansion/ImportProgress";
 import { exportDocPdf } from "@/lib/expansion/docPdf";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -50,7 +51,8 @@ export function ExpansionPlaybook() {
   const [folderDialog, setFolderDialog] = useState<"create" | "edit" | null>(null);
   const [confirmFolder, setConfirmFolder] = useState<ExpansionFolder | null>(null);
   const [confirmDoc, setConfirmDoc] = useState<ExpansionDoc | null>(null);
-  const [importing, setImporting] = useState(false);
+  const [importState, setImportState] = useState<ImportState | null>(null);
+  const importing = !!importState;
   // documento aberto em modo leitura (PDF); o editor só abre pelo lápis
   const [viewingId, setViewingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -104,25 +106,51 @@ export function ExpansionPlaybook() {
       toast.error("Arquivo grande demais (máx. 4 MB)");
       return;
     }
+    const targetFolder = folderId;
+    if (!targetFolder) return;
     const body = new FormData();
     body.append("file", file);
-    setImporting(true);
+    setImportState({ fileName: file.name, stage: "upload", startedAt: Date.now(), text: "", chars: null });
     try {
       const res = await fetch("/api/expansao/importar", { method: "POST", body });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error(data?.error || "Não foi possível importar o arquivo");
-      if (!folderId) return;
-      const saved = await createExpansionDoc(supabase, me?.id || "", { folder_id: folderId, kind: data.kind, title: data.title, content: data.content });
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Não foi possível importar o arquivo");
+      }
+
+      // NDJSON: {stage:"extracted"} -> {delta} (texto ao vivo) -> {done}
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let result: { title: string; kind: ExpansionDoc["kind"]; content: string; ai: boolean; warning: string | null } | null = null;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line);
+          if (event.stage === "extracted") setImportState((st) => (st ? { ...st, stage: "ai", chars: event.chars } : st));
+          else if (event.delta) setImportState((st) => (st ? { ...st, text: st.text + event.delta } : st));
+          else if (event.done) result = event;
+        }
+      }
+      if (!result) throw new Error("A importação foi interrompida. Tente de novo.");
+
+      setImportState((st) => (st ? { ...st, stage: "saving" } : st));
+      const saved = await createExpansionDoc(supabase, me?.id || "", { folder_id: targetFolder, kind: result.kind, title: result.title, content: result.content });
       setDocs((prev) => [saved, ...prev]);
       setDraft(null);
       setDirty(false);
       setViewingId(saved.id);
-      if (data.warning) toast.warning(data.warning);
+      if (result.warning) toast.warning(result.warning);
       else toast.success("Arquivo organizado pelo Helpinho e salvo em PDF");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível importar o arquivo");
     } finally {
-      setImporting(false);
+      setImportState(null);
     }
   }
 
@@ -356,7 +384,9 @@ export function ExpansionPlaybook() {
               )}
             </div>
 
-            {draft ? (
+            {importState ? (
+              <ImportProgress state={importState} />
+            ) : draft ? (
               <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-gray-400">{draft.id ? "Editando" : "Novo"}</span>
