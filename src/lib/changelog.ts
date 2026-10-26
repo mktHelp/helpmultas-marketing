@@ -23,6 +23,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-26-expansao-reunioes-drive-processo",
+    date: "2026-10-26",
+    tag: "novo",
+    area: "Expansão",
+    title: "Reuniões do Drive e Processo comercial na Expansão",
+    summary: "Duas abas novas: links das reuniões do Drive com prévia no app e pastas de roteiros e reuniões.",
+    details: [
+      "Reuniões do Drive: cole o link de uma gravação, documento ou pasta do Drive; a prévia abre dentro do app e há um botão para abrir no Drive.",
+      "Processo comercial: crie pastas e guarde roteiros e roteiros de reunião dentro delas, no mesmo estilo das pastas do Teleprompter.",
+      "As abas novas aparecem em Configurações > Usuários, para liberar por pessoa.",
+    ],
+  },
+  {
     id: "2026-10-16-uso-da-ia-master",
     date: "2026-10-16",
     tag: "novo",

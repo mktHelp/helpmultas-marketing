@@ -73,6 +73,35 @@ export interface TeleprompterFolder {
   created_at: string;
 }
 
+export interface ExpansionMeetingLink {
+  id: string;
+  title: string;
+  url: string;
+  meeting_date: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ExpansionFolder {
+  id: string;
+  name: string;
+  color: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ExpansionDoc {
+  id: string;
+  folder_id: string;
+  kind: "roteiro" | "reuniao";
+  title: string;
+  content: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TeleprompterScript {
   id: string;
   title: string;

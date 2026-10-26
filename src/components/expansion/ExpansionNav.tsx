@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bot, Calculator, CalendarCheck, Contact, LayoutDashboard, Megaphone, ShieldCheck, TrendingUp, type LucideIcon } from "lucide-react";
+import { Bot, Calculator, CalendarCheck, Contact, FolderKanban, LayoutDashboard, Megaphone, ShieldCheck, TrendingUp, Video, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { hasTab } from "@/lib/access";
 import { SidebarHelpinho, SidebarLink, SidebarSectionTitle, type TipHandlers } from "@/components/layout/SidebarParts";
@@ -41,6 +41,20 @@ export const EXPANSION_SECTIONS = {
     title: "Reuniões",
     description: "Funil do CRM por lead: etapa atual, 1ª/2ª reunião, no-show e reagendamentos, ligados à campanha de origem.",
     tone: "traffic",
+  },
+  drive: {
+    label: "Reuniões Drive",
+    icon: Video,
+    title: "Reuniões do Drive",
+    description: "Links das reuniões gravadas no Google Drive, com prévia aqui dentro e atalho para abrir no Drive.",
+    tone: "blue",
+  },
+  processo: {
+    label: "Processo comercial",
+    icon: FolderKanban,
+    title: "Processo comercial",
+    description: "Pastas com os roteiros e as reuniões do processo comercial da expansão.",
+    tone: "blue",
   },
   validacao: {
     label: "Validação",
