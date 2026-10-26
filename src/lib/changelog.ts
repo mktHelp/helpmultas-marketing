@@ -23,6 +23,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-26-importar-mais-rapido",
+    date: "2026-10-26",
+    tag: "melhoria",
+    area: "Expansão",
+    title: "Importar arquivos ficou mais rápido e mostra a análise do Helpinho",
+    summary: "Painel com as etapas, cronômetro e o texto aparecendo enquanto o Helpinho organiza o arquivo.",
+    details: [
+      "Durante a importação, o lugar do documento mostra as etapas: leitura do arquivo, análise do Helpinho e geração do PDF, com o tempo correndo.",
+      "O texto organizado aparece ao vivo, à medida que o Helpinho escreve.",
+      "A IA passa a ser chamada direto, sem o agente completo do chat, e a análise leva segundos em vez de minutos.",
+    ],
+  },
+  {
     id: "2026-10-26-processo-comercial-pdf",
     date: "2026-10-26",
     tag: "melhoria",

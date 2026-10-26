@@ -1,0 +1,61 @@
+{
+  "name": "Helpinho - Importar Processo Comercial",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "helpinho-importar-processo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "id": "7b1c2e10-0a4f-4c55-9d1e-1f1a2b3c4d01",
+      "name": "Webhook",
+      "webhookId": "helpinho-importar-processo"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $json.body.model || 'gpt-5-nano', reasoning_effort: 'minimal', messages: [{ role: 'user', content: $json.body.prompt }] }) }}",
+        "options": {
+          "timeout": 240000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0],
+      "id": "7b1c2e10-0a4f-4c55-9d1e-1f1a2b3c4d02",
+      "name": "OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "D6ccI09DqaRiQgMs",
+          "name": "OpenAi account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ output: $json.choices[0].message.content, usage: { model: $json.model, prompt_tokens: $json.usage.prompt_tokens, completion_tokens: $json.usage.completion_tokens } }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [480, 0],
+      "id": "7b1c2e10-0a4f-4c55-9d1e-1f1a2b3c4d03",
+      "name": "Responder"
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "OpenAI", "type": "main", "index": 0 }]] },
+    "OpenAI": { "main": [[{ "node": "Responder", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
