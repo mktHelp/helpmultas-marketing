@@ -12,12 +12,12 @@ import { logAiUsage } from "@/lib/aiUsage";
 //
 // A resposta é um stream NDJSON (uma linha JSON por evento) para a tela mostrar
 // o andamento: {stage:"extracted"} -> {delta:"..."} (texto ao vivo) -> {done:true,...}.
-// Caminhos da IA, do mais rápido ao mais lento:
-// 1. N8N_IMPORTAR_WEBHOOK_URL: workflow enxuto do n8n (Webhook -> OpenAI, sem
-//    agente), em docs/n8n/helpinho-importar-processo-comercial.json. Segundos.
-// 2. OPENAI_API_KEY: OpenAI direto, com streaming (texto ao vivo na tela).
-// 3. N8N_ASSISTENTE_WEBHOOK_URL: agente completo do Helpinho, leva minutos; sem
-//    `userRole`, o n8n usa o agente geral (o de Expansão só fala de tráfego e leads).
+// Caminhos da IA:
+// 1. OPENAI_API_KEY: OpenAI direto, com streaming (texto ao vivo na tela).
+// 2. Workflow enxuto do n8n (Webhook -> OpenAI, sem agente; JSON em
+//    docs/n8n/helpinho-importar-processo-comercial.json), em segundos. A URL vem
+//    de N8N_IMPORTAR_WEBHOOK_URL ou é montada no mesmo n8n do Helpinho.
+// O agente completo do chat NÃO é usado aqui: leva minutos para uma tarefa simples.
 
 export const maxDuration = 300;
 
@@ -82,10 +82,11 @@ const FORMAT_RULES = `PADRÃO DOS DOCUMENTOS DO PROCESSO COMERCIAL (siga à risc
 - Mantenha todas as informações úteis do arquivo, reorganizadas e com linguagem clara e direta.`;
 
 export async function POST(request: Request) {
-  const { user, profile } = await getCurrentUserAndProfile();
+  const { user } = await getCurrentUserAndProfile();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-  if (!process.env.N8N_IMPORTAR_WEBHOOK_URL && !process.env.OPENAI_API_KEY && !process.env.N8N_ASSISTENTE_WEBHOOK_URL) {
+  const importUrl = importWebhookUrl();
+  if (!importUrl && !process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: "IA não configurada (N8N_IMPORTAR_WEBHOOK_URL ausente)" }, { status: 500 });
   }
 
@@ -162,11 +163,9 @@ Responda EXATAMENTE neste formato:
 
       send({ stage: "extracted", chars: text.length, fileName: file.name, direct: !!process.env.OPENAI_API_KEY });
       try {
-        const reply = process.env.N8N_IMPORTAR_WEBHOOK_URL
-          ? await viaN8nImport(process.env.N8N_IMPORTAR_WEBHOOK_URL, prompt, log)
-          : process.env.OPENAI_API_KEY
+        const reply = process.env.OPENAI_API_KEY
           ? await viaOpenAI(prompt, (delta) => send({ delta }), log)
-          : await viaN8n(prompt, user.id, profile?.full_name ?? "", log);
+          : await viaN8nImport(importUrl!, prompt, log);
         if (!reply) fallback("O Helpinho não respondeu; trouxe o texto do arquivo sem formatar.");
         else send({ done: true, ...parse(reply), ai: true, warning: truncated ? "O arquivo era muito longo: só o começo foi analisado." : null });
       } catch (e) {
@@ -178,6 +177,16 @@ Responda EXATAMENTE neste formato:
   });
 
   return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } });
+}
+
+/** URL do workflow enxuto: variável própria ou, por padrão, o mesmo n8n do Helpinho. */
+function importWebhookUrl(): string | null {
+  if (process.env.N8N_IMPORTAR_WEBHOOK_URL) return process.env.N8N_IMPORTAR_WEBHOOK_URL;
+  try {
+    return new URL("/webhook/helpinho-importar-processo", process.env.N8N_ASSISTENTE_WEBHOOK_URL).toString();
+  } catch {
+    return null;
+  }
 }
 
 type Log = (extra: { data?: unknown; ok?: boolean; error?: string }) => Promise<void>;
@@ -241,7 +250,7 @@ async function viaN8nImport(url: string, prompt: string, log: Log): Promise<stri
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, model: OPENAI_MODEL }),
-    signal: AbortSignal.timeout(240_000),
+    signal: AbortSignal.timeout(90_000),
   });
   if (!response.ok) {
     await log({ ok: false, error: `n8n (importar) respondeu ${response.status}` });
@@ -249,30 +258,6 @@ async function viaN8nImport(url: string, prompt: string, log: Log): Promise<stri
   }
   const data = await response.json().catch(() => null);
   const reply: unknown = data?.output ?? data?.text;
-  if (typeof reply !== "string" || !reply.trim()) {
-    await log({ data, ok: false, error: "resposta inesperada" });
-    return null;
-  }
-  await log({ data });
-  return reply;
-}
-
-/** Webhook do n8n (agente completo do Helpinho): sem streaming e bem mais lento. */
-async function viaN8n(prompt: string, userId: string, userName: string, log: Log): Promise<string | null> {
-  const webhookUrl = process.env.N8N_ASSISTENTE_WEBHOOK_URL;
-  if (!webhookUrl) return null;
-  const response = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chatInput: prompt, sessionId: `expansao-importar-${userId}-${Date.now()}`, userName }),
-    signal: AbortSignal.timeout(280_000),
-  });
-  if (!response.ok) {
-    await log({ ok: false, error: `n8n respondeu ${response.status}` });
-    return null;
-  }
-  const data = await response.json().catch(() => null);
-  const reply: unknown = data?.output ?? data?.text ?? data?.reply;
   if (typeof reply !== "string" || !reply.trim()) {
     await log({ data, ok: false, error: "resposta inesperada" });
     return null;
