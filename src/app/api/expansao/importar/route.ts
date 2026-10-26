@@ -12,10 +12,12 @@ import { logAiUsage } from "@/lib/aiUsage";
 //
 // A resposta é um stream NDJSON (uma linha JSON por evento) para a tela mostrar
 // o andamento: {stage:"extracted"} -> {delta:"..."} (texto ao vivo) -> {done:true,...}.
-// Com OPENAI_API_KEY a chamada vai direto à OpenAI, com raciocínio mínimo e
-// streaming (segundos). Sem a chave, cai no webhook do n8n do Helpinho, que roda
-// o agente completo e leva minutos; sem `userRole`, o n8n usa o agente geral
-// (o de Expansão só responde sobre tráfego e leads).
+// Caminhos da IA, do mais rápido ao mais lento:
+// 1. N8N_IMPORTAR_WEBHOOK_URL: workflow enxuto do n8n (Webhook -> OpenAI, sem
+//    agente), em docs/n8n/helpinho-importar-processo-comercial.json. Segundos.
+// 2. OPENAI_API_KEY: OpenAI direto, com streaming (texto ao vivo na tela).
+// 3. N8N_ASSISTENTE_WEBHOOK_URL: agente completo do Helpinho, leva minutos; sem
+//    `userRole`, o n8n usa o agente geral (o de Expansão só fala de tráfego e leads).
 
 export const maxDuration = 300;
 
@@ -83,8 +85,8 @@ export async function POST(request: Request) {
   const { user, profile } = await getCurrentUserAndProfile();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-  if (!process.env.OPENAI_API_KEY && !process.env.N8N_ASSISTENTE_WEBHOOK_URL) {
-    return NextResponse.json({ error: "IA não configurada (OPENAI_API_KEY ou N8N_ASSISTENTE_WEBHOOK_URL ausente)" }, { status: 500 });
+  if (!process.env.N8N_IMPORTAR_WEBHOOK_URL && !process.env.OPENAI_API_KEY && !process.env.N8N_ASSISTENTE_WEBHOOK_URL) {
+    return NextResponse.json({ error: "IA não configurada (N8N_IMPORTAR_WEBHOOK_URL ausente)" }, { status: 500 });
   }
 
   const form = await request.formData().catch(() => null);
@@ -160,7 +162,9 @@ Responda EXATAMENTE neste formato:
 
       send({ stage: "extracted", chars: text.length, fileName: file.name, direct: !!process.env.OPENAI_API_KEY });
       try {
-        const reply = process.env.OPENAI_API_KEY
+        const reply = process.env.N8N_IMPORTAR_WEBHOOK_URL
+          ? await viaN8nImport(process.env.N8N_IMPORTAR_WEBHOOK_URL, prompt, log)
+          : process.env.OPENAI_API_KEY
           ? await viaOpenAI(prompt, (delta) => send({ delta }), log)
           : await viaN8n(prompt, user.id, profile?.full_name ?? "", log);
         if (!reply) fallback("O Helpinho não respondeu; trouxe o texto do arquivo sem formatar.");
@@ -229,6 +233,28 @@ async function viaOpenAI(prompt: string, onDelta: (d: string) => void, log: Log)
   }
   await log({ data: { usage: { model: OPENAI_MODEL, ...usage } }, ok: !!full.trim() });
   return full.trim() || null;
+}
+
+/** Workflow enxuto do n8n: repassa o prompt à OpenAI (raciocínio mínimo) e devolve {output, usage}. */
+async function viaN8nImport(url: string, prompt: string, log: Log): Promise<string | null> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, model: OPENAI_MODEL }),
+    signal: AbortSignal.timeout(240_000),
+  });
+  if (!response.ok) {
+    await log({ ok: false, error: `n8n (importar) respondeu ${response.status}` });
+    return null;
+  }
+  const data = await response.json().catch(() => null);
+  const reply: unknown = data?.output ?? data?.text;
+  if (typeof reply !== "string" || !reply.trim()) {
+    await log({ data, ok: false, error: "resposta inesperada" });
+    return null;
+  }
+  await log({ data });
+  return reply;
 }
 
 /** Webhook do n8n (agente completo do Helpinho): sem streaming e bem mais lento. */
