@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, FileText, Folder, FolderOpen, FolderPlus, Pencil, Plus, Save, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Download, FileText, Folder, FolderOpen, FolderPlus, Loader2, Pencil, Plus, Save, Trash2, Upload, Users } from "lucide-react";
+import { DocPdfViewer } from "@/components/expansion/DocPdfViewer";
+import { exportDocPdf } from "@/lib/expansion/docPdf";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
@@ -20,6 +22,8 @@ import {
 } from "@/lib/services/expansionPlaybook";
 import { cn } from "@/lib/utils";
 import type { ExpansionDoc, ExpansionFolder } from "@/types/database";
+
+const IMPORT_ACCEPT = ".pdf,.docx,.xlsx,.csv,.txt,.md";
 
 const KIND_LABEL: Record<ExpansionDoc["kind"], string> = { roteiro: "Roteiro", reuniao: "Reunião" };
 
@@ -46,6 +50,10 @@ export function ExpansionPlaybook() {
   const [folderDialog, setFolderDialog] = useState<"create" | "edit" | null>(null);
   const [confirmFolder, setConfirmFolder] = useState<ExpansionFolder | null>(null);
   const [confirmDoc, setConfirmDoc] = useState<ExpansionDoc | null>(null);
+  const [importing, setImporting] = useState(false);
+  // documento aberto em modo leitura (PDF); o editor só abre pelo lápis
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([listExpansionFolders(supabase), listExpansionDocs(supabase)])
@@ -59,21 +67,63 @@ export function ExpansionPlaybook() {
 
   const folder = folders.find((f) => f.id === folderId) ?? null;
   const folderDocs = docs.filter((d) => d.folder_id === folderId);
+  const viewing = viewingId ? docs.find((d) => d.id === viewingId) ?? null : null;
 
   function closeDraft() {
     if (dirty && !confirm("Você tem alterações não salvas. Descartar?")) return;
+    // editando um documento salvo: volta para a leitura em PDF
+    setViewingId(draft?.id ?? null);
     setDraft(null);
     setDirty(false);
   }
 
   function openDoc(d: ExpansionDoc) {
+    if (draft && dirty && !confirm("Você tem alterações não salvas. Descartar?")) return;
+    setDraft(null);
+    setDirty(false);
+    setViewingId(d.id);
+  }
+
+  function editDoc(d: ExpansionDoc) {
+    setViewingId(null);
     setDraft({ id: d.id, title: d.title, kind: d.kind, content: d.content });
     setDirty(false);
   }
 
   function newDoc(kind: ExpansionDoc["kind"]) {
+    if (draft && dirty && !confirm("Você tem alterações não salvas. Descartar?")) return;
+    setViewingId(null);
     setDraft({ id: null, title: "", kind, content: "" });
     setDirty(false);
+  }
+
+  /** Lê o arquivo no servidor, o Helpinho organiza no padrão, salva e abre direto em PDF. */
+  async function importFile(file: File) {
+    if (dirty && !confirm("Você tem alterações não salvas. Descartar e importar o arquivo?")) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Arquivo grande demais (máx. 4 MB)");
+      return;
+    }
+    const body = new FormData();
+    body.append("file", file);
+    setImporting(true);
+    try {
+      const res = await fetch("/api/expansao/importar", { method: "POST", body });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error || "Não foi possível importar o arquivo");
+      if (!folderId) return;
+      const saved = await createExpansionDoc(supabase, me?.id || "", { folder_id: folderId, kind: data.kind, title: data.title, content: data.content });
+      setDocs((prev) => [saved, ...prev]);
+      setDraft(null);
+      setDirty(false);
+      setViewingId(saved.id);
+      if (data.warning) toast.warning(data.warning);
+      else toast.success("Arquivo organizado pelo Helpinho e salvo em PDF");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível importar o arquivo");
+    } finally {
+      setImporting(false);
+    }
   }
 
   function edit(patch: Partial<Draft>) {
@@ -90,14 +140,18 @@ export function ExpansionPlaybook() {
     const input = { folder_id: folderId, kind: draft.kind, title: draft.title.trim(), content: draft.content };
     setSaving(true);
     try {
-      if (draft.id) {
-        const saved = await updateExpansionDoc(supabase, draft.id, input);
+      let id = draft.id;
+      if (id) {
+        const saved = await updateExpansionDoc(supabase, id, input);
         setDocs((prev) => prev.map((d) => (d.id === saved.id ? saved : d)));
       } else {
         const saved = await createExpansionDoc(supabase, me?.id || "", input);
         setDocs((prev) => [saved, ...prev]);
-        setDraft({ ...draft, id: saved.id });
+        id = saved.id;
       }
+      // salvou: sai do editor e mostra o PDF
+      setViewingId(id);
+      setDraft(null);
       setDirty(false);
       toast.success("Salvo");
     } catch {
@@ -115,6 +169,7 @@ export function ExpansionPlaybook() {
         setDraft(null);
         setDirty(false);
       }
+      if (viewingId === d.id) setViewingId(null);
       toast.success("Excluído");
     } catch {
       toast.error("Erro ao excluir");
@@ -148,6 +203,7 @@ export function ExpansionPlaybook() {
       setDocs((prev) => prev.filter((d) => d.folder_id !== f.id));
       setFolderId(null);
       setDraft(null);
+      setViewingId(null);
       setDirty(false);
       toast.success("Pasta excluída");
     } catch {
@@ -207,6 +263,7 @@ export function ExpansionPlaybook() {
               onClick={() => {
                 if (dirty && !confirm("Você tem alterações não salvas. Descartar?")) return;
                 setDraft(null);
+                setViewingId(null);
                 setDirty(false);
                 setFolderId(null);
               }}
@@ -225,6 +282,14 @@ export function ExpansionPlaybook() {
             <button type="button" onClick={() => setConfirmFolder(folder)} className="rounded-full p-2 text-gray-400 hover:bg-[color:var(--color-danger-bg)] hover:text-[color:var(--color-danger)]" aria-label="Excluir pasta" title="Excluir pasta">
               <Trash2 className="h-4 w-4" />
             </button>
+            <input ref={fileRef} type="file" accept={IMPORT_ACCEPT} className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void importFile(f);
+            }} />
+            <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()} disabled={importing} className="gap-1.5" title="PDF, Word, Excel, CSV ou TXT — o Helpinho organiza no padrão">
+              {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {importing ? "Analisando…" : "Importar"}
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => newDoc("reuniao")} className="gap-1.5">
               <Users className="h-3.5 w-3.5" /> Nova reunião
             </Button>
@@ -252,7 +317,7 @@ export function ExpansionPlaybook() {
                     }}
                     className={cn(
                       "group flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 outline-none transition-all focus-visible:ring-2 focus-visible:ring-blue-900",
-                      draft?.id === d.id ? "border-yellow-400 bg-yellow-050" : "border-gray-200 bg-white hover:border-gray-300"
+                      (draft?.id ?? viewingId) === d.id ? "border-yellow-400 bg-yellow-050" : "border-gray-200 bg-white hover:border-gray-300"
                     )}
                   >
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-050 text-blue-800">
@@ -262,6 +327,18 @@ export function ExpansionPlaybook() {
                       <span className="block truncate text-sm font-bold text-blue-900">{d.title}</span>
                       <span className="block text-[11px] text-gray-400">{KIND_LABEL[d.kind]} · {ago(d.updated_at)}</span>
                     </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void exportDocPdf(d, folder.name);
+                      }}
+                      className="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-white hover:text-blue-900 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                      aria-label={`Exportar ${d.title} em PDF`}
+                      title="Exportar PDF"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -316,6 +393,8 @@ export function ExpansionPlaybook() {
                   style={{ fontSize: 16 }}
                 />
               </div>
+            ) : viewing && folder ? (
+              <DocPdfViewer doc={viewing} folderName={folder.name} onEdit={() => editDoc(viewing)} />
             ) : (
               <div className="hidden items-center justify-center rounded-2xl border border-dashed border-gray-200 p-8 text-sm text-gray-400 lg:flex">
                 Abra um item ou crie um novo.

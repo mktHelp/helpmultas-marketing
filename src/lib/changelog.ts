@@ -23,6 +23,33 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-26-processo-comercial-pdf",
+    date: "2026-10-26",
+    tag: "melhoria",
+    area: "Expansão",
+    title: "Processo comercial abre em PDF",
+    summary: "Roteiros e reuniões abrem em modo leitura como PDF, com lápis para editar e botão para exportar.",
+    details: [
+      "Ao clicar num documento, ele abre como PDF no padrão da Help Multas, só para leitura.",
+      "O lápis ao lado do título abre o editor; ao salvar, volta para o PDF.",
+      "Arquivos importados são organizados pelo Helpinho, salvos e já abrem em PDF.",
+      "Exportar PDF na leitura e o ícone de download em cada item da lista baixam o arquivo.",
+    ],
+  },
+  {
+    id: "2026-10-26-processo-comercial-importar",
+    date: "2026-10-26",
+    tag: "novo",
+    area: "Expansão",
+    title: "Importar PDF, Word e Excel no Processo comercial",
+    summary: "Dentro de uma pasta, o botão Importar lê o arquivo e o Helpinho organiza no padrão de roteiro ou reunião.",
+    details: [
+      "Aceita PDF, Word (.docx), Excel (.xlsx), CSV e TXT de até 4 MB.",
+      "O Helpinho identifica se é roteiro ou reunião e reescreve nas seções do padrão (objetivo, etapas, objeções, próximos passos…), sem inventar informação.",
+      "O resultado abre no editor como rascunho: revise e clique em Salvar. Se a IA falhar, o texto do arquivo vem sem formatação.",
+    ],
+  },
+  {
     id: "2026-10-26-expansao-reunioes-drive-processo",
     date: "2026-10-26",
     tag: "novo",
