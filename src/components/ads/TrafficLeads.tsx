@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Crown, Eye, FileText, Info, Link2, MapPin, MousePointerClick, Phone, Target, Trophy, UserX, Users, X } from "lucide-react";
+import { Calendar, CheckCircle2, Download, FileSpreadsheet, ChevronLeft, ChevronRight, Crown, Eye, FileText, Info, Link2, MapPin, MousePointerClick, Phone, Target, Trophy, UserX, Users, X } from "lucide-react";
 import Link from "next/link";
 import { ScriptLinkDialog } from "./ScriptLinkDialog";
 import { LeadDeleteDialog, LeadDialogActions, LeadEditDialog, LeadRowActions, type LeadRef } from "./LeadAdmin";
@@ -33,6 +33,7 @@ import { useRealtimeChanges } from "@/lib/hooks/useRealtimeChanges";
 import { currencyFormatter, numberFormatter } from "@/lib/format";
 import { shiftDate, todayBRT } from "@/lib/period";
 import { cn } from "@/lib/utils";
+import { exportLeadsPdf, exportLeadsXlsx, type LeadExportData } from "@/lib/export-leads";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterMultiSelect, FilterSelect } from "@/components/ui/FilterBar";
 import { Tabs } from "@/components/ui/Tabs";
@@ -497,6 +498,59 @@ export function TrafficLeads() {
 
   const colCount = 6 + (showUtms ? UTM_COLUMNS.length : 0) + (isAdmin ? 1 : 0);
   const th = "sticky top-0 z-20 border-b border-gray-200 bg-gray-050 px-4 py-2.5 text-gray-500";
+  // Exporta TODOS os leads do filtro atual (não só a página visível).
+  const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
+  async function runExport(kind: "pdf" | "xlsx") {
+    setExporting(kind);
+    try {
+      const all: LeadRow[] = [];
+      for (let pg = 0; ; pg++) {
+        const res = await fetchLeads(supabase, { ...filter, page: pg, pageSize: 1000 });
+        all.push(...res.rows);
+        if (res.rows.length < 1000 || all.length >= res.total) break;
+      }
+      const list = (label: string, ids: string[], src: { id: string; name: string }[]): [string, string][] =>
+        ids.length ? [[label, ids.map((id) => src.find((x) => x.id === id)?.name ?? id).join(", ")]] : [];
+      const data: LeadExportData = {
+        title: "Leads · Landing Pages e Formulário nativo",
+        fileBase: "leads",
+        filters: [
+          ["Período", `${dateRange.since.split("-").reverse().join("/")} a ${dateRange.until.split("-").reverse().join("/")}`],
+          ["Vínculo", { "": "Todos", matched: "Vinculados", unmatched: "Sem vínculo" }[matchStatus]],
+          ...(search ? ([["Busca", search]] as [string, string][]) : []),
+          ...list("Campanhas", campaignIds, campaigns),
+          ...list("Anúncios", adIds, ads),
+          ...(pageOrigin ? ([["Página de origem", pageOriginLabel(pageOrigin)]] as [string, string][]) : []),
+        ],
+        columns: ["Data", "Lead", "E-mail", "Telefone", "Cidade/UF", "Capital", "Origem", "Vínculo", "Campanha", "Conjunto", "Anúncio", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_id", "fbclid", "fbp", "fbc"],
+        pdfSkip: ["Capital", "utm_term", "utm_id", "fbclid", "fbp", "fbc", "utm_medium", "utm_content"],
+        rows: all.map((l) => {
+          const { ad, adset, campaign } = linkedEntities(l);
+          return [
+            formatDateTime(l.received_at),
+            l.name || "—",
+            l.email || "",
+            l.phone || "",
+            l.city && l.state ? `${l.city}/${l.state}` : l.state || "—",
+            l.capital_label || l.capital || "",
+            pageOriginLabel(l.page_origin),
+            l.matched_ad_id || l.matched_adset_id || l.matched_campaign_id ? (l.matched_by ? MATCHED_BY_LABEL[l.matched_by] ?? l.matched_by : "Vinculado") : "Sem vínculo",
+            campaign?.name ?? "—",
+            adset?.name ?? "—",
+            ad?.name ?? "—",
+            l.utm_source, l.utm_medium, l.utm_campaign, l.utm_content, l.utm_term, l.utm_id, l.fbclid, l.fbp, l.fbc,
+          ];
+        }),
+      };
+      await (kind === "pdf" ? exportLeadsPdf(data) : exportLeadsXlsx(data));
+    } catch (e) {
+      console.error("Erro ao exportar leads:", e);
+      alert("Não foi possível exportar os leads.");
+    } finally {
+      setExporting(null);
+    }
+  }
+
   const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const to = Math.min((page + 1) * PAGE_SIZE, total);
 
@@ -521,6 +575,20 @@ export function TrafficLeads() {
               {loading ? "Carregando..." : `${numberFormatter.format(total)} ${total === 1 ? "lead" : "leads"} no período · clique em um lead para ver os detalhes e o preview do anúncio`}
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(["xlsx", "pdf"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => runExport(k)}
+                disabled={loading || total === 0 || exporting !== null}
+                title={`Exportar ${total} leads em ${k.toUpperCase()} com os filtros aplicados`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-blue-900 hover:text-blue-900 disabled:opacity-40"
+              >
+                {exporting === k ? <Download className="h-4 w-4 animate-pulse" /> : k === "pdf" ? <FileText className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" />}
+                {k === "pdf" ? "PDF" : "XLSX"}
+              </button>
+            ))}
           <button
             onClick={() => setShowUtms((v) => !v)}
             className={cn(
@@ -530,6 +598,7 @@ export function TrafficLeads() {
           >
             {showUtms ? "Ocultar UTMs" : "Mostrar UTMs"}
           </button>
+          </div>
         </CardHeader>
         <CardBody>
           {/* Filtros */}

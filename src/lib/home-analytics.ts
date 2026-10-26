@@ -12,6 +12,8 @@ export interface SlimTask {
   status: string;
   priority: "baixa" | "media" | "alta" | "urgente";
   areaId: string | null;
+  projectId: string | null;
+  campaignId: string | null;
   contentType: string | null;
   createdDay: string;
   completedDay: string | null;
@@ -237,6 +239,8 @@ export function toSlimTask(t: TaskWithRelations): SlimTask {
     status: t.status,
     priority: t.priority,
     areaId: t.area_id,
+    projectId: t.project_id,
+    campaignId: t.campaign_id,
     contentType: t.content_type,
     createdDay: toDateKey(t.created_at),
     completedDay: t.completed_at ? toDateKey(t.completed_at) : null,

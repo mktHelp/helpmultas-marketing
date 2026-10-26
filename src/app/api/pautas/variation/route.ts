@@ -47,7 +47,9 @@ Abaixo está uma pauta de Instagram já pronta. Crie UMA VARIAÇÃO sobre a MESM
 
 PAUTA ORIGINAL:
 ${JSON.stringify({
-    conta: idea.account === "roberson" ? "@roberson.alvarenga (primeira pessoa, opinião de dono de empresa de multas)" : "@helpmultasfranchising (notícia quente, foco em compartilhamento)",
+    conta: idea.account === "roberson"
+      ? "@roberson.alvarenga (vende franquia da Help Multas: público é quem quer empreender; primeira pessoa, opinião de dono e fundador da rede, ângulo de oportunidade de negócio)"
+      : "@helpmultasfranchising (público é o motorista: multas, CNH e leis de trânsito; notícia quente, foco em compartilhamento)",
     formato: idea.format,
     titulo: idea.title,
     gancho: idea.hook,
@@ -58,8 +60,12 @@ ${JSON.stringify({
 
 REGRAS:
 - Não invente lei, valor de multa, pontos, artigo ou data. Use só o que está na notícia e na pauta original. Se citar um número que não está no título da notícia, marque needs_check = true e diga em check_note o que conferir.
-- Reels: hook até 12 palavras; script falado de 30 a 60s, frases curtas. Carrossel: "Slide 1: ...". Feed: texto da arte. Stories: 3 a 5 telas com interação.
-- caption com emoji no início, 3 a 6 linhas e hashtags no final. cta para a Help Multas.
+- Reels no padrão da casa: script em blocos, cada um com etiqueta em caixa alta entre colchetes numa linha própria e o texto embaixo, blocos separados por linha em branco. Ordem: [HOOK] (gatilho), [DESENVOLVIMENTO], 2 a 3 blocos temáticos com etiqueta própria (ex.: [O DETALHE], [A BOA NOTÍCIA], [ALERTA]; no Rober, [MINHA HISTÓRIA], [A VIRADA]), [FECHAMENTO] e [CTA] (Preguiça). Marque entre parênteses o gatilho emocional: (Ganância), (Inveja), (Ira), (Vaidade), (Preguiça). 250 a 420 palavras, "você", "pra", frases curtas, sem emoji e sem travessão. hook = o texto do bloco [HOOK].
+- CTA do reels no @helpmultasfranchising: pergunta sobre a situação do espectador + "não precisa entender tudo de legislação sozinho" + "A Help Multas tem 10 anos de experiência analisando casos assim no Brasil inteiro, e a gente cuida da análise pra você." + "Salva esse vídeo e manda pra quem ...". No @roberson.alvarenga: convite em primeira pessoa para conhecer a franquia (direct ou link na bio) + "Salva esse vídeo e manda pra quem ...".
+- Carrossel: 6 a 9 slides "Slide 1: ...". Feed: texto da arte. Stories: 3 a 5 telas com interação.
+- caption com emoji no início, 4 a 8 linhas e hashtags no final. cta: no @roberson.alvarenga, para conhecer a franquia; no @helpmultasfranchising, para a Help Multas analisar o caso.
+- Nunca prometa anular multa ou garantir resultado: fale em direito de defesa e análise do caso.
+- No @roberson.alvarenga a variação fala com o futuro franqueado, nunca só com o motorista.
 - why: 1 frase específica sobre por que este ângulo deve performar.
 - Português do Brasil.
 

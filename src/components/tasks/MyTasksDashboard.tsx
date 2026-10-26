@@ -24,9 +24,9 @@ import { updateTask } from "@/lib/services/tasks";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { shiftDate, todayBRT } from "@/lib/period";
 import {
-  PRIORITY_COLOR, PRIORITY_LABEL, completedIn, isOpen, leadTimeDays, onTimeRate, type SlimTask, type StatusFlags,
+  PRIORITY_COLOR, PRIORITY_LABEL, completedIn, isOpen, leadTimeDays, onTimeRate, toSlimTask, type SlimTask, type StatusFlags,
 } from "@/lib/home-analytics";
-import { cn, toDateKey } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { Profile, TaskWithRelations } from "@/types/database";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterBar";
@@ -41,23 +41,7 @@ type Sort = "due" | "priority" | "recent";
 
 const PRIORITY_RANK = { urgente: 0, alta: 1, media: 2, baixa: 3 } as const;
 
-function toSlim(t: TaskWithRelations): SlimTask {
-  return {
-    id: t.id,
-    title: t.title,
-    status: t.status,
-    priority: t.priority,
-    areaId: t.area_id,
-    contentType: t.content_type,
-    createdDay: toDateKey(t.created_at),
-    completedDay: t.completed_at ? toDateKey(t.completed_at) : null,
-    dueDay: t.due_date ? toDateKey(t.due_date) : null,
-    dueAt: t.due_date,
-    publishDay: t.publish_at ? toDateKey(t.publish_at) : null,
-    updatedAt: Date.parse(t.updated_at),
-    assigneeIds: (t.assignees || []).map((a) => a.id),
-  };
-}
+const toSlim = toSlimTask;
 
 function dayDiff(a: string, b: string) {
   return Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000);

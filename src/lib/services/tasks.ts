@@ -54,6 +54,8 @@ export interface TaskFilters {
   assignedTo?: string[];
   areaId?: string[];
   projectId?: string;
+  /** vários projetos de uma vez (filtro da gaveta de filtros) */
+  projectIds?: string[];
   campaignId?: string;
   priority?: string[];
   /** hex das cores da tarefa; "none" = tarefas sem cor */
@@ -94,6 +96,7 @@ export async function listTasks(supabase: SupabaseClient, filters: TaskFilters =
   }
   if (filters.areaId?.length) query = query.in("area_id", filters.areaId);
   if (filters.projectId) query = query.eq("project_id", filters.projectId);
+  if (filters.projectIds?.length) query = query.in("project_id", filters.projectIds);
   if (filters.campaignId) query = query.eq("campaign_id", filters.campaignId);
   if (filters.priority?.length) query = query.in("priority", filters.priority);
   if (filters.color?.length) {
@@ -352,4 +355,20 @@ export async function listTaskActivity(supabase: SupabaseClient, taskId: string)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
+}
+
+// Mudanças de status das tarefas desde `sinceIso` (só o necessário pra medir
+// o tempo de cada tarefa em uma etapa — ex.: dashboard de Planejamento).
+export async function listStatusMoves(supabase: SupabaseClient, sinceIso: string) {
+  const { data, error } = await supabase
+    .from("activity_logs")
+    .select("entity_id, metadata, created_at")
+    .eq("entity_type", "task")
+    .eq("action", "status_changed")
+    .gte("created_at", sinceIso)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return ((data || []) as { entity_id: string | null; metadata: { from?: string; to?: string }; created_at: string }[])
+    .filter((r) => r.entity_id)
+    .map((r) => ({ taskId: r.entity_id as string, from: r.metadata?.from ?? null, to: r.metadata?.to ?? null, at: r.created_at }));
 }

@@ -17,8 +17,7 @@ import { loadTrafficDaily } from "@/lib/services/meta-ads";
 import { TaskListItem } from "@/components/tasks/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RealtimeRefresher } from "@/components/shared/RealtimeRefresher";
-import { toDateKey } from "@/lib/utils";
-import type { SlimTask } from "@/lib/home-analytics";
+import { toSlimTask } from "@/lib/home-analytics";
 
 export default async function DashboardPage() {
   // Mantém o card de seguidores fresco direto da API do Instagram (antes era
@@ -46,23 +45,8 @@ export default async function DashboardPage() {
   const canManageGoals = profile?.role === "master" || profile?.role === "gestor";
   const timeRows = timeByContentType(tasks);
 
-  // Só o que a dashboard usa, com as datas já no dia de São Paulo — o cliente
-  // só compara strings e não precisa receber briefing/legenda/checklists.
-  const slimTasks: SlimTask[] = tasks.map((t) => ({
-    id: t.id,
-    title: t.title,
-    status: t.status,
-    priority: t.priority,
-    areaId: t.area_id,
-    contentType: t.content_type,
-    createdDay: toDateKey(t.created_at),
-    completedDay: t.completed_at ? toDateKey(t.completed_at) : null,
-    dueDay: t.due_date ? toDateKey(t.due_date) : null,
-    dueAt: t.due_date,
-    publishDay: t.publish_at ? toDateKey(t.publish_at) : null,
-    updatedAt: Date.parse(t.updated_at),
-    assigneeIds: (t.assignees || []).map((a) => a.id),
-  }));
+  // Só o que a dashboard usa, com as datas já no dia de São Paulo.
+  const slimTasks = tasks.map(toSlimTask);
 
   const igAccounts = socialAccounts.filter((a) => a.platform === "instagram");
   const followerRows = socialFollowerDeltas(igAccounts, socialSnapshots);

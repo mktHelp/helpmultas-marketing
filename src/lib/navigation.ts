@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Sun, ListTodo, ListChecks, FolderKanban, Megaphone, FileText, Users, BarChart3,
   Settings, Trash2, Cake, AtSign, Image as ImageIcon, Mic, HandCoins, TrendingUp, Gauge, Contact, CalendarCheck,
-  Lightbulb, Send, Sparkles, ShieldCheck,
+  Lightbulb, Send, Sparkles, ShieldCheck, Activity, ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,7 +31,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: "overview",
     title: "Visão geral",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { href: "/my-day", label: "Meu Dia", icon: Sun },
     ],
   },
@@ -39,6 +39,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: "tasks",
     title: "Tarefas",
     items: [
+      { href: "/dashboard/tarefas", label: "Dashboard de Tarefas", icon: Activity, exact: true, open: true },
       { href: "/my-tasks", label: "Minhas Tarefas", icon: ListChecks },
       { href: "/tasks", label: "Tarefas", icon: ListTodo, accessLabel: "Tarefas (Quadro, Lista e Calendário)" },
     ],
@@ -47,6 +48,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: "planning",
     title: "Planejamento",
     items: [
+      { href: "/dashboard/planejamento", label: "Dashboard de Planejamento", icon: ClipboardList, exact: true, open: true },
       { href: "/projects", label: "Projetos", icon: FolderKanban },
       { href: "/campaigns", label: "Campanhas", icon: Megaphone },
       { href: "/content", label: "Conteúdos", icon: FileText },

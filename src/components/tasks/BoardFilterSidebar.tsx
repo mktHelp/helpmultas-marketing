@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, CalendarRange, Check, ChevronDown, Flag, Layers, ListFilter, Palette, User, Users, X, Zap,
+  AlertTriangle, CalendarRange, Check, ChevronDown, Flag, FolderKanban, Layers, ListFilter, Palette, User, Users, X, Zap,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { listAreas } from "@/lib/services/reference";
 import { listProfiles } from "@/lib/services/profiles";
+import { listProjects, type ProjectWithOwner } from "@/lib/services/projects";
 import { useTaskStatuses } from "@/lib/task-status-context";
 import { useAuth } from "@/lib/auth-context";
 import { cn, dateInputToISO, dateInputToStartOfDayISO, isoToDateInputValue } from "@/lib/utils";
@@ -15,6 +16,7 @@ import type { Area, Profile } from "@/types/database";
 import type { TaskFilters } from "@/lib/services/tasks";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { TASK_COLORS } from "./TaskColorPicker";
+import { projectColor } from "./TaskFormParts";
 
 const PRIORITIES = [
   { value: "baixa", label: "Baixa", color: "#7c8e98" },
@@ -26,6 +28,7 @@ const PRIORITIES = [
 export function countActiveFilters(f: TaskFilters) {
   return (
     (f.search?.trim() ? 1 : 0) +
+    (f.projectIds?.length ? 1 : 0) +
     (f.areaId?.length ? 1 : 0) +
     (f.assignedTo?.length ? 1 : 0) +
     (f.priority?.length ? 1 : 0) +
@@ -142,8 +145,10 @@ export function BoardFilterSidebar({
   const { statuses } = useTaskStatuses();
   const [areas, setAreas] = useState<Area[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [projects, setProjects] = useState<ProjectWithOwner[]>([]);
 
   useEffect(() => {
+    listProjects(supabase).then(setProjects).catch(() => {});
     listAreas(supabase).then(setAreas).catch(() => {});
     listProfiles(supabase).then(setProfiles).catch(() => {});
   }, [supabase]);
@@ -217,6 +222,21 @@ export function BoardFilterSidebar({
             </button>
           </div>
         </div>
+
+        <Section icon={FolderKanban} title="Projeto" count={filters.projectIds?.length}>
+          <div className="flex flex-wrap gap-1.5">
+            {projects.map((p) => (
+              <Chip
+                key={p.id}
+                label={p.name}
+                color={projectColor(p.name)}
+                selected={!!filters.projectIds?.includes(p.id)}
+                onClick={() => onChange({ ...filters, projectIds: toggle(filters.projectIds, p.id) })}
+              />
+            ))}
+            {projects.length === 0 && <p className="text-xs text-gray-400">Carregando…</p>}
+          </div>
+        </Section>
 
         <Section icon={Layers} title="Etapas" count={filters.status?.length}>
           <div className="flex flex-wrap gap-1.5">

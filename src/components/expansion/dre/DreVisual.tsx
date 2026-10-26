@@ -61,18 +61,25 @@ function Destaque({ label, value, sub, accent }: { label: string; value: string;
 function Hero({ S, c }: { S: DreInput; c: DreResult }) {
   const nome = S.lead.trim().split(" ")[0];
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-blue-900 p-6 text-white sm:p-8 xl:p-10">
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0b1d33] via-blue-900 to-[#12304f] p-6 text-white sm:p-8 xl:p-10">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/images/hero-trofeu.webp"
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute bottom-[30%] right-4 hidden h-auto w-36 select-none object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)] sm:block md:w-44 xl:right-10 xl:w-56"
+      />
       <p className="relative text-xs font-bold uppercase tracking-widest text-yellow-500">
         Projeção de viabilidade · {S.modelo ? MODELO_LABEL[S.modelo] : "Franquia"}{S.regiao !== "Brasil" ? ` · ${S.regiao}` : ""}
       </p>
-      <h2 className="relative mt-2 max-w-3xl font-display text-3xl font-bold leading-tight sm:text-4xl xl:text-5xl">
+      <h2 className="relative mt-2 max-w-3xl font-display text-3xl font-bold leading-tight sm:max-w-[calc(100%-10rem)] sm:text-4xl md:max-w-[calc(100%-12rem)] xl:max-w-[calc(100%-16rem)] xl:text-5xl">
         {c.pay ? (
           <>{nome ? `${nome}, seu` : "Seu"} investimento volta no <span className="text-yellow-500">mês {c.pay}</span></>
         ) : (
           <>Com estas premissas, o retorno passa de <span className="text-yellow-500">36 meses</span></>
         )}
       </h2>
-      <p className="relative mt-3 max-w-2xl text-sm text-blue-100 sm:text-base">
+      <p className="relative mt-3 max-w-2xl text-sm text-blue-100 sm:max-w-[calc(100%-10rem)] sm:text-base md:max-w-[min(42rem,calc(100%-12rem))] xl:max-w-2xl">
         {f1(c.casosMes)} clientes por mês a {brl(c.ticket)} de ticket médio{S.rampa > 1 ? `, chegando ao ritmo máximo em ${S.rampa} meses` : ""}.
       </p>
       <div className="relative"><PaybackTrack pay={c.pay} /></div>
