@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, FileText, Folder, FolderOpen, FolderPlus, Loader2, Pencil, Plus, Save, Sparkles, Trash2, Upload, Users } from "lucide-react";
+import { ArrowLeft, Download, FileText, Folder, FolderOpen, FolderPlus, Loader2, Pencil, Plus, Save, Trash2, Upload, Users } from "lucide-react";
+import { DocPdfViewer } from "@/components/expansion/DocPdfViewer";
+import { exportDocPdf } from "@/lib/expansion/docPdf";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
@@ -49,13 +51,9 @@ export function ExpansionPlaybook() {
   const [confirmFolder, setConfirmFolder] = useState<ExpansionFolder | null>(null);
   const [confirmDoc, setConfirmDoc] = useState<ExpansionDoc | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importedFrom, setImportedFrom] = useState<{ name: string; ai: boolean } | null>(null);
+  // documento aberto em modo leitura (PDF); o editor só abre pelo lápis
+  const [viewingId, setViewingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // o aviso de "importado de…" vale só para o rascunho que veio do arquivo
-  useEffect(() => {
-    if (!draft || draft.id) setImportedFrom(null);
-  }, [draft]);
 
   useEffect(() => {
     Promise.all([listExpansionFolders(supabase), listExpansionDocs(supabase)])
@@ -69,24 +67,37 @@ export function ExpansionPlaybook() {
 
   const folder = folders.find((f) => f.id === folderId) ?? null;
   const folderDocs = docs.filter((d) => d.folder_id === folderId);
+  const viewing = viewingId ? docs.find((d) => d.id === viewingId) ?? null : null;
 
   function closeDraft() {
     if (dirty && !confirm("Você tem alterações não salvas. Descartar?")) return;
+    // editando um documento salvo: volta para a leitura em PDF
+    setViewingId(draft?.id ?? null);
     setDraft(null);
     setDirty(false);
   }
 
   function openDoc(d: ExpansionDoc) {
+    if (draft && dirty && !confirm("Você tem alterações não salvas. Descartar?")) return;
+    setDraft(null);
+    setDirty(false);
+    setViewingId(d.id);
+  }
+
+  function editDoc(d: ExpansionDoc) {
+    setViewingId(null);
     setDraft({ id: d.id, title: d.title, kind: d.kind, content: d.content });
     setDirty(false);
   }
 
   function newDoc(kind: ExpansionDoc["kind"]) {
+    if (draft && dirty && !confirm("Você tem alterações não salvas. Descartar?")) return;
+    setViewingId(null);
     setDraft({ id: null, title: "", kind, content: "" });
     setDirty(false);
   }
 
-  /** Lê o arquivo no servidor, o Helpinho organiza no padrão e o resultado abre como rascunho não salvo. */
+  /** Lê o arquivo no servidor, o Helpinho organiza no padrão, salva e abre direto em PDF. */
   async function importFile(file: File) {
     if (dirty && !confirm("Você tem alterações não salvas. Descartar e importar o arquivo?")) return;
     if (file.size > 4 * 1024 * 1024) {
@@ -100,11 +111,14 @@ export function ExpansionPlaybook() {
       const res = await fetch("/api/expansao/importar", { method: "POST", body });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error || "Não foi possível importar o arquivo");
-      setDraft({ id: null, title: data.title, kind: data.kind, content: data.content });
-      setDirty(true);
-      setImportedFrom({ name: file.name, ai: !!data.ai });
+      if (!folderId) return;
+      const saved = await createExpansionDoc(supabase, me?.id || "", { folder_id: folderId, kind: data.kind, title: data.title, content: data.content });
+      setDocs((prev) => [saved, ...prev]);
+      setDraft(null);
+      setDirty(false);
+      setViewingId(saved.id);
       if (data.warning) toast.warning(data.warning);
-      else toast.success("Arquivo organizado pelo Helpinho — revise e salve");
+      else toast.success("Arquivo organizado pelo Helpinho e salvo em PDF");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível importar o arquivo");
     } finally {
@@ -126,14 +140,18 @@ export function ExpansionPlaybook() {
     const input = { folder_id: folderId, kind: draft.kind, title: draft.title.trim(), content: draft.content };
     setSaving(true);
     try {
-      if (draft.id) {
-        const saved = await updateExpansionDoc(supabase, draft.id, input);
+      let id = draft.id;
+      if (id) {
+        const saved = await updateExpansionDoc(supabase, id, input);
         setDocs((prev) => prev.map((d) => (d.id === saved.id ? saved : d)));
       } else {
         const saved = await createExpansionDoc(supabase, me?.id || "", input);
         setDocs((prev) => [saved, ...prev]);
-        setDraft({ ...draft, id: saved.id });
+        id = saved.id;
       }
+      // salvou: sai do editor e mostra o PDF
+      setViewingId(id);
+      setDraft(null);
       setDirty(false);
       toast.success("Salvo");
     } catch {
@@ -151,6 +169,7 @@ export function ExpansionPlaybook() {
         setDraft(null);
         setDirty(false);
       }
+      if (viewingId === d.id) setViewingId(null);
       toast.success("Excluído");
     } catch {
       toast.error("Erro ao excluir");
@@ -184,6 +203,7 @@ export function ExpansionPlaybook() {
       setDocs((prev) => prev.filter((d) => d.folder_id !== f.id));
       setFolderId(null);
       setDraft(null);
+      setViewingId(null);
       setDirty(false);
       toast.success("Pasta excluída");
     } catch {
@@ -243,6 +263,7 @@ export function ExpansionPlaybook() {
               onClick={() => {
                 if (dirty && !confirm("Você tem alterações não salvas. Descartar?")) return;
                 setDraft(null);
+                setViewingId(null);
                 setDirty(false);
                 setFolderId(null);
               }}
@@ -296,7 +317,7 @@ export function ExpansionPlaybook() {
                     }}
                     className={cn(
                       "group flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 outline-none transition-all focus-visible:ring-2 focus-visible:ring-blue-900",
-                      draft?.id === d.id ? "border-yellow-400 bg-yellow-050" : "border-gray-200 bg-white hover:border-gray-300"
+                      (draft?.id ?? viewingId) === d.id ? "border-yellow-400 bg-yellow-050" : "border-gray-200 bg-white hover:border-gray-300"
                     )}
                   >
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-050 text-blue-800">
@@ -306,6 +327,18 @@ export function ExpansionPlaybook() {
                       <span className="block truncate text-sm font-bold text-blue-900">{d.title}</span>
                       <span className="block text-[11px] text-gray-400">{KIND_LABEL[d.kind]} · {ago(d.updated_at)}</span>
                     </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void exportDocPdf(d, folder.name);
+                      }}
+                      className="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-white hover:text-blue-900 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                      aria-label={`Exportar ${d.title} em PDF`}
+                      title="Exportar PDF"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -338,14 +371,6 @@ export function ExpansionPlaybook() {
                     <Save className="h-3.5 w-3.5" /> {saving ? "Salvando…" : "Salvar"}
                   </Button>
                 </div>
-                {importedFrom && (
-                  <div className="ast-fade-up flex items-center gap-2 rounded-2xl bg-yellow-050 px-3.5 py-2.5 text-xs text-blue-900">
-                    <Sparkles className="h-4 w-4 shrink-0 text-yellow-600" />
-                    <span className="min-w-0 flex-1 font-semibold">
-                      {importedFrom.ai ? "Organizado pelo Helpinho" : "Texto extraído sem formatação"} a partir de &ldquo;{importedFrom.name}&rdquo;. Revise e salve.
-                    </span>
-                  </div>
-                )}
                 <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
                   <div>
                     <Label htmlFor="pb-title">Título</Label>
@@ -368,6 +393,8 @@ export function ExpansionPlaybook() {
                   style={{ fontSize: 16 }}
                 />
               </div>
+            ) : viewing && folder ? (
+              <DocPdfViewer doc={viewing} folderName={folder.name} onEdit={() => editDoc(viewing)} />
             ) : (
               <div className="hidden items-center justify-center rounded-2xl border border-dashed border-gray-200 p-8 text-sm text-gray-400 lg:flex">
                 Abra um item ou crie um novo.

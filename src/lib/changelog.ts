@@ -23,6 +23,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-26-processo-comercial-pdf",
+    date: "2026-10-26",
+    tag: "melhoria",
+    area: "Expansão",
+    title: "Processo comercial abre em PDF",
+    summary: "Roteiros e reuniões abrem em modo leitura como PDF, com lápis para editar e botão para exportar.",
+    details: [
+      "Ao clicar num documento, ele abre como PDF no padrão da Help Multas, só para leitura.",
+      "O lápis ao lado do título abre o editor; ao salvar, volta para o PDF.",
+      "Arquivos importados são organizados pelo Helpinho, salvos e já abrem em PDF.",
+      "Exportar PDF na leitura e o ícone de download em cada item da lista baixam o arquivo.",
+    ],
+  },
+  {
     id: "2026-10-26-processo-comercial-importar",
     date: "2026-10-26",
     tag: "novo",
