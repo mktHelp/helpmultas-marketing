@@ -23,6 +23,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-26-processo-comercial-importar",
+    date: "2026-10-26",
+    tag: "novo",
+    area: "Expansão",
+    title: "Importar PDF, Word e Excel no Processo comercial",
+    summary: "Dentro de uma pasta, o botão Importar lê o arquivo e o Helpinho organiza no padrão de roteiro ou reunião.",
+    details: [
+      "Aceita PDF, Word (.docx), Excel (.xlsx), CSV e TXT de até 4 MB.",
+      "O Helpinho identifica se é roteiro ou reunião e reescreve nas seções do padrão (objetivo, etapas, objeções, próximos passos…), sem inventar informação.",
+      "O resultado abre no editor como rascunho: revise e clique em Salvar. Se a IA falhar, o texto do arquivo vem sem formatação.",
+    ],
+  },
+  {
     id: "2026-10-26-expansao-reunioes-drive-processo",
     date: "2026-10-26",
     tag: "novo",

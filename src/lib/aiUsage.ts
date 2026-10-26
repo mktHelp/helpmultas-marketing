@@ -2,7 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aiCost } from "@/lib/aiPricing";
 
-export type AiUsageSource = "helpinho" | "teleprompter" | "pauta_variacao" | "expansao_categoria";
+export type AiUsageSource = "helpinho" | "teleprompter" | "pauta_variacao" | "expansao_categoria" | "expansao_importar";
 
 /** Formato que o nó "Medir Uso" do n8n devolve junto com a resposta. */
 interface WebhookUsage {

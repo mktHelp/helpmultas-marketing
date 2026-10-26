@@ -21,7 +21,7 @@ import { AXIS_PROPS, BAR_MAX, CURSOR_STYLE, GRID_PROPS, TOOLTIP_STYLE } from "@/
 import type { ContentIdeaRun, ContentRadarSettings, Profile } from "@/types/database";
 import { cn } from "@/lib/utils";
 
-type Source = "helpinho" | "radar" | "teleprompter" | "pauta_variacao" | "expansao_categoria";
+type Source = "helpinho" | "radar" | "teleprompter" | "pauta_variacao" | "expansao_categoria" | "expansao_importar";
 
 interface Ev {
   source: Source;
@@ -44,6 +44,7 @@ const SOURCES: Record<Source, { label: string; color: string; icon: React.Compon
   teleprompter: { label: "Teleprompter", color: "#6b8cae", icon: Bot },
   pauta_variacao: { label: "Variação de pauta", color: "#2f8f5b", icon: Zap },
   expansao_categoria: { label: "Expansão (categorias)", color: "#e07a2f", icon: TrendingUp },
+  expansao_importar: { label: "Expansão (importar arquivos)", color: "#8b5cf6", icon: TrendingUp },
 };
 const SOURCE_KEYS = Object.keys(SOURCES) as Source[];
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, FileText, Folder, FolderOpen, FolderPlus, Pencil, Plus, Save, Trash2, Users } from "lucide-react";
+import { ArrowLeft, FileText, Folder, FolderOpen, FolderPlus, Loader2, Pencil, Plus, Save, Sparkles, Trash2, Upload, Users } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Input";
@@ -20,6 +20,8 @@ import {
 } from "@/lib/services/expansionPlaybook";
 import { cn } from "@/lib/utils";
 import type { ExpansionDoc, ExpansionFolder } from "@/types/database";
+
+const IMPORT_ACCEPT = ".pdf,.docx,.xlsx,.csv,.txt,.md";
 
 const KIND_LABEL: Record<ExpansionDoc["kind"], string> = { roteiro: "Roteiro", reuniao: "Reunião" };
 
@@ -46,6 +48,14 @@ export function ExpansionPlaybook() {
   const [folderDialog, setFolderDialog] = useState<"create" | "edit" | null>(null);
   const [confirmFolder, setConfirmFolder] = useState<ExpansionFolder | null>(null);
   const [confirmDoc, setConfirmDoc] = useState<ExpansionDoc | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importedFrom, setImportedFrom] = useState<{ name: string; ai: boolean } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // o aviso de "importado de…" vale só para o rascunho que veio do arquivo
+  useEffect(() => {
+    if (!draft || draft.id) setImportedFrom(null);
+  }, [draft]);
 
   useEffect(() => {
     Promise.all([listExpansionFolders(supabase), listExpansionDocs(supabase)])
@@ -74,6 +84,32 @@ export function ExpansionPlaybook() {
   function newDoc(kind: ExpansionDoc["kind"]) {
     setDraft({ id: null, title: "", kind, content: "" });
     setDirty(false);
+  }
+
+  /** Lê o arquivo no servidor, o Helpinho organiza no padrão e o resultado abre como rascunho não salvo. */
+  async function importFile(file: File) {
+    if (dirty && !confirm("Você tem alterações não salvas. Descartar e importar o arquivo?")) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Arquivo grande demais (máx. 4 MB)");
+      return;
+    }
+    const body = new FormData();
+    body.append("file", file);
+    setImporting(true);
+    try {
+      const res = await fetch("/api/expansao/importar", { method: "POST", body });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error || "Não foi possível importar o arquivo");
+      setDraft({ id: null, title: data.title, kind: data.kind, content: data.content });
+      setDirty(true);
+      setImportedFrom({ name: file.name, ai: !!data.ai });
+      if (data.warning) toast.warning(data.warning);
+      else toast.success("Arquivo organizado pelo Helpinho — revise e salve");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível importar o arquivo");
+    } finally {
+      setImporting(false);
+    }
   }
 
   function edit(patch: Partial<Draft>) {
@@ -225,6 +261,14 @@ export function ExpansionPlaybook() {
             <button type="button" onClick={() => setConfirmFolder(folder)} className="rounded-full p-2 text-gray-400 hover:bg-[color:var(--color-danger-bg)] hover:text-[color:var(--color-danger)]" aria-label="Excluir pasta" title="Excluir pasta">
               <Trash2 className="h-4 w-4" />
             </button>
+            <input ref={fileRef} type="file" accept={IMPORT_ACCEPT} className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void importFile(f);
+            }} />
+            <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()} disabled={importing} className="gap-1.5" title="PDF, Word, Excel, CSV ou TXT — o Helpinho organiza no padrão">
+              {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {importing ? "Analisando…" : "Importar"}
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => newDoc("reuniao")} className="gap-1.5">
               <Users className="h-3.5 w-3.5" /> Nova reunião
             </Button>
@@ -294,6 +338,14 @@ export function ExpansionPlaybook() {
                     <Save className="h-3.5 w-3.5" /> {saving ? "Salvando…" : "Salvar"}
                   </Button>
                 </div>
+                {importedFrom && (
+                  <div className="ast-fade-up flex items-center gap-2 rounded-2xl bg-yellow-050 px-3.5 py-2.5 text-xs text-blue-900">
+                    <Sparkles className="h-4 w-4 shrink-0 text-yellow-600" />
+                    <span className="min-w-0 flex-1 font-semibold">
+                      {importedFrom.ai ? "Organizado pelo Helpinho" : "Texto extraído sem formatação"} a partir de &ldquo;{importedFrom.name}&rdquo;. Revise e salve.
+                    </span>
+                  </div>
+                )}
                 <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
                   <div>
                     <Label htmlFor="pb-title">Título</Label>
