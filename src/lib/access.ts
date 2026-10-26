@@ -27,6 +27,8 @@ export const EXPANSION_TAB_GROUP: TabGroup = {
     { key: "exp:traffic", label: "Tráfego Pago" },
     { key: "exp:leads", label: "Leads" },
     { key: "exp:meetings", label: "Reuniões" },
+    { key: "exp:drive", label: "Reuniões do Drive" },
+    { key: "exp:processo", label: "Processo comercial" },
     { key: "exp:validacao", label: "Validação de leads" },
     { key: "exp:dre", label: "DRE" },
   ],
