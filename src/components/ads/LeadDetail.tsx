@@ -75,6 +75,8 @@ export function linkedEntities(lead: LeadRow) {
 export const PAGE_ORIGIN_LABEL: Record<string, string> = {
   home: "Home",
   evento: "Evento",
+  // LP do Help Indica (aula gratuita), enviados pela rota /api/lead da LP.
+  evento_indica: "Evento Indica",
   // Leads do formulário nativo da Meta (campanhas FORMS II), enviados pelo n8n.
   forms: "Formulário nativo",
   // Leads que entraram direto pelo CRM (webhook leads.export).
