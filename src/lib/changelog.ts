@@ -23,6 +23,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-10-30-leads-evento-indica",
+    date: "2026-10-30",
+    tag: "novo",
+    area: "Tráfego Pago",
+    title: "Leads da LP do Help Indica na aba Leads",
+    summary: "Inscrições da aula do Help Indica agora chegam à aba Leads com a origem \"Evento Indica\".",
+    details: [
+      "A LP do Help Indica envia cada inscrição ao Hub, além do CRM e da planilha.",
+      "Esses leads aparecem com a página de origem \"Evento Indica\", que também pode ser usada no filtro da aba Leads.",
+    ],
+  },
+  {
     id: "2026-10-26-importar-segundos-titulo-pdf",
     date: "2026-10-26",
     tag: "correção",
