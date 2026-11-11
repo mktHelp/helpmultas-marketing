@@ -23,6 +23,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-11-11-gaveta-filtros-altura",
+    date: "2026-11-11",
+    tag: "correção",
+    area: "Reuniões",
+    title: "Gaveta de filtros não fica mais enorme",
+    summary: "Na aba Reuniões da Expansão a gaveta de filtros tinha scroll quase infinito; agora ocupa só a altura da tela.",
+    details: ["A gaveta passou a ser desenhada fora do conteúdo animado da página, então o botão Aplicar filtros fica sempre visível no rodapé. Vale também para as gavetas de Criativos e Tarefas."],
+  },
+  {
     id: "2026-11-11-criativos-unidade-evento",
     date: "2026-11-11",
     tag: "melhoria",

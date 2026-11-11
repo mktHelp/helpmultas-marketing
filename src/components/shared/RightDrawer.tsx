@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * Gaveta que desliza da direita, com fundo escurecido. Os filhos só são
@@ -30,9 +31,11 @@ export function RightDrawer({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Portal no body: dentro de um ancestral com transform/animação o "fixed" vira relativo a ele
+  // e a gaveta ficava do tamanho da página inteira (scroll quase infinito).
+  return createPortal(
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label={label}>
       <button
         type="button"
@@ -42,6 +45,7 @@ export function RightDrawer({
         onClick={onClose}
       />
       <div className={`sb-drawer-in-right absolute inset-y-0 right-0 w-[92%] bg-white shadow-[var(--shadow-lg)] ${wide ? "max-w-xl" : "max-w-sm"}`}>{children}</div>
-    </div>
+    </div>,
+    document.body
   );
 }
