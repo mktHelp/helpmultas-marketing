@@ -38,6 +38,7 @@ const PAGE_SIZE = 10;
 const UNIT_OPTIONS = [
   { value: "Franqueadora", dotClass: "bg-blue-100 border-blue-600", color: "#2563eb" },
   { value: "Unidade", dotClass: "bg-yellow-100 border-yellow-600", color: "#e0a900" },
+  { value: "Evento", dotClass: "bg-purple-100 border-purple-600", color: "#9333ea" },
 ] as const;
 
 interface Filters {

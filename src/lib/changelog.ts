@@ -23,6 +23,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "2026-11-11-criativos-unidade-evento",
+    date: "2026-11-11",
+    tag: "melhoria",
+    area: "Criativos",
+    title: "Nova opção \"Evento\" no campo Unidade dos criativos",
+    summary: "Além de Franqueadora e Unidade, dá para marcar o criativo como Evento.",
+    details: ["A opção aparece no seletor de Unidade de cada criativo (com bolinha roxa), no filtro de Unidade e na legenda."],
+  },
+  {
     id: "2026-10-30-leads-evento-indica",
     date: "2026-10-30",
     tag: "novo",
